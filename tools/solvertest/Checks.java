@@ -89,6 +89,8 @@ public final class Checks {
         check("完美打击按打击数加伤", CardLibrary.get("Perfected Strike").damagePerStrike > 0, null);
         check("收割按伤害回血", CardLibrary.get("Reaper").healOnDamage, null);
         check("喂食击杀加最大生命", CardLibrary.get("Feed").gainMaxHpOnKill, null);
+        check("虚空抽到时失去 1 点能量并具有虚灵", CardLibrary.get("Void").loseEnergyOnDraw == 1
+                && CardLibrary.get("Void").ethereal && !CardLibrary.get("Void").approx, null);
 
         // 仍标记为近似的牌应当很少，且是已知清单
         List<String> approx = new ArrayList<String>();
@@ -116,6 +118,25 @@ public final class Checks {
                 false, false, false, false));
         CombatEngine.playCard(d, d.hand.remove(0), -1);
         eq("防御获得 5 点格挡", 5, d.block);
+
+        SimState voidDraw = scenario(80, 80, new String[]{"Strike_R"}, "JawWorm");
+        voidDraw.energy = 2;
+        voidDraw.drawPile.add(CardLibrary.toSimCard("Void", "虚空", -2, 0, 0, 1,
+                false, false, false, false));
+        CombatEngine.drawCards(voidDraw, 1);
+        eq("虚空从牌堆抽到时失去 1 点能量", 1, voidDraw.energy);
+        check("抽到的虚空进入手牌", containsCard(voidDraw.hand, "Void"), null);
+        voidDraw.energy = 0;
+        voidDraw.drawPile.add(CardLibrary.toSimCard("Void", "虚空", -2, 0, 0, 1,
+                false, false, false, false));
+        CombatEngine.drawCards(voidDraw, 1);
+        eq("虚空不能把能量降为负数", 0, voidDraw.energy);
+        voidDraw.energy = 1;
+        voidDraw.hand.add(CardLibrary.toSimCard("Void", "虚空", -2, 0, 0, 1,
+                false, false, false, false));
+        eq("虚空被直接加入手牌时不触发抽牌惩罚", 1, voidDraw.energy);
+        CombatEngine.endTurn(voidDraw);
+        check("回合结束时手牌中的虚空被消耗", containsCard(voidDraw.exhaustPile, "Void"), null);
 
         // 哨卫（回归）：打出不给能量、也不自己消耗；只有被别的效果消耗时才给 2 点能量。
         // 游戏原文是「如果这张牌被 消耗 ，获得 [R][R]」——之前误标成“打出即消耗”，
@@ -658,6 +679,14 @@ public final class Checks {
                 true, false, true, false));
         check("同 ID 但不同卡牌实例数值的分支不合并",
                 !keyBase.searchKey().equals(keyCard.searchKey()), null);
+        SimState keyVoid = keyBase.fork();
+        keyVoid.hand.set(0, CardLibrary.toSimCard("Void", "虚空", -2, 0, 0, 1,
+                false, false, false, false));
+        eq("搜索分支复制保留 Void 抽牌触发", 1, keyVoid.fork().hand.get(0).loseEnergyOnDraw);
+        SimState keyVoidOther = keyVoid.fork();
+        keyVoidOther.hand.get(0).loseEnergyOnDraw = 0;
+        check("相同牌实例但抽牌触发规则不同的状态不合并",
+                !keyVoid.searchKey().equals(keyVoidOther.searchKey()), null);
         SimState keyExhaust = keyBase.fork();
         keyExhaust.exhaustPile.add(CardLibrary.toSimCard("Strike_R", "打击", 1, 6, 0, 1,
                 true, false, true, false));
@@ -805,5 +834,14 @@ public final class Checks {
         CombatEngine.playCard(real, real.hand.remove(0), 0);
         eq("实机记录用例：4 点打击打易伤 1 层 = 6 点（14→8）", 8, lag.hp);
         eq("实机记录用例：能量从 1 扣到 0", 0, real.energy);
+    }
+
+    private static boolean containsCard(List<SimState.Card> cards, String id) {
+        for (SimState.Card card : cards) {
+            if (id.equals(card.id)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

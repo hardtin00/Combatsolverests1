@@ -78,6 +78,7 @@ public final class CardLibrary {
         public int damagePerDrawPileCard;
         public int playerArtifact;
         public int drawIfNoAttacks;
+        public int loseEnergyOnDraw;
 
 
         Template hits(int v) { hits = v; return this; }
@@ -141,6 +142,7 @@ public final class CardLibrary {
         Template perDrawPileCard(int mult) { damagePerDrawPileCard = mult; approx = false; return this; }
         Template playerArtifact(int v) { playerArtifact = v; approx = false; return this; }
         Template drawIfNoAttacks(int v) { drawIfNoAttacks = v; approx = false; return this; }
+        Template loseEnergyOnDraw(int v) { loseEnergyOnDraw = v; approx = false; return this; }
     }
 
     private static final Map<String, Template> TABLE = new HashMap<>();
@@ -333,7 +335,7 @@ public final class CardLibrary {
         card("Mind Blast").perDrawPileCard(1);                     // 伤害 = 抽牌堆张数
         card("Forethought").approx();                              // 只近似：把一张牌放回牌堆底并降费
         card("Madness").exhaustSelf().approx();                    // 随机一张牌本场变 0 费（近似）
-        card("Void").approx();                                     // 抽到时掉能量未建模
+        card("Void").loseEnergyOnDraw(1).ethereal();               // 抽到失去 1 能量，回合末虚灵消耗
         // 状态牌（引擎运行时直接生成，这里登记是为了让覆盖统计与对账齐全）
         card("Burn").endTurnDamage(2);
         card("Dazed").ethereal();
@@ -418,6 +420,7 @@ public final class CardLibrary {
         sim.damagePerDrawPileCard = t.damagePerDrawPileCard;
         sim.playerArtifact = t.playerArtifact;
         sim.drawIfNoAttacks = t.drawIfNoAttacks;
+        sim.loseEnergyOnDraw = t.loseEnergyOnDraw;
         return sim;
     }
 }

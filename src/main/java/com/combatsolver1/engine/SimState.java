@@ -354,7 +354,8 @@ public class SimState {
         sb.append(c.randomCardCount).append(',').append(c.grantIntangible).append(',').append(c.blockLockTurns).append(',')
           .append(c.bombDamage).append(',').append(c.bombTurns).append(',').append(c.setCostOverride).append(',')
           .append(c.costOverrideValue).append(',').append(c.damagePerDrawPileCard).append(',').append(c.playerArtifact).append(',')
-          .append(c.drawIfNoAttacks).append(',').append(c.freeThisTurn).append(';');
+          .append(c.drawIfNoAttacks).append(',').append(c.loseEnergyOnDraw).append(',')
+          .append(c.freeThisTurn).append(';');
     }
 
     private static void appendMoveKey(StringBuilder sb, MonsterAi.Move move) {
@@ -468,6 +469,7 @@ public class SimState {
         public int damagePerDrawPileCard;  // 心灵爆震：伤害 = 牌堆张数 × N
         public int playerArtifact;         // 万灵药：玩家获得神器
         public int drawIfNoAttacks;        // 急躁：手牌无攻击牌才抽
+        public int loseEnergyOnDraw;       // 虚空：抽到时失去能量
         public boolean freeThisTurn;       // 本回合费用为 0（木乃伊之手）
 
         public Card(String id, String name, int cost, int damage, int hits, int block,
@@ -568,6 +570,7 @@ public class SimState {
             c.damagePerDrawPileCard = damagePerDrawPileCard;
             c.playerArtifact = playerArtifact;
             c.drawIfNoAttacks = drawIfNoAttacks;
+            c.loseEnergyOnDraw = loseEnergyOnDraw;
             c.freeThisTurn = freeThisTurn;
             return c;
         }

@@ -710,6 +710,10 @@ public final class CombatEngine {
             c.ethereal = true;
             return c;
         }
+        if ("Void".equals(id)) {
+            return CardLibrary.toSimCard(id, "虚空", -2, 0, 0, 1,
+                    false, false, false, false);
+        }
         if ("Burn".equals(id)) {
             SimState.Card c = new SimState.Card(id, "灼伤", -2, 0, 1, 0, false, false, false,
                     0, 0, 0, 0, 0, true);
@@ -1492,7 +1496,12 @@ public final class CombatEngine {
             if (s.drawPile.isEmpty()) {
                 return;
             }
-            s.hand.add(s.drawPile.remove(s.drawPile.size() - 1));
+            SimState.Card drawn = s.drawPile.remove(s.drawPile.size() - 1);
+            s.hand.add(drawn);
+            if (drawn.loseEnergyOnDraw > 0) {
+                // Void 只在从牌堆抽到时触发；当前游戏规则不允许能量降至负数。
+                s.energy = Math.max(0, s.energy - drawn.loseEnergyOnDraw);
+            }
         }
     }
 

@@ -527,7 +527,7 @@ public class CombatController {
     private String sourceLine() {
         StringBuilder sb = new StringBuilder("路线来源：");
         if (enginePlanAvailable()) {
-            sb.append("精确引擎（sts_lightspeed）");
+            sb.append("外部引擎（sts_lightspeed）");
         } else if (plan != null) {
             sb.append("内置求解器（近似）");
         } else {

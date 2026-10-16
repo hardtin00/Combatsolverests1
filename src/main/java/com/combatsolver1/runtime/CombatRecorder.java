@@ -186,6 +186,34 @@ public final class CombatRecorder {
         sb.append(",\"energyPerTurn\":").append(s.energyPerTurn);
         sb.append(",\"handSize\":").append(s.handSize);
         sb.append(",\"playerVuln\":").append(s.playerVulnerable);
+        sb.append(",\"playerWeak\":").append(s.playerWeak);
+        sb.append(",\"playerFrail\":").append(s.playerFrail);
+        sb.append(",\"playerEntangled\":").append(s.playerEntangled);
+        sb.append(",\"playerIntangible\":").append(s.playerIntangible);
+        sb.append(",\"playerArtifact\":").append(s.playerArtifact);
+        sb.append(",\"playerPlatedArmor\":").append(s.playerPlatedArmor);
+        sb.append(",\"constricted\":").append(s.constricted);
+        sb.append(",\"blockLock\":").append(s.blockLock);
+        sb.append(",\"powers\":{");
+        sb.append("\"metallicize\":").append(s.pMetallicize)
+          .append(",\"feelNoPain\":").append(s.pFeelNoPain)
+          .append(",\"darkEmbrace\":").append(s.pDarkEmbrace)
+          .append(",\"demonForm\":").append(s.pDemonForm)
+          .append(",\"juggernaut\":").append(s.pJuggernaut)
+          .append(",\"combust\":").append(s.pCombust)
+          .append(",\"rupture\":").append(s.pRupture)
+          .append(",\"thorns\":").append(s.pThorns)
+          .append(",\"doubleTap\":").append(s.pDoubleTap)
+          .append(",\"rage\":").append(s.pRage)
+          .append(",\"berserk\":").append(s.pBerserk)
+          .append(",\"brutality\":").append(s.pBrutality)
+          .append(",\"barricade\":").append(s.pBarricade)
+          .append(",\"corruption\":").append(s.pCorruption)
+          .append(",\"panache\":").append(s.pPanache)
+          .append(",\"sadistic\":").append(s.pSadistic)
+          .append(",\"magnetism\":").append(s.pMagnetism)
+          .append(",\"mayhem\":").append(s.pMayhem)
+          .append(",\"omega\":").append(s.pOmega).append('}');
         sb.append(",\"hand\":[");
         for (int i = 0; i < s.hand.size(); i++) {
             SimState.Card c = s.hand.get(i);
@@ -225,6 +253,13 @@ public final class CombatRecorder {
               .append(",\"dmg\":").append(m.atkDamage)
               .append(",\"hits\":").append(m.atkHits)
               .append(",\"cursor\":").append(m.aiCursor)
+              .append(",\"artifact\":").append(m.artifact)
+              .append(",\"malleable\":").append(m.malleable)
+              .append(",\"platedArmor\":").append(m.platedArmor)
+              .append(",\"intangible\":").append(m.intangible)
+              .append(",\"invincible\":").append(m.invincible)
+              .append(",\"beatOfDeath\":").append(m.beatOfDeath)
+              .append(",\"timeWarp\":").append(m.timeWarp)
               .append(",\"alive\":").append(m.alive).append('}');
         }
         sb.append("]}");

@@ -1,0 +1,10 @@
+{
+  "modid": "combatsolver1",
+  "name": "CombatSolver1",
+  "author_list": ["Codex"],
+  "description": "A Slay the Spire 1 combat route solver mod (work in progress).",
+  "version": "0.1.0",
+  "sts_version": "12-18-2022",
+  "mts_version": "3.30.0",
+  "dependencies": ["basemod"]
+}

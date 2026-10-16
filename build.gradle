@@ -1,0 +1,39 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.combatsolver1'
+version = '0.1.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+repositories {
+    mavenCentral()
+}
+
+// 指向你的《杀戮尖塔》安装目录。两种方式任选其一：
+//   1) gradlew jar -PstsDir="C:/Program Files (x86)/Steam/steamapps/common/SlayTheSpire"
+//   2) 设置环境变量 STS_DIR
+def stsDir = project.findProperty('stsDir') ?: System.getenv('STS_DIR') ?: ''
+
+dependencies {
+    compileOnly fileTree(dir: stsDir, include: ['desktop-1.0.jar', 'ModTheSpire.jar'])
+    compileOnly fileTree(dir: "${stsDir}/mods", include: ['BaseMod.jar'])
+    compileOnly 'com.badlogicgames.gdx:gdx:1.9.5'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    archiveBaseName = 'CombatSolver1'
+    archiveVersion = ''
+    manifest {
+        attributes 'Implementation-Title': 'Combat Solver 1',
+                   'Implementation-Version': project.version
+    }
+}

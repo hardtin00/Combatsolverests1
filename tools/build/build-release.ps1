@@ -64,8 +64,18 @@ New-Item -ItemType Directory -Force -Path $classes, $libs | Out-Null
 
 $javac = Find-Tool 'javac'
 $sources = (Get-ChildItem (Join-Path $root 'src\main\java') -Recurse -Filter *.java).FullName
-& $javac -encoding UTF-8 -proc:none -cp $classpath -d $classes $sources
+# 必须锁定 Java 8 字节码：游戏跑在 Java 8 上，用高版本 JDK 编译出的 class（major 65）
+# 游戏根本加载不了，表现为"游戏打不开"。这里用 --release 8 并在下面校验版本号。
+& $javac --release 8 -encoding UTF-8 -proc:none -cp $classpath -d $classes $sources
 if ($LASTEXITCODE -ne 0) { throw "完整 Mod 编译失败（$LASTEXITCODE）。" }
+
+$probe = Join-Path $classes 'com\combatsolver1\CombatSolver1Mod.class'
+$bytes = [System.IO.File]::ReadAllBytes($probe)
+$major = ($bytes[6] -shl 8) -bor $bytes[7]
+if ($major -ne 52) {
+    throw "字节码版本不对：major=$major（应为 52 = Java 8）。游戏装不上这样的 class，请检查 javac 的 --release 参数。"
+}
+Write-Output "字节码版本校验通过：major=$major（Java 8）。"
 
 Copy-Item (Join-Path $root 'src\main\resources\ModTheSpire.json') (Join-Path $classes 'ModTheSpire.json') -Force
 Add-Type -AssemblyName System.IO.Compression.FileSystem

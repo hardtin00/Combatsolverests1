@@ -69,14 +69,14 @@ public final class DiffRunner {
                 List<String> issues = new ArrayList<String>();
                 int matched = compareRecord(record, issues);
                 if (issues.isEmpty()) {
-                    result.matchedFields += 9 + mobCount(record);
-                    result.totalFields += 9 + mobCount(record);
+                    result.matchedFields += 10 + mobCount(record);
+                    result.totalFields += 10 + mobCount(record);
                     result.report.add("第 " + lineNo + " 行 [" + type + "] "
                             + describe(record) + "：一致");
                 } else {
                     result.badActions++;
                     result.matchedFields += matched;
-                    result.totalFields += 9 + mobCount(record);
+                    result.totalFields += 10 + mobCount(record);
                     result.report.add("第 " + lineNo + " 行 [" + type + "] "
                             + describe(record) + "：不一致");
                     for (String issue : issues) {
@@ -186,6 +186,31 @@ public final class DiffRunner {
         to.playerVulnerable = from.playerVulnerable;
         to.playerWeak = from.playerWeak;
         to.playerFrail = from.playerFrail;
+        to.playerEntangled = from.playerEntangled;
+        to.playerIntangible = from.playerIntangible;
+        to.playerArtifact = from.playerArtifact;
+        to.playerPlatedArmor = from.playerPlatedArmor;
+        to.constricted = from.constricted;
+        to.blockLock = from.blockLock;
+        to.pMetallicize = from.pMetallicize;
+        to.pFeelNoPain = from.pFeelNoPain;
+        to.pDarkEmbrace = from.pDarkEmbrace;
+        to.pDemonForm = from.pDemonForm;
+        to.pJuggernaut = from.pJuggernaut;
+        to.pCombust = from.pCombust;
+        to.pRupture = from.pRupture;
+        to.pThorns = from.pThorns;
+        to.pDoubleTap = from.pDoubleTap;
+        to.pRage = from.pRage;
+        to.pBerserk = from.pBerserk;
+        to.pBrutality = from.pBrutality;
+        to.pBarricade = from.pBarricade;
+        to.pCorruption = from.pCorruption;
+        to.pPanache = from.pPanache;
+        to.pSadistic = from.pSadistic;
+        to.pMagnetism = from.pMagnetism;
+        to.pMayhem = from.pMayhem;
+        to.pOmega = from.pOmega;
         to.hand.clear();
         for (SimState.Card c : from.hand) {
             to.hand.add(c);
@@ -237,6 +262,11 @@ public final class DiffRunner {
             matched++;
         } else {
             issues.add("能量：实机 " + expected.energy + " / 模拟 " + actual.energy);
+        }
+        if (expected.playerEffects.equals(actual.playerEffects)) {
+            matched++;
+        } else {
+            issues.add("玩家状态效果：实机 " + expected.playerEffects + " / 模拟 " + actual.playerEffects);
         }
         if (expected.handSorted().equals(actual.handSorted())) {
             matched++;

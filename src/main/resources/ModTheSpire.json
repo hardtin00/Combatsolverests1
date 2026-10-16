@@ -2,8 +2,8 @@
   "modid": "combatsolver1",
   "name": "CombatSolver1",
   "author_list": ["Codex"],
-  "description": "Combat Solver 1 build 0.3.0 - all 65 vanilla monsters modelled (ascension tiers, summons, phases), Ironclad + colourless cards, potions, relics; offline differential verification against in-game recordings. Built from the commit tagged 0.3.0; see STATUS.md for the support matrix.",
-  "version": "0.3.0",
+  "description": "Combat Solver 1 build 0.3.1 (unreleased) - expanded differential checks for captured player/enemy powers; offline tests pass, in-game validation still required. See README.md and STATUS.md for support and limitations.",
+  "version": "0.3.1",
   "sts_version": "12-18-2022",
   "mts_version": "3.30.0",
   "dependencies": ["basemod"]

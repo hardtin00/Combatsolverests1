@@ -146,7 +146,7 @@ public class OverlayRenderer {
         // 面板底 + 边框
         fillRounded(sb, left, panelTop, panelW * s, panelH * s, PANEL_RADIUS * s, alpha(t.border));
         fillRounded(sb, left + s, panelTop - s, panelW * s - 2f * s, panelH * s - 2f * s,
-                (PANEL_RADIUS - 1f) * s, alpha(t.bg));
+                (PANEL_RADIUS - 1f) * s, bgAlpha(t.bg));
 
         float y = panelTop - HEADER_H * s;
         renderHeader(sb, model, t, s, left, y, right, bottom);
@@ -955,6 +955,20 @@ public class OverlayRenderer {
     }
 
     private float activeOpacity = 1f;
+
+    private final Color bgAlphaTmp = new Color();
+
+    /**
+     * 面板底色专用：允许用户调透明度，但保底不透明度。
+     *
+     * 文字与图标本来就是主题色、不跟随透明度，所以真正让"背景干扰阅读"的是面板底色太透——
+     * 游戏画面从面板里透出来把文字对比度压下去了。这里只给背景层设下限。
+     */
+    private Color bgAlpha(Color c) {
+        bgAlphaTmp.set(c);
+        bgAlphaTmp.a *= Math.max(activeOpacity, 0.78f);
+        return bgAlphaTmp;
+    }
 
     private Color color(String key, Theme t) {
         if ("muted".equals(key)) {

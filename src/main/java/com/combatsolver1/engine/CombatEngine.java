@@ -190,6 +190,9 @@ public final class CombatEngine {
             if (s.hasRelic("Pen Nib") && s.attacksThisCombat % 10 == 0) {
                 dmg *= 2; // 钢笔尖：每第 10 次攻击伤害翻倍
             }
+            if (s.hasRelic("Wrist Blade") && card.cost == 0) {
+                dmg += 4; // 腕刃：0 费攻击 +4 伤害
+            }
             if (s.playerWeak > 0) {
                 dmg = dmg * 3 / 4; // 玩家虚弱：攻击伤害降低 25%
             }
@@ -227,6 +230,12 @@ public final class CombatEngine {
                     m.strength += m.enrage;
                 }
             }
+        }
+        if (card.power != null && s.hasRelic("Bird-Faced Urn")) {
+            s.hp = Math.min(s.maxHp, s.hp + 2); // 鸟面瓮：打出能力牌回 2 血
+        }
+        if (s.hasRelic("Velvet Choker") && s.cardsPlayedThisTurn + 1 >= 6) {
+            s.turnLocked = true; // 天鹅绒项圈：每回合最多 6 张牌
         }
 
         if (card.block > 0) {
@@ -502,6 +511,10 @@ public final class CombatEngine {
                 m.alive = false;
                 m.hp = 0;
                 MonsterAi.onDeath(s, m);
+                if (s.hasRelic("Gremlin Horn")) {
+                    s.energy += 1; // 地精之角：敌人死亡 +1 能量并抽 1
+                    drawCards(s, 1);
+                }
                 if (source != null && source.gainMaxHpOnKill) {
                     s.maxHp += 3;
                     s.hp += 3;
@@ -790,8 +803,20 @@ public final class CombatEngine {
         if (amount <= 0) {
             return;
         }
+        if (s.hasRelic("Tungsten Rod")) {
+            amount = Math.max(0, amount - 1); // 钨钢杖：每次掉血少 1
+        }
+        if (amount <= 0) {
+            return;
+        }
         s.hp -= amount;
         s.hpLossEvents++;
+        if (s.hasRelic("Centennial Puzzle") && s.hpLossEvents == 1) {
+            drawCards(s, 3); // 百年拼图：本场第一次掉血抽 3
+        }
+        if (s.hasRelic("Runic Cube")) {
+            drawCards(s, 1); // 符文方块：掉血就抽 1
+        }
     }
 
     /** 受到攻击：先吃格挡，再扣生命。 */
@@ -800,6 +825,9 @@ public final class CombatEngine {
             return 0;
         }
         int remaining = s.playerIntangible > 0 ? 1 : amount; // 玩家无形：受到伤害降为 1
+        if (s.hasRelic("Torii") && remaining <= 5) {
+            remaining = 1; // 鸟居：5 点及以下的未被格挡攻击伤害降为 1
+        }
         if (s.block > 0) {
             int absorbed = Math.min(s.block, remaining);
             s.block -= absorbed;
@@ -872,6 +900,9 @@ public final class CombatEngine {
         if (s.attacksThisCombat % 10 == 0 && s.hasRelic("Nunchaku")) {
             s.energy += 1;
         }
+        if (s.attacksThisCombat % 3 == 0 && s.hasRelic("Ornamental Fan")) {
+            gainBlock(s, 4); // 装饰扇：每 3 次攻击 4 点格挡
+        }
     }
 
     private static void applySkillRelics(SimState s) {
@@ -934,7 +965,11 @@ public final class CombatEngine {
         int dealt = 0;
         int dmg = baseDamage;
         if (m.vulnerable > 0) {
-            dmg = dmg * 3 / 2;
+            // 纸蛙：易伤加成从 50% 提升到 75%
+            dmg = s.hasRelic("Paper Phrog") ? dmg * 7 / 4 : dmg * 3 / 2;
+        }
+        if (s.hasRelic("The Boot") && dmg > 0 && dmg < 5) {
+            dmg = 5; // 靴子：未被格挡的攻击伤害至少 5
         }
         if (MonsterAi.intangibleNow(m)) {
             dmg = 1; // 无形：受到的伤害降为 1
@@ -1000,6 +1035,9 @@ public final class CombatEngine {
             m.enrage = Math.max(m.enrage, MonsterAi.persistentEnrage(m.id));
             m.flight = MonsterAi.initialFlight(m.id);
             MonsterAi.applyInnatePowers(s, m);
+            if (s.hasRelic("Bag of Marbles") && s.turn <= 1) {
+                m.vulnerable += 1; // 弹珠袋：战斗开始时给所有敌人 1 层易伤
+            }
             if ((current != null && current.sleep) || MonsterAi.sleepingNow(m.id, m.aiCursor)) {
                 m.sleeping = true;
             }
@@ -1045,7 +1083,8 @@ public final class CombatEngine {
         s.hand.clear();
         s.discardPile.addAll(keep);
         if (!s.pBarricade) {
-            s.block = 0;
+            // 卡尺：只失去 15 点格挡而不是全部
+            s.block = s.hasRelic("Calipers") ? Math.max(0, s.block - 15) : 0;
         }
         if (s.playerVulnerable > 0) s.playerVulnerable--;
         if (s.playerIntangible > 0) s.playerIntangible--;
@@ -1076,6 +1115,9 @@ public final class CombatEngine {
             s.energy += s.energyPerTurn + s.pBerserk; // 冰淇淋：未用完的能量保留
         } else {
             s.energy = s.energyPerTurn + s.pBerserk;
+        }
+        if (s.hasRelic("Velvet Choker")) {
+            s.energy += 1; // 天鹅绒项圈：每回合 +1 能量
         }
         s.turn++;
         applyStartOfTurnPowers(s);
@@ -1128,6 +1170,9 @@ public final class CombatEngine {
         }
         if (s.hasRelic("Captain's Wheel") && s.turn == 3) {
             s.block += 18;
+        }
+        if (s.hasRelic("Incense Burner") && s.turn % 6 == 0) {
+            s.playerIntangible += 1; // 香炉：每 6 回合 1 层无形
         }
     }
 
@@ -1362,6 +1407,10 @@ public final class CombatEngine {
 
     /** 洗牌：把弃牌堆整堆 Fisher–Yates 后变成新的抽牌堆。 */
     private static void shuffleIntoDraw(SimState s) {
+        s.shuffles++;
+        if (s.shuffles % 3 == 0 && s.hasRelic("Sundial")) {
+            s.energy += 2; // 日晷：每 3 次洗牌 +2 能量
+        }
         List<SimState.Card> pile = s.discardPile;
         for (int i = pile.size() - 1; i > 0; i--) {
             int j = s.nextInt(i + 1);

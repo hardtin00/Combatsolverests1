@@ -45,6 +45,8 @@ public class SimState {
     public int playerIntangible;
     /** 玩家神器层数：挡掉怪物施加的减益。 */
     public int playerArtifact;
+    /** 本场洗牌次数（日晷每 3 次给 2 点能量）。 */
+    public int shuffles;
     /** 玩家本轮不能用卡牌获得格挡的剩余回合（紧急按钮）。 */
     public int blockLock;
     /** 能力：每回合打出 5 张牌就对全体造成伤害（华丽）。 */
@@ -120,6 +122,7 @@ public class SimState {
         s.turnLocked = turnLocked;
         s.playerIntangible = playerIntangible;
         s.playerArtifact = playerArtifact;
+        s.shuffles = shuffles;
         s.blockLock = blockLock;
         s.pPanache = pPanache;
         s.pSadistic = pSadistic;

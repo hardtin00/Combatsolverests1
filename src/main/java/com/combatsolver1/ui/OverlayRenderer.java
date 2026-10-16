@@ -1070,14 +1070,16 @@ public class OverlayRenderer {
                 progressBg = c("e8e8e8ff");
                 shadow = c("00000014");
             } else {
-                bg = c("101216f7");
-                surface = c("191c22fa");
-                surfaceRaised = c("23272ffb");
-                surfaceHover = c("2b3039ff");
-                border = c("3a404aeb");
-                borderSubtle = c("2a2f38cc");
-                accent = c("5c9fc7ff");
-                accentHover = c("73b4d8ff");
+                // 深色主题向游戏本体的视觉语言靠拢：石板底 + 暗铜描边 + 暖金强调，
+                // 保留攻击红 / 技能蓝 / 能力金 / 药水青的动作分类色。
+                bg = c("16151af7");
+                surface = c("1c1a20fa");
+                surfaceRaised = c("2a2620fb");
+                surfaceHover = c("332d25ff");
+                border = c("6b5540e6");
+                borderSubtle = c("4a3d2ec4");
+                accent = c("d9b25fff");
+                accentHover = c("e8c877ff");
                 textPrimary = c("eef1f6ff");
                 textSecondary = c("b8c0ccff");
                 textMuted = c("858f9fff");

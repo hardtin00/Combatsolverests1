@@ -80,7 +80,28 @@ Write-Output "字节码版本校验通过：major=$major（Java 8）。"
 Copy-Item (Join-Path $root 'src\main\resources\ModTheSpire.json') (Join-Path $classes 'ModTheSpire.json') -Force
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $jar = Join-Path $libs 'CombatSolver1.jar'
-[System.IO.Compression.ZipFile]::CreateFromDirectory($classes, $jar)
+# 不能用 CreateFromDirectory：PowerShell 5.1 的 .NET Framework 会把条目名写成
+# "com\combatsolver1\.."（反斜杠），而 ZIP 规范与 Java 类加载器要求正斜杠，
+# 这样的 jar 游戏加载不了。这里逐个创建条目并强制用正斜杠。
+$zip = [System.IO.Compression.ZipFile]::Open($jar, 'Create')
+try {
+    Get-ChildItem $classes -Recurse -File | ForEach-Object {
+        $rel = $_.FullName.Substring($classes.Length + 1).Replace('\', '/')
+        [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $rel)
+    }
+} finally {
+    $zip.Dispose()
+}
+$verify = [System.IO.Compression.ZipFile]::OpenRead($jar)
+try {
+    $bad = @($verify.Entries | Where-Object { $_.FullName.Contains('\') })
+    if ($bad.Count -gt 0) {
+        throw "jar 内有 " + $bad.Count + " 个条目名含反斜杠，Java 无法加载。"
+    }
+    Write-Output ("条目校验通过：" + $verify.Entries.Count + " 个条目，全部使用正斜杠。")
+} finally {
+    $verify.Dispose()
+}
 
 $commit = (& git -C $root rev-parse HEAD).Trim()
 $dirty = (& git -C $root status --porcelain) -join ''

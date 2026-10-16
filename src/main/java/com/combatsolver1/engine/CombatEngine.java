@@ -769,6 +769,7 @@ public final class CombatEngine {
                 m.ritual += MonsterAi.persistentRitual(m.id, m.aiCursor);
             }
             m.enrage = Math.max(m.enrage, MonsterAi.persistentEnrage(m.id));
+            m.flight = MonsterAi.initialFlight(m.id);
             if ((current != null && current.sleep) || MonsterAi.sleepingNow(m.id, m.aiCursor)) {
                 m.sleeping = true;
             }
@@ -978,7 +979,46 @@ public final class CombatEngine {
                 }
             }
         }
+        if (mv.partyStr > 0) {
+            for (SimState.Mob ally : s.mobs) {
+                if (ally.alive) {
+                    ally.strength += mv.partyStr;
+                }
+            }
+        }
+        if (mv.allyHeal > 0) {
+            SimState.Mob target = mostInjured(s, m);
+            if (target != null) {
+                target.hp = Math.min(target.maxHp, target.hp + mv.allyHeal);
+            }
+        }
+        if (mv.allyBlock > 0) {
+            SimState.Mob target = mostInjured(s, m);
+            if (target != null) {
+                target.block += mv.allyBlock;
+            }
+        }
         m.sleeping = mv.sleep;
+    }
+
+    /** 场上伤得最重的一员（优先除自己以外的队友，单独一人时返回自己）。 */
+    private static SimState.Mob mostInjured(SimState s, SimState.Mob self) {
+        SimState.Mob best = null;
+        int bestMissing = 0;
+        for (SimState.Mob ally : s.mobs) {
+            if (!ally.alive || ally == self) {
+                continue;
+            }
+            int missing = Math.max(0, ally.maxHp - ally.hp);
+            if (missing > bestMissing) {
+                bestMissing = missing;
+                best = ally;
+            }
+        }
+        if (best == null) {
+            best = self != null && self.alive ? self : firstAlive(s);
+        }
+        return best;
     }
 
     private static int rollDamage(SimState s, MonsterAi.Move mv) {

@@ -365,6 +365,8 @@ public class SimState {
         public int thorns;
         /** 本场累计承受的伤害（守护者的 30 点阈值）。 */
         public int damageTakenTotal;
+        /** 飞行层数（鸟）：被打掉后落地。 */
+        public int flight;
 
         public Mob(String id, String name, int hp, int maxHp, int block,
                    int atkDamage, int atkHits, int strength, boolean alive) {
@@ -397,6 +399,7 @@ public class SimState {
             m.enrage = enrage;
             m.thorns = thorns;
             m.damageTakenTotal = damageTakenTotal;
+            m.flight = flight;
             return m;
         }
 

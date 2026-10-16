@@ -40,6 +40,9 @@ public final class MonsterAi {
         public final boolean addToDraw;
         public final boolean sleep;
         public final boolean entangle;
+        public final int allyHeal;
+        public final int allyBlock;
+        public final int partyStr;
         public final boolean approx;
 
         private Move(M b) {
@@ -61,6 +64,9 @@ public final class MonsterAi {
             this.addToDraw = b.addToDraw;
             this.sleep = b.sleep;
             this.entangle = b.entangle;
+            this.allyHeal = b.allyHeal;
+            this.allyBlock = b.allyBlock;
+            this.partyStr = b.partyStr;
             this.approx = b.approx;
         }
 
@@ -100,6 +106,9 @@ public final class MonsterAi {
         boolean addToDraw;
         boolean sleep;
         boolean entangle;
+        int allyHeal;
+        int allyBlock;
+        int partyStr;
         boolean approx;
 
         M(String id, String name) {
@@ -179,6 +188,24 @@ public final class MonsterAi {
 
         M entangle() {
             this.entangle = true;
+            return this;
+        }
+
+        /** 治疗队伍里伤得最重的一员（秘术师）。 */
+        M allyHeal(int value) {
+            this.allyHeal = value;
+            return this;
+        }
+
+        /** 给队伍里伤得最重的一员加格挡（百夫长的掩护）。 */
+        M allyBlock(int value) {
+            this.allyBlock = value;
+            return this;
+        }
+
+        /** 全队获得力量（秘术师的鼓舞）。 */
+        M partyStr(int value) {
+            this.partyStr = value;
             return this;
         }
 
@@ -264,6 +291,84 @@ public final class MonsterAi {
             }
         }
         return moves[moves.length - 1];
+    }
+
+    /** 加权随机的候选项：权重 + 连用上限 + 是否禁止起手（照 Bestiary 的 AI 描述）。 */
+    private static final class Choice {
+        final Move move;
+        final int weight;
+        int maxStreak;
+        boolean notFirst;
+
+        Choice(Move move, int weight) {
+            this.move = move;
+            this.weight = weight;
+        }
+
+        /** 最多允许连续使用几次（3 连禁 = 2）。 */
+        Choice maxStreak(int value) {
+            this.maxStreak = value;
+            return this;
+        }
+
+        Choice notFirst() {
+            this.notFirst = true;
+            return this;
+        }
+    }
+
+    private static Choice w(Move move, int weight) {
+        return new Choice(move, weight);
+    }
+
+    /** 按权重随机；被「连用上限 / 禁止起手」挡住的候选人权重记 0。 */
+    private static Script weighted(final Choice... choices) {
+        return new Script() {
+            public Move pick(SimState s, SimState.Mob mob) {
+                int total = 0;
+                int[] weights = new int[choices.length];
+                for (int i = 0; i < choices.length; i++) {
+                    weights[i] = allowed(choices[i], mob) ? choices[i].weight : 0;
+                    total += weights[i];
+                }
+                if (total <= 0) {
+                    // 全被限制挡住时退回权重最高的一个，保证状态机不会卡死
+                    Choice best = choices[0];
+                    for (Choice c : choices) {
+                        if (c.weight > best.weight) {
+                            best = c;
+                        }
+                    }
+                    return best.move;
+                }
+                int roll = s.nextInt(total);
+                for (int i = 0; i < choices.length; i++) {
+                    roll -= weights[i];
+                    if (roll < 0) {
+                        return choices[i].move;
+                    }
+                }
+                return choices[choices.length - 1].move;
+            }
+        };
+    }
+
+    private static boolean allowed(Choice choice, SimState.Mob mob) {
+        if (choice.notFirst && mob.aiCursor == 0 && mob.lastMoveId.isEmpty()) {
+            return false;
+        }
+        return choice.maxStreak <= 0 || !choice.move.id.equals(mob.lastMoveId)
+                || mob.lastMoveStreak < choice.maxStreak;
+    }
+
+    /** 场上是否还有某个 id 的存活怪物（百夫长判断秘术师是否还活着）。 */
+    private static boolean allyAlive(SimState s, SimState.Mob self, String id) {
+        for (SimState.Mob m : s.mobs) {
+            if (m != self && m.alive && id.equals(m.id)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ── 招式数据（数值取自游戏 jar 的静态字段；名字为简中显示名）──────────
@@ -415,12 +520,127 @@ public final class MonsterAi {
         }
     };
 
+    // ── 第二幕 ────────────────────────────────────────────────
+
+    // 鸟：飞行时 50-20-30（啄击/俯冲/鸣叫）；被击落则失衡 → 头撞 → 重新起飞。
+    private static final Move BYRD_PECK = m("PECK", "啄击").dmg(1, 5).build();
+    private static final Move BYRD_SWOOP = m("SWOOP", "俯冲").dmg(12, 1).build();
+    private static final Move BYRD_CAW = m("CAW", "鸣叫").str(1).build();
+    private static final Move BYRD_STUNNED = m("STUNNED", "失衡").build();
+    private static final Move BYRD_HEADBUTT = m("HEADBUTT", "头撞").dmg(3, 1).build();
+    private static final Move BYRD_FLY = m("GO_AIRBORNE", "重新起飞").build();
+    private static final Script BYRD_FLYING = weighted(
+            w(BYRD_PECK, 50).maxStreak(2),
+            w(BYRD_SWOOP, 20).maxStreak(1).notFirst(),
+            w(BYRD_CAW, 30).maxStreak(1));
+    private static final Script BYRD = new Script() {
+        public Move pick(SimState s, SimState.Mob mob) {
+            if (mob.flight > 0) {
+                return BYRD_FLYING.pick(s, mob);
+            }
+            int since = mob.aiCursor - mob.aiCounter;
+            if (since <= 0) {
+                return BYRD_STUNNED;   // 落地当回合失衡
+            }
+            if (since == 1) {
+                return BYRD_HEADBUTT;
+            }
+            mob.flight = 3;            // 重新起飞，恢复 3 层飞行
+            return BYRD_FLY;
+        }
+    };
+
+    // 被选者：先戳刺、再放咒术，之后「衰弱/汲取 50-50」与「电击/戳刺 40-60」交替
+    private static final Move CHOSEN_POKE = m("POKE", "戳刺").dmg(5, 2).build();
+    private static final Move CHOSEN_HEX = m("HEX", "咒术").approx().build();
+    private static final Move CHOSEN_DEBILITATE = m("DEBILITATE", "衰弱").dmg(10, 1).vuln(2).build();
+    private static final Move CHOSEN_DRAIN = m("DRAIN", "汲取").weak(3).str(3).build();
+    private static final Move CHOSEN_ZAP = m("ZAP", "电击").dmg(18, 1).build();
+    private static final Script CHOSEN = new Script() {
+        public Move pick(SimState s, SimState.Mob mob) {
+            int cursor = mob.aiCursor;
+            if (cursor == 0) {
+                return CHOSEN_POKE;
+            }
+            if (cursor == 1) {
+                return CHOSEN_HEX;
+            }
+            int index = cursor - 2;
+            if (index % 2 == 0) {
+                return s.nextInt(2) == 0 ? CHOSEN_DEBILITATE : CHOSEN_DRAIN;
+            }
+            return s.nextInt(100) < 40 ? CHOSEN_ZAP : CHOSEN_POKE;
+        }
+    };
+
+    // 蛇草：65% 三连咬 / 35% 孢子（咬不能连续三次，孢子不能连续两次）
+    private static final Move SNAKE_CHOMP = m("CHOMPY_CHOMPS", "三连咬").dmg(7, 3).build();
+    private static final Move SNAKE_SPORES = m("SPORES", "虚弱孢子").frail(2).weak(2).build();
+
+    // 球状守护者：启动 → 攻击+残废 → 猛击 / 硬化 交替
+    private static final Move SG_ACTIVATE = m("INITIAL_BLOCK_GAIN", "启动").blk(25).build();
+    private static final Move SG_ATTACK_DEBUFF = m("FRAIL_ATTACK", "攻击+残废").dmg(10, 1).frail(5).build();
+    private static final Move SG_SLAM = m("BIG_ATTACK", "猛击").dmg(10, 2).build();
+    private static final Move SG_HARDEN = m("BLOCK_ATTACK", "硬化").dmg(10, 1).blk(15).build();
+    private static final Script SPHERIC_GUARDIAN = new Script() {
+        public Move pick(SimState s, SimState.Mob mob) {
+            int cursor = mob.aiCursor;
+            if (cursor == 0) {
+                return SG_ACTIVATE;
+            }
+            if (cursor == 1) {
+                return SG_ATTACK_DEBUFF;
+            }
+            return ((cursor - 2) % 2 == 0) ? SG_SLAM : SG_HARDEN;
+        }
+    };
+
+    // 百夫长：秘术师活着时 65% 掩护 / 35% 斩击；秘术师死后掩护换成狂怒
+    private static final Move CENT_SLASH = m("SLASH", "斩击").dmg(12, 1).build();
+    private static final Move CENT_DEFEND = m("PROTECT", "掩护").allyBlock(15).build();
+    private static final Move CENT_FURY = m("FURY", "狂怒").dmg(6, 3).build();
+    private static final Script CENTURION = new Script() {
+        public Move pick(SimState s, SimState.Mob mob) {
+            boolean mysticAlive = allyAlive(s, mob, "Healer");
+            if (s.nextInt(100) < 65) {
+                return mysticAlive ? CENT_DEFEND : CENT_FURY;
+            }
+            return CENT_SLASH;
+        }
+    };
+
+    // 秘术师：队伍缺血 >= 16 就治疗（最多连续两次），否则 60% 攻击+残废 / 40% 鼓舞
+    private static final Move MYSTIC_HEAL = m("HEAL", "治疗").allyHeal(16).build();
+    private static final Move MYSTIC_BUFF = m("BUFF", "鼓舞").partyStr(2).build();
+    private static final Move MYSTIC_ATTACK = m("ATTACK", "攻击+残废").dmg(8, 1).frail(2).build();
+    private static final Script MYSTIC = new Script() {
+        public Move pick(SimState s, SimState.Mob mob) {
+            int missing = 0;
+            for (SimState.Mob ally : s.mobs) {
+                if (ally.alive) {
+                    missing += Math.max(0, ally.maxHp - ally.hp);
+                }
+            }
+            boolean healCapped = MYSTIC_HEAL.id.equals(mob.lastMoveId) && mob.lastMoveStreak >= 2;
+            if (missing >= 16 && !healCapped) {
+                return MYSTIC_HEAL;
+            }
+            return weighted(w(MYSTIC_ATTACK, 60).maxStreak(2), w(MYSTIC_BUFF, 40).maxStreak(2))
+                    .pick(s, mob);
+        }
+    };
+
     private static final Map<String, Script> SCRIPTS = new HashMap<String, Script>();
 
     static {
         // ── 第一幕 · 普通怪 ───────────────────────────────────────
         SCRIPTS.put("Cultist", firstThen(CULTIST_INCANTATION, cycle(CULTIST_DARK_STRIKE)));
-        SCRIPTS.put("JawWorm", random(JAW_CHOMP, JAW_THRASH, JAW_BELLOW));
+        // 大颚虫：先啃咬，之后 45-30-25（咆哮/猛击/啃咬）；猛击不能连续三次，
+        // 咆哮与啃咬不能连续两次（照 Bestiary 的 AI 描述，数据来源见 THIRD_PARTY_NOTICES.md）
+        SCRIPTS.put("JawWorm", firstThen(JAW_CHOMP, weighted(
+                w(JAW_BELLOW, 45).maxStreak(1),
+                w(JAW_THRASH, 30).maxStreak(2),
+                w(JAW_CHOMP, 25).maxStreak(1))));
         SCRIPTS.put("FuzzyLouseNormal", random(LOUSE_BITE, LOUSE_GROW));
         SCRIPTS.put("FuzzyLouseDefensive", random(LOUSE_BITE, LOUSE_SPIT));
         SCRIPTS.put("FungiBeast", random(FUNGUS_BITE, FUNGUS_GROW));
@@ -450,6 +670,16 @@ public final class MonsterAi {
         SCRIPTS.put("TheGuardian", GUARDIAN);
         SCRIPTS.put("Hexaghost", HEXAGHOST);
         SCRIPTS.put("SlimeBoss", SLIME_BOSS);
+
+        // ── 第二幕 ────────────────────────────────────────────────
+        SCRIPTS.put("Byrd", BYRD);
+        SCRIPTS.put("Chosen", CHOSEN);
+        SCRIPTS.put("SnakePlant", weighted(
+                w(SNAKE_CHOMP, 65).maxStreak(2),
+                w(SNAKE_SPORES, 35).maxStreak(1)));
+        SCRIPTS.put("SphericGuardian", SPHERIC_GUARDIAN);
+        SCRIPTS.put("Centurion", CENTURION);
+        SCRIPTS.put("Healer", MYSTIC);
     }
 
     public static boolean isModeled(String monsterId) {
@@ -469,6 +699,11 @@ public final class MonsterAi {
 
     public static int persistentEnrage(String monsterId) {
         return "GremlinNob".equals(monsterId) ? 2 : 0;
+    }
+
+    /** 捕捉实机状态时的初始飞行层数（鸟自带 3 层飞行）。 */
+    public static int initialFlight(String monsterId) {
+        return "Byrd".equals(monsterId) ? 3 : 0;
     }
 
     /** 捕捉实机状态时：该怪物此刻是否处于睡眠（拉格威林前三个回合）。 */
@@ -547,6 +782,14 @@ public final class MonsterAi {
             mob.sleeping = false;
             if (mob.aiCursor < 3) {
                 mob.aiCursor = 3;
+            }
+        }
+        if ("Byrd".equals(mob.id) && mob.flight > 0) {
+            // 飞行：每被打中一次掉一层，掉光就落地并进入“失衡 → 头撞 → 重新起飞”
+            mob.flight--;
+            if (mob.flight == 0) {
+                mob.aiState = 1;
+                mob.aiCounter = mob.aiCursor;
             }
         }
         if ("TheGuardian".equals(mob.id) && mob.aiState == 0 && mob.damageTakenTotal >= 30) {

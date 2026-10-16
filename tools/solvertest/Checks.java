@@ -148,7 +148,7 @@ public final class Checks {
     public static void monsterAi() {
         LOG.add("· 怪物行动模型");
         List<String> ids = MonsterAi.modeledIds();
-        check("第一幕怪物建模数量 >= 20", ids.size() >= 20, "实际 " + ids.size());
+        check("建模怪物数量 >= 30（第一幕 + 第二幕）", ids.size() >= 30, "实际 " + ids.size());
 
         // 每个建模怪物在前 10 个回合都能给出招式
         int broken = 0;
@@ -231,6 +231,79 @@ public final class Checks {
                 !com.combatsolver1.engine.MonsterPatterns.patternFor("Byrd").isEmpty(), null);
         check("节奏表不再用显示名做键（'Jaw Worm' 应为空）",
                 com.combatsolver1.engine.MonsterPatterns.patternFor("Jaw Worm").isEmpty(), null);
+
+        // ── 第二幕：按 Bestiary（MIT）的 AI 描述核对行为 ──
+        SimState jaw = scenario(80, 80, new String[]{"Strike_R"}, "JawWorm");
+        SimState.Mob jw = jaw.mobs.get(0);
+        eq("大颚虫起手是啃咬", "CHOMP", MonsterAi.current(jaw, jw).id);
+        jw.lastMoveId = "THRASH";
+        jw.lastMoveStreak = 2;
+        int thrashPicked = 0;
+        for (int i = 0; i < 40; i++) {
+            if ("THRASH".equals(MonsterAi.next(jaw, jw).id)) {
+                thrashPicked++;
+            }
+        }
+        eq("猛击不能连续三次（连着两次后必换招）", 0, thrashPicked);
+
+        SimState chosen = scenario(80, 80, new String[]{"Strike_R"}, "Chosen");
+        SimState.Mob ch = chosen.mobs.get(0);
+        eq("被选者起手是戳刺", "POKE", MonsterAi.current(chosen, ch).id);
+        eq("被选者第二招是咒术", "HEX", MonsterAi.next(chosen, ch).id);
+
+        SimState snake = scenario(80, 80, new String[]{"Strike_R"}, "SnakePlant");
+        SimState.Mob sn = snake.mobs.get(0);
+        sn.lastMoveId = "SPORES";
+        sn.lastMoveStreak = 1;
+        int sporesPicked = 0;
+        for (int i = 0; i < 40; i++) {
+            if ("SPORES".equals(MonsterAi.next(snake, sn).id)) {
+                sporesPicked++;
+            }
+        }
+        eq("孢子不能连续两次", 0, sporesPicked);
+
+        SimState sg = scenario(80, 80, new String[]{"Strike_R"}, "SphericGuardian");
+        eq("球状守护者起手是启动（+25 格挡）", "INITIAL_BLOCK_GAIN",
+                MonsterAi.current(sg, sg.mobs.get(0)).id);
+
+        // 百夫长：秘术师活着时只会斩击或掩护；秘术师死后掩护变成狂怒
+        SimState pair = scenario(80, 80, new String[]{"Strike_R"}, "Centurion");
+        pair.mobs.add(new SimState.Mob("Healer", "秘术师", 50, 50, 0, 8, 1, 0, true));
+        CombatEngine.initMonsters(pair);
+        int furyWithMystic = 0;
+        for (int i = 0; i < 40; i++) {
+            if ("FURY".equals(MonsterAi.next(pair, pair.mobs.get(0)).id)) {
+                furyWithMystic++;
+            }
+        }
+        eq("秘术师活着时百夫长不会用狂怒", 0, furyWithMystic);
+        pair.mobs.get(1).alive = false;
+        int defendWithoutMystic = 0;
+        for (int i = 0; i < 40; i++) {
+            if ("PROTECT".equals(MonsterAi.next(pair, pair.mobs.get(0)).id)) {
+                defendWithoutMystic++;
+            }
+        }
+        eq("秘术师死后百夫长不再掩护", 0, defendWithoutMystic);
+
+        // 秘术师：队伍缺血 >= 16 就治疗
+        SimState mystic = scenario(80, 80, new String[]{"Strike_R"}, "Healer");
+        mystic.mobs.get(0).hp = 20;
+        eq("秘术师在队伍需要治疗时使用治疗", "HEAL",
+                MonsterAi.next(mystic, mystic.mobs.get(0)).id);
+
+        // 鸟：飞行层数被打光后落地，进入失衡 → 头撞 → 重新起飞
+        SimState byrd = scenario(80, 80, new String[]{"Strike_R"}, "Byrd");
+        CombatEngine.initMonsters(byrd);
+        SimState.Mob bd = byrd.mobs.get(0);
+        eq("鸟初始有 3 层飞行", 3, bd.flight);
+        for (int i = 0; i < 3; i++) {
+            MonsterAi.onDamaged(byrd, bd, 1);
+        }
+        eq("被打三次后落地（失衡）", "STUNNED", MonsterAi.next(byrd, bd).id);
+        bd.aiCursor = bd.aiCounter + 1;
+        eq("落地后第二招是头撞", "HEADBUTT", MonsterAi.next(byrd, bd).id);
     }
 
     // ══ 3. 搜索 ═════════════════════════════════════════════════

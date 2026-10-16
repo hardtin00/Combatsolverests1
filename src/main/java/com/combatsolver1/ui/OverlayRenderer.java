@@ -126,6 +126,11 @@ public class OverlayRenderer {
         }
 
         float contentH = collapsed ? HEADER_H * s : measureContentHeight(sb, model, s);
+        // 保存下来的自定义高度可能来自旧布局：明显大于当前内容时视为过期，回到自适应高度。
+        // 否则面板里会留出一大片黑框（截图里最直观的问题）。
+        if (sizeCustom && !collapsed && panelH * s > contentH * 1.6f + 40f * s) {
+            sizeCustom = false;
+        }
         if (!sizeCustom) {
             panelH = Math.min(contentH, Settings.HEIGHT - MARGIN * s * 2f);
         }
@@ -416,14 +421,29 @@ public class OverlayRenderer {
                 repeat++;
             }
             float w = pillWidth(a, repeat, s);
-            if (cursor + w > maxX && cursor > x) {
-                break;
+            if (cursor + w > maxX) {
+                if (cursor > x) {
+                    break; // 后面的行动放不下：由调用方显示 +N
+                }
+                // 第一颗胶囊就放不下时压缩到可用宽度，保证绝不越出面板
+                w = Math.max(40f * s, maxX - cursor);
             }
             drawPill(sb, a, repeat, t, s, cursor, rowTop + (ROUTE_ROW_H * s - PILL_H * s) / 2f, w);
             cursor += w + 6f * s;
             i += repeat;
         }
         boolean last = isLastTurn(plan, turn);
+        int remaining = actions.size() - i;
+        if (remaining > 0) {
+            // 放不下的行动不能直接消失：给一颗 "+N 个行动" 的胶囊，玩家至少知道还剩多少
+            Plan.Action more = new Plan.Action("MORE", "+" + remaining + " 个行动", -1, 0);
+            float moreW = pillWidth(more, 1, s);
+            if (cursor + moreW <= maxX) {
+                drawPill(sb, more, 1, t, s, cursor,
+                        rowTop + (ROUTE_ROW_H * s - PILL_H * s) / 2f, moreW);
+                cursor += moreW + 6f * s;
+            }
+        }
         if (turn.endsTurn || last) {
             Plan.Action end = endTurnAction(plan, turn, last);
             float w = pillWidth(end, 1, s);

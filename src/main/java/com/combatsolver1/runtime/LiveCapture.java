@@ -154,6 +154,13 @@ public final class LiveCapture {
         mob.strength = powerAmount(m, "Strength");
         mob.vulnerable = powerAmount(m, "Vulnerable");
         mob.weak = powerAmount(m, "Weak");
+        // 防御性能力：实机有就照实读，模拟里按原版语义结算
+        mob.artifact = powerAmount(m, "Artifact");
+        mob.malleable = powerAmount(m, "Malleable");
+        mob.platedArmor = powerAmount(m, "Plated Armor");
+        mob.intangible = powerAmount(m, "Intangible");
+        mob.invincible = powerAmount(m, "Invincible");
+        mob.beatOfDeath = powerAmount(m, "Beat of Death");
         mob.aiCursor = Math.max(0, m.moveHistory.size());
         // 记录本回合观察，用来估计这类怪物之后每回合的平均输出。
         int turn = AbstractDungeon.actionManager.turn;

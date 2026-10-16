@@ -54,6 +54,9 @@ public final class Solvertest {
         if ("pattern".equals(command) || all) {
             Checks.monsterAi();
         }
+        if ("pattern".equals(command) || all) {
+            Checks.monsterPowers();
+        }
         if ("search".equals(command) || all) {
             Checks.search();
         }

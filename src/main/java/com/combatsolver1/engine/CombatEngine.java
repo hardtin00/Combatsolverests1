@@ -17,6 +17,35 @@ public final class CombatEngine {
     private CombatEngine() {
     }
 
+    // 减益种类：神器（Artifact）会优先挡掉一次
+    private static final int DEBUFF_VULN = 0;
+    private static final int DEBUFF_WEAK = 1;
+    private static final int DEBUFF_STR = 2;
+
+    /** 对怪物施加减益：有神器时先消耗一层神器把它挡掉。 */
+    private static void applyDebuff(SimState.Mob mob, int amount, int kind) {
+        if (amount <= 0) {
+            return;
+        }
+        if (mob.artifact > 0) {
+            mob.artifact--;
+            return;
+        }
+        switch (kind) {
+            case DEBUFF_VULN:
+                mob.vulnerable += amount;
+                break;
+            case DEBUFF_WEAK:
+                mob.weak += amount;
+                break;
+            case DEBUFF_STR:
+                mob.strength = Math.max(0, mob.strength - amount);
+                break;
+            default:
+                break;
+        }
+    }
+
     // ══ 费用与可打性 ══════════════════════════════════════════════
 
     /** 实际费用（腐化让技能变 0 费；血怒按本场掉血次数递减）。 */
@@ -203,14 +232,14 @@ public final class CombatEngine {
                 if (!m.alive) {
                     continue;
                 }
-                if (card.vulnAll) m.vulnerable += card.vuln;
-                if (card.weakAll) m.weak += card.weak;
+                if (card.vulnAll) applyDebuff(m, card.vuln, DEBUFF_VULN);
+                if (card.weakAll) applyDebuff(m, card.weak, DEBUFF_WEAK);
             }
         } else if (targetIndex >= 0 && targetIndex < s.mobs.size()) {
             SimState.Mob m = s.mobs.get(targetIndex);
             if (m.alive) {
-                if (card.vuln > 0) m.vulnerable += card.vuln;
-                if (card.weak > 0) m.weak += card.weak;
+                if (card.vuln > 0) applyDebuff(m, card.vuln, DEBUFF_VULN);
+                if (card.weak > 0) applyDebuff(m, card.weak, DEBUFF_WEAK);
             }
         }
 
@@ -265,7 +294,7 @@ public final class CombatEngine {
 
         if (card.enemyStrDown > 0 && targetIndex >= 0 && targetIndex < s.mobs.size()) {
             SimState.Mob m = s.mobs.get(targetIndex);
-            m.strength = Math.max(0, m.strength - card.enemyStrDown);
+            applyDebuff(m, card.enemyStrDown, DEBUFF_STR);
         }
 
         // ── 牌库操作：按“最优目标”选择，而不是永远取第一张 ──
@@ -348,6 +377,13 @@ public final class CombatEngine {
 
         if (card.power != null) {
             applyPower(s, card.power, card.powerAmount);
+        }
+
+        // 死亡节拍：玩家每打出一张牌就受到伤害（腐化之心）
+        for (SimState.Mob mob : s.mobs) {
+            if (mob.alive && mob.beatOfDeath > 0) {
+                loseHp(s, mob.beatOfDeath);
+            }
         }
 
         // 出牌后的去向：消耗或进入弃牌堆（腐化会让技能改成消耗）
@@ -736,8 +772,20 @@ public final class CombatEngine {
         if (m.vulnerable > 0) {
             dmg = dmg * 3 / 2;
         }
+        if (MonsterAi.intangibleNow(m)) {
+            dmg = 1; // 无形：受到的伤害降为 1
+        }
         for (int i = 0; i < Math.max(1, hits); i++) {
             int remaining = dmg;
+            if (m.invincible > 0) {
+                int left = m.invincible - m.invincibleTaken;
+                if (left <= 0) {
+                    break; // 无敌额度用尽，本回合不再掉血
+                }
+                if (remaining > left) {
+                    remaining = left;
+                }
+            }
             if (m.block > 0) {
                 int absorbed = Math.min(m.block, remaining);
                 m.block -= absorbed;
@@ -749,6 +797,15 @@ public final class CombatEngine {
             }
             if (m.hp <= 0) {
                 break;
+            }
+        }
+        if (dealt > 0) {
+            m.invincibleTaken += dealt;
+            if (m.malleable > 0) {
+                m.block += m.malleable; // 可塑：受伤后获得格挡
+            }
+            if (m.platedArmor > 0) {
+                m.platedArmor--; // 板甲：每次受到攻击伤害掉一层
             }
         }
         MonsterAi.onDamaged(s, m, dealt);
@@ -873,6 +930,9 @@ public final class CombatEngine {
             if (m.block > 0) {
                 m.block = 0;
             }
+            if (m.platedArmor > 0) {
+                m.block += m.platedArmor; // 板甲：怪物回合开始获得格挡
+            }
 
             MonsterAi.Move mv = m.intent;
             MonsterAi.Move effects = null;
@@ -934,6 +994,7 @@ public final class CombatEngine {
             }
             if (m.vulnerable > 0) m.vulnerable--;
             if (m.weak > 0) m.weak--;
+            m.invincibleTaken = 0; // 无敌额度按回合重置
         }
         s.firstEnemyTurn = false;
         settleDeaths(s, null);

@@ -763,6 +763,36 @@ public final class MonsterAi {
         return "Byrd".equals(monsterId) ? 3 : 0;
     }
 
+    /**
+     * 捕捉实机状态时补上的「固有防御能力」（数据来自 Bestiary 的 notes，
+     * 实机有对应 power 时 LiveCapture 会先读出来，这里只是取较大值兜底）。
+     */
+    public static void applyInnatePowers(SimState s, SimState.Mob mob) {
+        String id = mob.id;
+        if ("SphericGuardian".equals(id) || "BronzeAutomaton".equals(id)) {
+            mob.artifact = Math.max(mob.artifact, 3);
+        } else if ("SpireShield".equals(id) || "SpireSpear".equals(id)) {
+            mob.artifact = Math.max(mob.artifact, 1);
+        } else if ("SnakePlant".equals(id)) {
+            mob.malleable = Math.max(mob.malleable, 3);
+        } else if ("Shelled Parasite".equals(id)) {
+            mob.platedArmor = Math.max(mob.platedArmor, 14);
+        } else if ("Spiker".equals(id)) {
+            mob.thorns = Math.max(mob.thorns, 3);
+        } else if ("CorruptHeart".equals(id)) {
+            mob.invincible = Math.max(mob.invincible, 300);
+            mob.beatOfDeath = Math.max(mob.beatOfDeath, 1);
+        }
+    }
+
+    /** 涅墨西斯每隔一回合处于无形（近似：按出招游标奇偶判断）。 */
+    public static boolean intangibleNow(SimState.Mob mob) {
+        if (mob.intangible > 0) {
+            return true;
+        }
+        return "Nemesis".equals(mob.id) && mob.aiCursor % 2 == 0;
+    }
+
     /** 捕捉实机状态时：该怪物此刻是否处于睡眠（拉格威林前三个回合）。 */
     public static boolean sleepingNow(String monsterId, int cursor) {
         return "Lagavulin".equals(monsterId) && cursor < 3;

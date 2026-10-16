@@ -370,6 +370,20 @@ public class SimState {
         public int damageTakenTotal;
         /** 飞行层数（鸟）：被打掉后落地。 */
         public int flight;
+        /** 神器：每次挡住一个减益就少一层。 */
+        public int artifact;
+        /** 可塑：每次受到伤害获得等量格挡（蛇草）。 */
+        public int malleable;
+        /** 板甲：每回合结束获得等量格挡，受到攻击伤害时少一层（硬壳寄生体）。 */
+        public int platedArmor;
+        /** 无形：受到的伤害降为 1（涅墨西斯）。 */
+        public int intangible;
+        /** 无敌：每回合最多承受这么多伤害（腐化之心）。 */
+        public int invincible;
+        /** 本回合已经吃掉的“无敌”额度。 */
+        public int invincibleTaken;
+        /** 死亡节拍：玩家每打出一张牌就受到的伤害（腐化之心）。 */
+        public int beatOfDeath;
 
         public Mob(String id, String name, int hp, int maxHp, int block,
                    int atkDamage, int atkHits, int strength, boolean alive) {
@@ -403,6 +417,13 @@ public class SimState {
             m.thorns = thorns;
             m.damageTakenTotal = damageTakenTotal;
             m.flight = flight;
+            m.artifact = artifact;
+            m.malleable = malleable;
+            m.platedArmor = platedArmor;
+            m.intangible = intangible;
+            m.invincible = invincible;
+            m.invincibleTaken = invincibleTaken;
+            m.beatOfDeath = beatOfDeath;
             return m;
         }
 

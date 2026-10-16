@@ -364,6 +364,64 @@ public final class Checks {
 
     // ══ 3. 搜索 ═════════════════════════════════════════════════
 
+    // ══ 2.6 怪物防御性能力 ══════════════════════════════════════
+
+    public static void monsterPowers() {
+        LOG.add("· 怪物防御性能力（神器 / 可塑 / 板甲 / 无形 / 无敌 / 死亡节拍）");
+
+        // 神器：球状守护者固有 3 层，痛击的易伤会被挡掉一层
+        SimState sg = scenario(80, 80, new String[]{"Bash"}, "SphericGuardian");
+        eq("球状守护者固有 3 层神器", 3, sg.mobs.get(0).artifact);
+        SimState.Card bash = CardLibrary.toSimCard("Bash", "痛击", 2, 8, 0, 1, true, false, true, false);
+        bash.vuln = 2;
+        sg.hand.clear();
+        sg.hand.add(bash);
+        CombatEngine.playCard(sg, sg.hand.remove(0), 0);
+        eq("易伤被神器挡掉", 0, sg.mobs.get(0).vulnerable);
+        eq("神器用掉一层", 2, sg.mobs.get(0).artifact);
+
+        // 可塑：蛇草固有 3 层，挨打后获得 3 点格挡
+        SimState snake = scenario(80, 80, new String[]{"Strike_R"}, "SnakePlant");
+        eq("蛇草固有 3 层可塑", 3, snake.mobs.get(0).malleable);
+        SimState.Card strike = CardLibrary.toSimCard("Strike_R", "打击", 1, 6, 0, 1, true, false, true, false);
+        snake.hand.clear();
+        snake.hand.add(strike);
+        int hpBefore = snake.mobs.get(0).hp;
+        CombatEngine.playCard(snake, snake.hand.remove(0), 0);
+        eq("可塑：挨打后获得 3 点格挡", 3, snake.mobs.get(0).block);
+        eq("可塑不影响伤害", hpBefore - 6, snake.mobs.get(0).hp);
+
+        // 板甲：硬壳寄生体固有 14 层，被打掉一层，怪物回合开始获得格挡
+        SimState parasite = scenario(80, 80, new String[]{"Strike_R"}, "Shelled Parasite");
+        eq("硬壳寄生体固有 14 层板甲", 14, parasite.mobs.get(0).platedArmor);
+        SimState.Card strike2 = CardLibrary.toSimCard("Strike_R", "打击", 1, 6, 0, 1, true, false, true, false);
+        parasite.hand.clear();
+        parasite.hand.add(strike2);
+        CombatEngine.playCard(parasite, parasite.hand.remove(0), 0);
+        eq("板甲被打掉一层", 13, parasite.mobs.get(0).platedArmor);
+
+        // 无形：涅墨西斯（游标偶数回合）受到的伤害降为 1
+        SimState nemesis = scenario(80, 80, new String[]{"Strike_R"}, "Nemesis");
+        nemesis.mobs.get(0).aiCursor = 0;
+        SimState.Card strike3 = CardLibrary.toSimCard("Strike_R", "打击", 1, 6, 0, 1, true, false, true, false);
+        nemesis.hand.clear();
+        nemesis.hand.add(strike3);
+        int nemesisHp = nemesis.mobs.get(0).hp;
+        CombatEngine.playCard(nemesis, nemesis.hand.remove(0), 0);
+        eq("无形：伤害降为 1", nemesisHp - 1, nemesis.mobs.get(0).hp);
+
+        // 死亡节拍：腐化之心，玩家每打出一张牌就掉 1 血
+        SimState heart = scenario(80, 80, new String[]{"Defend_R"}, "CorruptHeart");
+        eq("腐化之心固有死亡节拍 1", 1, heart.mobs.get(0).beatOfDeath);
+        eq("腐化之心固有无敌 300", 300, heart.mobs.get(0).invincible);
+        SimState.Card defend = CardLibrary.toSimCard("Defend_R", "防御", 1, 0, 5, 1, false, false, false, false);
+        heart.hand.clear();
+        heart.hand.add(defend);
+        int playerHp = heart.hp;
+        CombatEngine.playCard(heart, heart.hand.remove(0), -1);
+        eq("死亡节拍：打一张牌掉 1 血", playerHp - 1, heart.hp);
+    }
+
     // ══ 2.5 与游戏自带文本对账 ══════════════════════════════════
 
     /**

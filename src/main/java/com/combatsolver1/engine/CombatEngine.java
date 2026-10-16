@@ -390,6 +390,21 @@ public final class CombatEngine {
             }
         }
 
+        if (card.playerArtifact > 0) {
+            s.playerArtifact += card.playerArtifact; // 万灵药
+        }
+        if (card.drawIfNoAttacks > 0) {
+            boolean hasAttack = false;
+            for (SimState.Card c : s.hand) {
+                if (c.attack) {
+                    hasAttack = true;
+                    break;
+                }
+            }
+            if (!hasAttack) {
+                drawCards(s, card.drawIfNoAttacks); // 急躁
+            }
+        }
         if (card.setCostOverride) {
             s.costOverrideThisTurn = card.costOverrideValue; // 启蒙：影响之后打出的牌
         }
@@ -493,6 +508,15 @@ public final class CombatEngine {
                 }
             }
         }
+    }
+
+    /** 玩家神器：挡掉一次减益后返回 true。 */
+    private static boolean consumePlayerArtifact(SimState s) {
+        if (s.playerArtifact > 0) {
+            s.playerArtifact--;
+            return true;
+        }
+        return false;
     }
 
     private static boolean hasLivingCompanion(SimState s, SimState.Mob self) {

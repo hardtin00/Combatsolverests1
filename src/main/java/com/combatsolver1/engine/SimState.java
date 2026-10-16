@@ -43,6 +43,8 @@ public class SimState {
     public boolean turnLocked;
     /** 玩家无形剩余回合：受到的伤害降为 1（幻影）。 */
     public int playerIntangible;
+    /** 玩家神器层数：挡掉怪物施加的减益。 */
+    public int playerArtifact;
     /** 玩家本轮不能用卡牌获得格挡的剩余回合（紧急按钮）。 */
     public int blockLock;
     /** 能力：每回合打出 5 张牌就对全体造成伤害（华丽）。 */
@@ -117,6 +119,7 @@ public class SimState {
         s.cardsPlayedThisTurn = cardsPlayedThisTurn;
         s.turnLocked = turnLocked;
         s.playerIntangible = playerIntangible;
+        s.playerArtifact = playerArtifact;
         s.blockLock = blockLock;
         s.pPanache = pPanache;
         s.pSadistic = pSadistic;
@@ -277,6 +280,8 @@ public class SimState {
         public boolean setCostOverride;    // 启蒙：本回合手牌费用降到 N
         public int costOverrideValue;
         public int damagePerDrawPileCard;  // 心灵爆震：伤害 = 牌堆张数 × N
+        public int playerArtifact;         // 万灵药：玩家获得神器
+        public int drawIfNoAttacks;        // 急躁：手牌无攻击牌才抽
 
         public Card(String id, String name, int cost, int damage, int hits, int block,
                     boolean attack, boolean aoe, boolean needsTarget,
@@ -374,6 +379,8 @@ public class SimState {
             c.setCostOverride = setCostOverride;
             c.costOverrideValue = costOverrideValue;
             c.damagePerDrawPileCard = damagePerDrawPileCard;
+            c.playerArtifact = playerArtifact;
+            c.drawIfNoAttacks = drawIfNoAttacks;
             return c;
         }
 

@@ -233,6 +233,8 @@ public class CombatController {
                 if (!paused) {
                     stopAndPause();
                 }
+            } else if (uiAction == OverlayRenderer.ACTION_TOGGLE_ROUTE_EXPAND) {
+                overlay.toggleRouteExpanded();
             }
 
             adoptEngineFetchIfReady();

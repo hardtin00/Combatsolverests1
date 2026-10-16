@@ -649,6 +649,9 @@ public final class Checks {
                 plan == null ? "无结果" : "predictedWin=false");
         check("预测承伤在合理范围（0-40）", plan != null && plan.predictedHpLoss >= 0
                 && plan.predictedHpLoss <= 40, plan == null ? "无结果" : "" + plan.predictedHpLoss);
+        check("路线带随机分支复推结果（承伤区间）",
+                plan != null && plan.samples > 1 && plan.hpLossBest <= plan.hpLossWorst,
+                plan == null ? "无结果" : plan.confidenceNote());
 
         // 确定性：同样输入两次搜索结果完全一致
         Plan again = run(s, cfg);

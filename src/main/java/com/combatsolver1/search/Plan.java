@@ -16,6 +16,20 @@ public class Plan {
     public int turnsToWin = -1;
     public double score;
     public int nodesSearched;
+    /** 随机分支复推的样本数与承伤区间：路线在多个洗牌/随机分支下是否仍成立。 */
+    public int samples = 1;
+    public int hpLossBest = -1;
+    public int hpLossWorst = -1;
+    public boolean robustWin = true;
+
+    /** 面板与日志用的一句话可信度说明。 */
+    public String confidenceNote() {
+        if (samples <= 1) {
+            return "未做随机分支复推";
+        }
+        return samples + " 个随机分支下：扣血 " + hpLossBest + "~" + hpLossWorst
+                + (robustWin ? "，均能取胜" : "，存在失败分支");
+    }
     /** 路线来源：engine = sts_lightspeed 精确引擎；local = 内置近似求解器。 */
     public String source = "local";
     /** 引擎给出的“战斗起点状态”与“本次搜索起点状态”原文，用于校验是否与实机一致。 */

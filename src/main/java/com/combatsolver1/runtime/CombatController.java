@@ -280,7 +280,8 @@ public class CombatController {
                         CombatLog.info("plan: turns=" + plan.turns.size()
                                 + " hpLoss=" + plan.predictedHpLoss
                                 + " win=" + plan.predictedWin
-                                + " nodes=" + plan.nodesSearched);
+                                + " nodes=" + plan.nodesSearched
+                                + " | " + plan.confidenceNote());
                     }
                 }
             }

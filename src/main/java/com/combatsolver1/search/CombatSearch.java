@@ -32,9 +32,12 @@ public class CombatSearch {
     private int nodes;
     private boolean done;
     private Plan plan;
+    /** 搜索起点的副本：随机分支复推时从它再 fork，保证起点一致。 */
+    private SimState rootState;
 
     public void begin(SimState root, Config cfg) {
         this.cfg = cfg;
+        this.rootState = root.fork();
         this.startHp = root.hp;
         this.beam = new ArrayList<>();
         this.beam.add(new World(root.fork(), new ArrayList<Plan.Turn>()));
@@ -164,10 +167,69 @@ public class CombatSearch {
             p.predictedWin = chosen.state.won();
             p.turnsToWin = p.predictedWin ? chosen.turns.size() : -1;
             p.score = chosen.score;
+            measureRobustness(chosen.turns, p);
         } else {
             p.endHp = startHp;
         }
         plan = p;
+    }
+
+    /**
+     * 随机分支复推：把选出的路线在多个不同的随机分支下重放一遍，
+     * 给出扣血区间与是否存在失败分支。
+     *
+     * 洗牌与随机招式目前用的是模拟器内置 RNG（没有复制游戏真实序列），
+     * 单次结果可能只是"恰好赌到一次好洗牌"。用区间表达不确定性，
+     * 比把一个赌运气的数字当成确定预测要诚实。
+     */
+    private void measureRobustness(List<Plan.Turn> turns, Plan plan) {
+        int samples = 4;
+        if (rootState == null || turns.isEmpty()) {
+            return;
+        }
+        int best = Integer.MAX_VALUE;
+        int worst = 0;
+        boolean allWin = true;
+        for (int i = 0; i < samples; i++) {
+            SimState s = rootState.fork();
+            s.rngState = rootState.rngState + 0x9E3779B97F4A7C15L * (i + 1);
+            for (Plan.Turn turn : turns) {
+                for (Plan.Action action : turn.actions) {
+                    if (action == null || action.cardId == null) {
+                        continue;
+                    }
+                    int index = findInHand(s, action.cardId, action.handIndex);
+                    if (index < 0) {
+                        continue;
+                    }
+                    SimState.Card card = s.hand.remove(index);
+                    CombatEngine.playCard(s, card, action.targetIndex);
+                }
+                CombatEngine.endTurn(s);
+            }
+            int loss = Math.max(0, rootState.hp - s.hp);
+            best = Math.min(best, loss);
+            worst = Math.max(worst, loss);
+            if (!s.won()) {
+                allWin = false;
+            }
+        }
+        plan.samples = samples;
+        plan.hpLossBest = best == Integer.MAX_VALUE ? 0 : best;
+        plan.hpLossWorst = worst;
+        plan.robustWin = allWin;
+    }
+
+    private static int findInHand(SimState s, String cardId, int hint) {
+        if (hint >= 0 && hint < s.hand.size() && cardId.equals(s.hand.get(hint).id)) {
+            return hint;
+        }
+        for (int i = 0; i < s.hand.size(); i++) {
+            if (cardId.equals(s.hand.get(i).id)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** 展开当前玩家回合：返回若干“结束回合前的候选状态 + 动作序列”。 */

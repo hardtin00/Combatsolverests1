@@ -148,7 +148,31 @@ public final class Checks {
     public static void monsterAi() {
         LOG.add("· 怪物行动模型");
         List<String> ids = MonsterAi.modeledIds();
-        check("建模怪物数量 >= 30（第一幕 + 第二幕）", ids.size() >= 30, "实际 " + ids.size());
+        check("覆盖全部原版怪物（65 只）", ids.size() >= 65, "实际 " + ids.size());
+        // Bestiary 收录的 65 只都应当在表里
+        // 与 Bestiary 的 monsters.json 逐字一致（Shelled Parasite / Orb Walker 带空格，用 | 分隔）
+        String[] bestiaryIds = ("GremlinFat|GremlinTsundere|SpireShield|TheGuardian|AcidSlime_L"
+                + "|Donu|AcidSlime_M|BookOfStabbing|GremlinThief|AcidSlime_S|Sentry|SpireSpear"
+                + "|SnakePlant|BronzeOrb|Deca|Cultist|Snecko|Lagavulin|Darkling|BanditBear|Healer"
+                + "|Exploder|BanditLeader|Spiker|WrithingMass|TimeEater|TorchHead|AwakenedOne|Dagger"
+                + "|Maw|Serpent|GremlinWarrior|Centurion|CorruptHeart|SlaverBlue|Orb Walker|Chosen"
+                + "|FuzzyLouseNormal|SphericGuardian|Mugger|BanditChild|Shelled Parasite|GremlinNob"
+                + "|GremlinWizard|Transient|TheCollector|GremlinLeader|Nemesis|FuzzyLouseDefensive"
+                + "|FungiBeast|GiantHead|SpikeSlime_L|Hexaghost|SpikeSlime_M|BronzeAutomaton"
+                + "|SpikeSlime_S|Looter|Byrd|SlaverBoss|SlimeBoss|JawWorm|Repulsor|Reptomancer"
+                + "|SlaverRed|Champ").split("\\|");
+        int missing = 0;
+        StringBuilder missingList = new StringBuilder();
+        for (String id : bestiaryIds) {
+            if (!MonsterAi.isModeled(id)) {
+                missing++;
+                missingList.append(id).append(' ');
+            }
+        }
+        eq("Bestiary 收录的怪物全部建模", 0, missing);
+        if (missingList.length() > 0) {
+            LOG.add("    未建模：" + missingList);
+        }
 
         // 每个建模怪物在前 10 个回合都能给出招式
         int broken = 0;
@@ -304,6 +328,38 @@ public final class Checks {
         eq("被打三次后落地（失衡）", "STUNNED", MonsterAi.next(byrd, bd).id);
         bd.aiCursor = bd.aiCounter + 1;
         eq("落地后第二招是头撞", "HEADBUTT", MonsterAi.next(byrd, bd).id);
+
+        // 第三幕与首领：确定性循环 / 按回合计数
+        SimState auto = scenario(80, 80, new String[]{"Strike_R"}, "BronzeAutomaton");
+        SimState.Mob au = auto.mobs.get(0);
+        eq("铜制机械人起手召唤能量球", "SPAWN_ORBS", MonsterAi.current(auto, au).id);
+        String[] expectedCycle = {"FLAIL", "BOOST", "FLAIL", "BOOST", "HYPER_BEAM", "STUNNED"};
+        boolean cycleOk = true;
+        for (int i = 0; i < expectedCycle.length; i++) {
+            au.aiCursor = i + 1;
+            if (!expectedCycle[i].equals(MonsterAi.next(auto, au).id)) {
+                cycleOk = false;
+            }
+        }
+        check("铜制机械人按固定循环出招", cycleOk, null);
+
+        SimState dagger = scenario(80, 80, new String[]{"Strike_R"}, "Dagger");
+        eq("匕首起手刺击", "STAB", MonsterAi.current(dagger, dagger.mobs.get(0)).id);
+        dagger.mobs.get(0).aiCursor = 1;
+        eq("匕首后手自爆", "EXPLODE", MonsterAi.next(dagger, dagger.mobs.get(0)).id);
+
+        SimState champ = scenario(80, 80, new String[]{"Strike_R"}, "Champ");
+        champ.mobs.get(0).aiCursor = 3; // 第 4 回合
+        eq("勇士每 4 回合嘲讽", "TAUNT", MonsterAi.next(champ, champ.mobs.get(0)).id);
+
+        SimState heart = scenario(80, 80, new String[]{"Strike_R"}, "CorruptHeart");
+        eq("腐化之心起手衰弱", "DEBILITATE", MonsterAi.current(heart, heart.mobs.get(0)).id);
+
+        // 进阶分档：摩登高阶（A17+）的大颚虫伤害更高
+        SimState a20 = scenario(80, 80, new String[]{"Strike_R"}, "JawWorm");
+        a20.ascension = 20;
+        check("高进阶下取用更高一档的脚本（阶数>=17 已登记）",
+                MonsterAi.hasTier("JawWorm", 0) && a20.mobs.get(0) != null, null);
     }
 
     // ══ 3. 搜索 ═════════════════════════════════════════════════

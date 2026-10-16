@@ -33,6 +33,8 @@ public class SimState {
 
     /** 本场战斗玩家累计失去的生命次数（血怒费用按次数递减）。 */
     public int hpLossEvents;
+    /** 本局进阶等级（影响怪物的伤害与 AI 分档）。 */
+    public int ascension;
 
     // ── 能力牌（铁甲核心机制）──
     public int pMetallicize;
@@ -85,6 +87,7 @@ public class SimState {
         s.simDexBonus = simDexBonus;
         s.tempStrength = tempStrength;
         s.hpLossEvents = hpLossEvents;
+        s.ascension = ascension;
         s.firstEnemyTurn = firstEnemyTurn;
         s.pMetallicize = pMetallicize;
         s.pFeelNoPain = pFeelNoPain;

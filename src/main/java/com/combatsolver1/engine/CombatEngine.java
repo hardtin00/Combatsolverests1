@@ -986,6 +986,9 @@ public final class CombatEngine {
                 }
             }
         }
+        if (mv.selfThorns > 0) {
+            m.thorns += mv.selfThorns;
+        }
         if (mv.allyHeal > 0) {
             SimState.Mob target = mostInjured(s, m);
             if (target != null) {

@@ -37,6 +37,7 @@ public final class LiveCapture {
         s.energy = EnergyPanel.getCurrentEnergy();
         s.energyPerTurn = Math.max(1, AbstractDungeon.player.energy.energyMaster);
         s.handSize = Math.max(1, AbstractDungeon.player.gameHandSize);
+        s.ascension = AbstractDungeon.ascensionLevel;
         s.turn = AbstractDungeon.actionManager.turn;
         s.rngState = 0x9E3779B97F4A7C15L + s.turn * 131L + AbstractDungeon.player.hand.size();
 

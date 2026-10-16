@@ -43,6 +43,7 @@ public final class MonsterAi {
         public final int allyHeal;
         public final int allyBlock;
         public final int partyStr;
+        public final int selfThorns;
         public final boolean approx;
 
         private Move(M b) {
@@ -67,6 +68,7 @@ public final class MonsterAi {
             this.allyHeal = b.allyHeal;
             this.allyBlock = b.allyBlock;
             this.partyStr = b.partyStr;
+            this.selfThorns = b.selfThorns;
             this.approx = b.approx;
         }
 
@@ -87,7 +89,7 @@ public final class MonsterAi {
         }
     }
 
-    private static final class M {
+    static final class M {
         final String id;
         final String name;
         int damage;
@@ -109,6 +111,7 @@ public final class MonsterAi {
         int allyHeal;
         int allyBlock;
         int partyStr;
+        int selfThorns;
         boolean approx;
 
         M(String id, String name) {
@@ -209,6 +212,12 @@ public final class MonsterAi {
             return this;
         }
 
+        /** 自身获得尖刺（尖刺怪每回合 +2）。 */
+        M selfThorns(int value) {
+            this.selfThorns = value;
+            return this;
+        }
+
         M approx() {
             this.approx = true;
             return this;
@@ -222,17 +231,17 @@ public final class MonsterAi {
         }
     }
 
-    private static M m(String id, String name) {
+    static M m(String id, String name) {
         return new M(id, name);
     }
 
     /** 招式选择脚本。aiCursor = 该怪物已经执行过的招式数（即“下一个招式”的下标）。 */
-    private interface Script {
+    interface Script {
         Move pick(SimState s, SimState.Mob mob);
     }
 
     /** 固定循环：cursor 对长度取模。 */
-    private static Script cycle(final Move... moves) {
+    static Script cycle(final Move... moves) {
         return new Script() {
             public Move pick(SimState s, SimState.Mob mob) {
                 return moves[Math.floorMod(mob.aiCursor, moves.length)];
@@ -241,7 +250,7 @@ public final class MonsterAi {
     }
 
     /** 起手固定，之后进入另一个脚本（用于“先强化再打”的怪）。 */
-    private static Script firstThen(final Move first, final Script then) {
+    static Script firstThen(final Move first, final Script then) {
         return new Script() {
             public Move pick(SimState s, SimState.Mob mob) {
                 return mob.aiCursor == 0 ? first : then.pick(s, mob);
@@ -249,8 +258,17 @@ public final class MonsterAi {
         };
     }
 
+    /** 起手也由脚本决定（用于「第一招在两者间随机，之后固定循环」的怪）。 */
+    static Script firstThenScript(final Script first, final Script then) {
+        return new Script() {
+            public Move pick(SimState s, SimState.Mob mob) {
+                return mob.aiCursor == 0 ? first.pick(s, mob) : then.pick(s, mob);
+            }
+        };
+    }
+
     /** 均匀随机，但不能连续三次使用同一招式（原版对多数随机怪物的约束）。 */
-    private static Script random(final Move... moves) {
+    static Script random(final Move... moves) {
         return new Script() {
             public Move pick(SimState s, SimState.Mob mob) {
                 return pickWeighted(s, mob, moves, false);
@@ -259,7 +277,7 @@ public final class MonsterAi {
     }
 
     /** 均匀随机，但不能连续两次使用同一招式（地精大块头）。 */
-    private static Script randomNoRepeat(final Move... moves) {
+    static Script randomNoRepeat(final Move... moves) {
         return new Script() {
             public Move pick(SimState s, SimState.Mob mob) {
                 return pickWeighted(s, mob, moves, true);
@@ -294,7 +312,7 @@ public final class MonsterAi {
     }
 
     /** 加权随机的候选项：权重 + 连用上限 + 是否禁止起手（照 Bestiary 的 AI 描述）。 */
-    private static final class Choice {
+    static final class Choice {
         final Move move;
         final int weight;
         int maxStreak;
@@ -317,12 +335,12 @@ public final class MonsterAi {
         }
     }
 
-    private static Choice w(Move move, int weight) {
+    static Choice w(Move move, int weight) {
         return new Choice(move, weight);
     }
 
     /** 按权重随机；被「连用上限 / 禁止起手」挡住的候选人权重记 0。 */
-    private static Script weighted(final Choice... choices) {
+    static Script weighted(final Choice... choices) {
         return new Script() {
             public Move pick(SimState s, SimState.Mob mob) {
                 int total = 0;
@@ -632,6 +650,41 @@ public final class MonsterAi {
 
     private static final Map<String, Script> SCRIPTS = new HashMap<String, Script>();
 
+    /** 进阶等级分档（对应 Bestiary 的 min_asc）：同一只怪在不同进阶下用不同脚本。 */
+    private static final Map<String, Map<Integer, Script>> TIERS =
+            new HashMap<String, Map<Integer, Script>>();
+
+    /** 注册某只怪物在「进阶 >= minAsc」时生效的脚本；生成器与手写表共用。 */
+    public static void register(String monsterId, int minAsc, Script script) {
+        if (minAsc <= 0) {
+            SCRIPTS.put(monsterId, script);
+            return;
+        }
+        Map<Integer, Script> byLevel = TIERS.get(monsterId);
+        if (byLevel == null) {
+            byLevel = new HashMap<Integer, Script>();
+            TIERS.put(monsterId, byLevel);
+        }
+        byLevel.put(minAsc, script);
+    }
+
+    /** 取该怪物在当前进阶下生效的脚本：minAsc 不超过进阶等级的最大那一档。 */
+    private static Script scriptFor(String monsterId, int ascension) {
+        Script best = SCRIPTS.get(monsterId);
+        int bestLevel = 0;
+        Map<Integer, Script> byLevel = TIERS.get(monsterId);
+        if (byLevel != null) {
+            for (Map.Entry<Integer, Script> entry : byLevel.entrySet()) {
+                int level = entry.getKey();
+                if (level <= ascension && level >= bestLevel) {
+                    bestLevel = level;
+                    best = entry.getValue();
+                }
+            }
+        }
+        return best;
+    }
+
     static {
         // ── 第一幕 · 普通怪 ───────────────────────────────────────
         SCRIPTS.put("Cultist", firstThen(CULTIST_INCANTATION, cycle(CULTIST_DARK_STRIKE)));
@@ -680,10 +733,14 @@ public final class MonsterAi {
         SCRIPTS.put("SphericGuardian", SPHERIC_GUARDIAN);
         SCRIPTS.put("Centurion", CENTURION);
         SCRIPTS.put("Healer", MYSTIC);
+
+        // 其余怪物由生成表提供（数据来自 Bestiary，见 GeneratedMonsterData 头部说明）
+        MonsterManual.register();
+        GeneratedMonsterData.register();
     }
 
     public static boolean isModeled(String monsterId) {
-        return SCRIPTS.containsKey(monsterId);
+        return SCRIPTS.containsKey(monsterId) || TIERS.containsKey(monsterId);
     }
 
     /**
@@ -716,11 +773,20 @@ public final class MonsterAi {
      * 返回值不会修改怪物状态，状态的推进由调用方在招式执行后完成。
      */
     public static Move next(SimState s, SimState.Mob mob) {
-        Script script = SCRIPTS.get(mob.id);
+        Script script = scriptFor(mob.id, s.ascension);
         if (script == null) {
             return null;
         }
         return script.pick(s, mob);
+    }
+
+    /** 进阶等级（供离线自检与生成器核对）。 */
+    public static boolean hasTier(String monsterId, int minAsc) {
+        if (minAsc <= 0) {
+            return SCRIPTS.containsKey(monsterId);
+        }
+        Map<Integer, Script> byLevel = TIERS.get(monsterId);
+        return byLevel != null && byLevel.containsKey(minAsc);
     }
 
     /**
@@ -728,7 +794,7 @@ public final class MonsterAi {
      * 捕捉实机状态时用它补上当前招式的非伤害效果（咆哮加力量、吟唱给仪式等）。
      */
     public static Move current(SimState s, SimState.Mob mob) {
-        Script script = SCRIPTS.get(mob.id);
+        Script script = scriptFor(mob.id, s.ascension);
         if (script == null) {
             return null;
         }

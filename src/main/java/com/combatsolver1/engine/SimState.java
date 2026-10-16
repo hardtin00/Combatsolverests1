@@ -237,6 +237,7 @@ public class SimState {
         public boolean requiresAllAttacks; // 斗殴：仅当手牌全是攻击牌时可打出
         public boolean shuffleAddedToDraw; // 洗入抽牌堆而不是进入弃牌堆
         public boolean putBackWorst;       // 战吼：抽牌后把一张牌放回牌堆顶
+        public int healFlat;               // 固定回血（吸血 / 绷带）
 
         public Card(String id, String name, int cost, int damage, int hits, int block,
                     boolean attack, boolean aoe, boolean needsTarget,
@@ -324,6 +325,7 @@ public class SimState {
             c.requiresAllAttacks = requiresAllAttacks;
             c.shuffleAddedToDraw = shuffleAddedToDraw;
             c.putBackWorst = putBackWorst;
+            c.healFlat = healFlat;
             return c;
         }
 

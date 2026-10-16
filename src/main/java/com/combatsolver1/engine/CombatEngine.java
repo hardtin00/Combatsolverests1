@@ -271,6 +271,9 @@ public final class CombatEngine {
         if (card.healOnDamage && dealtThisPlay > 0) {
             s.hp = Math.min(s.maxHp, s.hp + dealtThisPlay);
         }
+        if (card.healFlat > 0) {
+            s.hp = Math.min(s.maxHp, s.hp + card.healFlat); // 固定回血（吸血 / 绷带）
+        }
         if (card.energyGain > 0) {
             boolean ok = !card.requiresVulnerable
                     || (targetIndex >= 0 && targetIndex < s.mobs.size()

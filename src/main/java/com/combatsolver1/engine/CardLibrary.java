@@ -66,6 +66,7 @@ public final class CardLibrary {
         public boolean requiresAllAttacks;  // 斗殴：手牌必须全是攻击牌
         public boolean shuffleAddedToDraw;  // 塞入的状态牌洗进抽牌堆而不是弃牌堆
         public boolean putBackWorst;        // 战吼：抽牌后把最差的一张放回牌堆顶
+        public int healFlat;                // 固定回血（吸血 / 绷带）
 
         Template hits(int v) { hits = v; return this; }
         Template draw(int v) { draw = v; return this; }
@@ -119,6 +120,7 @@ public final class CardLibrary {
         Template requiresAllAttacks() { requiresAllAttacks = true; approx = false; return this; }
         Template shuffleAddedToDraw() { shuffleAddedToDraw = true; approx = false; return this; }
         Template putBackWorst() { putBackWorst = true; approx = false; return this; }
+        Template healFlat(int v) { healFlat = v; approx = false; return this; }
     }
 
     private static final Map<String, Template> TABLE = new HashMap<>();
@@ -261,6 +263,34 @@ public final class CardLibrary {
         card("Burn").endTurnDamage(2);
         card("Decay").endTurnDamage(2);
         card("Regret").regret();
+
+        // ── 无色牌（铁甲在商店 / 事件里能拿到）──────────────────────
+        // 数值（伤害 / 格挡）由实机卡面读取，这里描述「这张牌做什么」。
+        // 从 Wiki Module:Cards/data 核对，机制无法建模的牌**不登记**，
+        // 让它们保持“未建模”而不是被静默算错。
+        card("Swift Strike");                       // 0 费 7 伤害
+        card("Good Instincts");                     // 0 费 6 格挡
+        card("Finesse").draw(1);                    // 2 格挡 + 抽 1
+        card("Flash of Steel").draw(1);             // 3 伤害 + 抽 1
+        card("Blind").weakAll(1);                   // 全体 2 虚弱
+        card("Trip").vulnAll(1);                    // 全体 2 易伤
+        card("Dark Shackles").enemyStrDown(9).exhaustSelf();   // 敌人 -9 力量（临时按永久近似）
+        card("Dramatic Entrance").exhaustSelf();    // 全体 8 伤害（群体由实机卡面判定）
+        card("Bandage Up").healFlat(4).exhaustSelf();
+        card("Bite").healFlat(2);                   // 7 伤害 + 回 2 血
+        card("J.A.X.").selfDamage(3).str(2);        // 失去 3 生命 + 2 力量
+        card("Deep Breath").draw(1);                // 洗回弃牌堆 + 抽 1
+        card("Master of Strategy").draw(3).exhaustSelf();
+        card("Insight").draw(2).exhaustSelf();
+        card("Safety").exhaustSelf();               // 12 格挡
+        card("Smite").exhaustSelf();                // 12 伤害
+        card("Through Violence").exhaustSelf();     // 20 伤害
+        card("Shiv").exhaustSelf();                 // 4 伤害
+        card("Ritual Dagger").exhaustSelf().approx(); // 斩杀成长未建模
+        card("Hand of Greed");                      // 20 伤害（金币奖励不影响战斗）
+        card("Thinking Ahead").draw(2).putBackWorst().exhaustSelf();
+        card("Purity").exhaustSelf().approx();      // 只近似“再消耗三张”
+        card("Apotheosis").upgradeHand().exhaustSelf().approx(); // 全体升级按升级一张近似
     }
 
     public static Template get(String id) {
@@ -325,6 +355,7 @@ public final class CardLibrary {
         sim.requiresAllAttacks = t.requiresAllAttacks;
         sim.shuffleAddedToDraw = t.shuffleAddedToDraw;
         sim.putBackWorst = t.putBackWorst;
+        sim.healFlat = t.healFlat;
         return sim;
     }
 }

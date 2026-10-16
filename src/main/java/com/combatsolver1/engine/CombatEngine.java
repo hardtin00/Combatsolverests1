@@ -154,6 +154,7 @@ public final class CombatEngine {
 
         if (card.attack) {
             s.attacksThisCombat++;
+            s.attacksThisTurn++;
             applyAttackRelics(s);
             boolean vulnOk = !card.requiresVulnerable
                     || (targetIndex >= 0 && targetIndex < s.mobs.size()
@@ -482,6 +483,11 @@ public final class CombatEngine {
             onExhaustCard(s, card);
         } else {
             s.discardPile.add(card);
+        }
+
+        // 不停之顶：回合中手牌为空时抽一张
+        if (s.hasRelic("Unceasing Top") && s.hand.isEmpty() && !s.drawPile.isEmpty()) {
+            drawCards(s, 1);
         }
 
         settleDeaths(s, card);
@@ -879,6 +885,10 @@ public final class CombatEngine {
         if (s.pDarkEmbrace > 0) {
             drawCards(s, 1);
         }
+        if (s.hasRelic("Dead Branch")) {
+            // 死亡树枝：每消耗一张牌就往手里塞一张随机牌（牌池按攻击 / 防御近似）
+            s.hand.add(randomCardOf(s, s.nextInt(2) == 0 ? "attack" : "skill"));
+        }
         if (s.hasRelic("Charon's Ashes")) {
             for (SimState.Mob m : s.mobs) {
                 if (m.alive) {
@@ -1052,7 +1062,11 @@ public final class CombatEngine {
         if (s.constricted > 0) {
             loseHp(s, s.constricted);
         }
+        // 战争艺术 / 怀表要在本回合数据被清零前先记下来
+        boolean noAttackThisTurn = s.attacksThisTurn == 0;
+        int cardsThisTurn = s.cardsPlayedThisTurn;
         s.cardsPlayedThisTurn = 0;
+        s.attacksThisTurn = 0;
         s.turnLocked = false;
         s.costOverrideThisTurn = 0;
         for (SimState.Mob mob : s.mobs) {
@@ -1111,6 +1125,9 @@ public final class CombatEngine {
         s.playerEntangled = 0;
         s.tempStrength = 0; // 活动肌肉的临时力量到期
         drawCards(s, s.handSize);
+        if (s.hasRelic("Pocket Watch") && cardsThisTurn <= 3) {
+            drawCards(s, 3); // 怀表：本回合打出 3 张及以下，下回合多抽 3
+        }
         if (s.hasRelic("Ice Cream")) {
             s.energy += s.energyPerTurn + s.pBerserk; // 冰淇淋：未用完的能量保留
         } else {
@@ -1118,6 +1135,9 @@ public final class CombatEngine {
         }
         if (s.hasRelic("Velvet Choker")) {
             s.energy += 1; // 天鹅绒项圈：每回合 +1 能量
+        }
+        if (s.hasRelic("Art of War") && noAttackThisTurn) {
+            s.energy += 1; // 战争艺术：本回合没打过攻击牌，下回合 +1 能量
         }
         s.turn++;
         applyStartOfTurnPowers(s);

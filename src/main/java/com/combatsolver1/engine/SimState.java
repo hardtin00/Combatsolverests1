@@ -39,6 +39,8 @@ public class SimState {
     public int constricted;
     /** 本回合已打出的牌数（时间扭曲按 12 张触发）。 */
     public int cardsPlayedThisTurn;
+    /** 本回合已打出的攻击牌数量（战争艺术依据）。 */
+    public int attacksThisTurn;
     /** 时间扭曲触发后本回合不能再出牌。 */
     public boolean turnLocked;
     /** 玩家无形剩余回合：受到的伤害降为 1（幻影）。 */
@@ -119,6 +121,7 @@ public class SimState {
         s.ascension = ascension;
         s.constricted = constricted;
         s.cardsPlayedThisTurn = cardsPlayedThisTurn;
+        s.attacksThisTurn = attacksThisTurn;
         s.turnLocked = turnLocked;
         s.playerIntangible = playerIntangible;
         s.playerArtifact = playerArtifact;

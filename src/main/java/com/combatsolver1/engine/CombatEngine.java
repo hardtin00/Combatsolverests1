@@ -421,6 +421,16 @@ public final class CombatEngine {
     private static void settleDeaths(SimState s, SimState.Card source) {
         for (SimState.Mob m : s.mobs) {
             if (m.alive && m.hp <= 0) {
+                if ("AwakenedOne".equals(m.id) && m.aiState == 0) {
+                    // 觉醒者：第一阶段被打空后「重生」，满血进入第二阶段并换招式表
+                    m.aiState = 1;
+                    m.hp = m.maxHp;
+                    m.block = 0;
+                    m.intent = null;
+                    m.aiCounter = m.aiCursor;
+                    initMonsters(s);
+                    continue;
+                }
                 if ("Darkling".equals(m.id) && hasLivingCompanion(s, m)) {
                     // 暗影：血量归零不会死，两回合后以半血复活
                     m.alive = false;
@@ -1133,7 +1143,7 @@ public final class CombatEngine {
                     existing++;
                 }
             }
-            int room = Math.max(0, 2 - existing); // 召唤物上限 2 只
+            int room = Math.max(0, MonsterAi.summonCap(mv.summonId) - existing);
             int count = Math.min(mv.summonCount, room);
             for (int i = 0; i < count; i++) {
                 s.mobs.add(MonsterAi.summon(mv.summonId));

@@ -192,11 +192,6 @@ final class MonsterManual {
 
         MonsterAi.Move wokeSlash = m("SLASH", "斩击").dmg(20, 1).build();
         MonsterAi.Move wokeSoul = m("SOUL_STRIKE", "灵魂打击").dmg(6, 4).build();
-        // 只建模第一阶段（半血复活的第二阶段未建模）
-        MonsterAi.register("AwakenedOne", 0, MonsterAi.firstThen(wokeSlash, MonsterAi.weighted(
-                w(wokeSoul, 25).maxStreak(1),
-                w(wokeSlash, 75).maxStreak(2))));
-
         MonsterAi.Move heartDebilitate = m("DEBILITATE", "衰弱").vuln(2).weak(2).frail(2).build();
         MonsterAi.Move heartBlood = m("BLOOD_SHOTS", "血弹").dmg(2, 12).build();
         MonsterAi.Move heartEcho = m("ECHO", "回声").dmg(40, 1).build();
@@ -240,6 +235,80 @@ final class MonsterManual {
                     return spearSkewer;
                 }
                 return s.nextInt(2) == 0 ? spearBurn : spearPiercer;
+            }
+        });
+
+        // ── 地精首领（Wiki/Bestiary：按场上地精数量决定权重，且不连续同招）──
+        MonsterAi.Move leaderRally = m("RALLY", "集结！").summon("GremlinWarrior", 2).build();
+        MonsterAi.Move leaderStab = m("STAB", "刺击").dmg(6, 3).build();
+        MonsterAi.Move leaderEncourage = m("ENCOURAGE", "鼓舞").partyStr(3).allyBlock(6).build();
+        MonsterAi.register("GremlinLeader", 0, new MonsterAi.Script() {
+            public MonsterAi.Move pick(SimState s, SimState.Mob mob) {
+                int allies = MonsterAi.aliveGremlins(s);
+                if (allies <= 0) {
+                    return MonsterAi.weighted(
+                            w(leaderRally, 75).maxStreak(1),
+                            w(leaderStab, 25).maxStreak(1)).pick(s, mob);
+                }
+                if (allies == 1) {
+                    if (leaderEncourage.id.equals(mob.lastMoveId)) {
+                        return MonsterAi.weighted(
+                                w(leaderRally, 50).maxStreak(1),
+                                w(leaderStab, 50).maxStreak(1)).pick(s, mob);
+                    }
+                    return MonsterAi.weighted(
+                            w(leaderRally, 62).maxStreak(1),
+                            w(leaderEncourage, 38).maxStreak(1)).pick(s, mob);
+                }
+                return MonsterAi.weighted(
+                        w(leaderEncourage, 66).maxStreak(1),
+                        w(leaderStab, 34).maxStreak(1)).pick(s, mob);
+            }
+        });
+
+        // ── 爬行者：起手召唤，之后三招均等（各有连续使用限制；4 只匕首在场时不再召唤）──
+        MonsterAi.Move reptoSummon = m("SUMMON", "召唤").summon("Dagger", 1).build();
+        MonsterAi.Move reptoStrike = m("SNAKE_STRIKE", "蛇击").dmg(13, 2).weak(1).build();
+        MonsterAi.Move reptoBite = m("BIG_BITE", "巨咬").dmg(30, 1).build();
+        MonsterAi.register("Reptomancer", 0, new MonsterAi.Script() {
+            public MonsterAi.Move pick(SimState s, SimState.Mob mob) {
+                if (mob.aiCursor == 0) {
+                    return reptoSummon;
+                }
+                if (MonsterAi.aliveCount(s, "Dagger") >= 4) {
+                    return MonsterAi.weighted(
+                            w(reptoStrike, 50).maxStreak(1),
+                            w(reptoBite, 50).maxStreak(1)).pick(s, mob);
+                }
+                return MonsterAi.weighted(
+                        w(reptoSummon, 34).maxStreak(2),
+                        w(reptoStrike, 33).maxStreak(1),
+                        w(reptoBite, 33).maxStreak(1)).pick(s, mob);
+            }
+        });
+
+        // ── 觉醒者：第一阶段打空血后「重生」进入第二阶段（换招式表）──
+        MonsterAi.Move wokeDarkEcho = m("DARK_ECHO", "黑暗回响").dmg(40, 1).build();
+        MonsterAi.Move wokeSludge = m("SLUDGE", "淤泥").dmg(18, 1).approx().build(); // 附带虚空诅咒
+        MonsterAi.Move wokeTackle = m("TACKLE_2", "擒抱").dmg(10, 3).build();
+        // aiState：0 = 第一阶段，1 = 第二阶段（血量归零后由引擎切换到第二阶段）
+        MonsterAi.register("AwakenedOne", 0, new MonsterAi.Script() {
+            public MonsterAi.Move pick(SimState s, SimState.Mob mob) {
+                if (mob.aiState == 1) {
+                    int sincePhaseStart = mob.aiCursor - mob.aiCounter;
+                    if (sincePhaseStart <= 0) {
+                        return wokeDarkEcho; // 第二阶段起手固定
+                    }
+                    return MonsterAi.weighted(
+                            w(wokeSludge, 50).maxStreak(2),
+                            w(wokeTackle, 50).maxStreak(2)).pick(s, mob);
+                }
+                if (mob.aiCursor == 0) {
+                    return wokeSlash;
+                }
+                return MonsterAi.weighted(
+                        w(wokeSoul, 25).maxStreak(1),
+                        w(wokeSlash, 75).maxStreak(2)).pick(s, mob);
             }
         });
     }

@@ -494,6 +494,37 @@ public final class Checks {
         CombatEngine.endTurn(dark);
         check("两回合后半血复活", first.alive && first.hp == Math.max(1, first.maxHp / 2),
                 "alive=" + first.alive + " hp=" + first.hp);
+
+        // 觉醒者两阶段：第一阶段打空后满血重生并换招式表
+        SimState woke = scenario(400, 400, new String[]{"Strike_R"}, "AwakenedOne");
+        SimState.Mob wokeMob = woke.mobs.get(0);
+        eq("觉醒者第一阶段起手斩击", "SLASH", MonsterAi.current(woke, wokeMob).id);
+        wokeMob.hp = 1;
+        SimState.Card strike5 = CardLibrary.toSimCard("Strike_R", "打击", 1, 6, 0, 1, true, false, true, false);
+        woke.hand.clear();
+        woke.hand.add(strike5);
+        CombatEngine.playCard(woke, woke.hand.remove(0), 0);
+        check("血量归零后满血进入第二阶段", wokeMob.alive && wokeMob.aiState == 1
+                && wokeMob.hp == wokeMob.maxHp, "alive=" + wokeMob.alive + " hp=" + wokeMob.hp);
+        eq("第二阶段起手是黑暗回响", "DARK_ECHO", MonsterAi.next(woke, wokeMob).id);
+
+        // 地精首领：没有小怪时偏向集结（召唤）
+        SimState leader = scenario(200, 200, new String[]{"Defend_R"}, "GremlinLeader");
+        SimState.Mob lead = leader.mobs.get(0);
+        MonsterAi.Move rally = MonsterAi.next(leader, lead);
+        eq("地精首领无小怪时集结", "RALLY", rally.id);
+        eq("集结召唤 2 只地精", 2, rally.summonCount);
+        leader.firstEnemyTurn = false;
+        lead.intent = rally;
+        CombatEngine.endTurn(leader);
+        check("集结后场上多出小怪", MonsterAi.aliveGremlins(leader) > 0,
+                "小怪数 " + MonsterAi.aliveGremlins(leader));
+
+        // 爬行者：起手召唤匕首
+        SimState repto = scenario(200, 200, new String[]{"Defend_R"}, "Reptomancer");
+        MonsterAi.Move summonMove = MonsterAi.current(repto, repto.mobs.get(0));
+        eq("爬行者起手召唤匕首", "SUMMON", summonMove.id);
+        eq("匕首召唤上限是 4", 4, MonsterAi.summonCap("Dagger"));
     }
 
     // ══ 2.5 与游戏自带文本对账 ══════════════════════════════════

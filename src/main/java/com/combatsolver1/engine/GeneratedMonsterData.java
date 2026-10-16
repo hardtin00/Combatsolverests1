@@ -65,10 +65,6 @@ final class GeneratedMonsterData {
         MonsterAi.register("GremlinFat", 2, MonsterAi.cycle(MonsterAi.m("SMASH", "Smash").dmg(5, 1).weak(1).build()));
         MonsterAi.register("GremlinFat", 7, MonsterAi.cycle(MonsterAi.m("SMASH", "Smash").dmg(5, 1).weak(1).build()));
         MonsterAi.register("GremlinFat", 17, MonsterAi.cycle(MonsterAi.m("SMASH", "Smash").dmg(5, 1).weak(1).frail(1).build()));
-        MonsterAi.register("GremlinLeader", 0, MonsterAi.weighted(MonsterAi.w(MonsterAi.m("RALLY", "Rally!").approx().build(), 75), MonsterAi.w(MonsterAi.m("STAB", "Stab").dmg(6, 3).build(), 25)));
-        MonsterAi.register("GremlinLeader", 3, MonsterAi.weighted(MonsterAi.w(MonsterAi.m("RALLY", "Rally!").approx().build(), 75), MonsterAi.w(MonsterAi.m("STAB", "Stab").dmg(6, 3).build(), 25)));
-        MonsterAi.register("GremlinLeader", 8, MonsterAi.weighted(MonsterAi.w(MonsterAi.m("RALLY", "Rally!").approx().build(), 75), MonsterAi.w(MonsterAi.m("STAB", "Stab").dmg(6, 3).build(), 25)));
-        MonsterAi.register("GremlinLeader", 18, MonsterAi.weighted(MonsterAi.w(MonsterAi.m("RALLY", "Rally!").approx().build(), 75), MonsterAi.w(MonsterAi.m("STAB", "Stab").dmg(6, 3).build(), 25)));
         MonsterAi.register("GremlinThief", 0, MonsterAi.cycle(MonsterAi.m("PUNCTURE", "Puncture").dmg(9, 1).build()));
         MonsterAi.register("GremlinThief", 2, MonsterAi.cycle(MonsterAi.m("PUNCTURE", "Puncture").dmg(10, 1).build()));
         MonsterAi.register("GremlinThief", 7, MonsterAi.cycle(MonsterAi.m("PUNCTURE", "Puncture").dmg(10, 1).build()));
@@ -84,10 +80,6 @@ final class GeneratedMonsterData {
         MonsterAi.register("Orb Walker", 2, MonsterAi.weighted(MonsterAi.w(MonsterAi.m("LASER", "Laser").dmg(11, 1).approx().build(), 60), MonsterAi.w(MonsterAi.m("CLAW", "Claw").dmg(16, 1).build(), 40)));
         MonsterAi.register("Orb Walker", 7, MonsterAi.weighted(MonsterAi.w(MonsterAi.m("LASER", "Laser").dmg(11, 1).approx().build(), 60), MonsterAi.w(MonsterAi.m("CLAW", "Claw").dmg(16, 1).build(), 40)));
         MonsterAi.register("Orb Walker", 17, MonsterAi.weighted(MonsterAi.w(MonsterAi.m("LASER", "Laser").dmg(11, 1).approx().build(), 60), MonsterAi.w(MonsterAi.m("CLAW", "Claw").dmg(16, 1).build(), 40)));
-        MonsterAi.register("Reptomancer", 0, MonsterAi.firstThen(MonsterAi.m("SUMMON", "Summon").approx().build(), MonsterAi.weighted(MonsterAi.w(MonsterAi.m("SNAKE_STRIKE", "Snake Strike").dmg(13, 2).weak(1).build(), 66), MonsterAi.w(MonsterAi.m("BIG_BITE", "Big Bite").dmg(30, 1).build(), 34))));
-        MonsterAi.register("Reptomancer", 3, MonsterAi.firstThen(MonsterAi.m("SUMMON", "Summon").approx().build(), MonsterAi.weighted(MonsterAi.w(MonsterAi.m("SNAKE_STRIKE", "Snake Strike").dmg(16, 2).weak(1).build(), 66), MonsterAi.w(MonsterAi.m("BIG_BITE", "Big Bite").dmg(34, 1).build(), 34))));
-        MonsterAi.register("Reptomancer", 8, MonsterAi.firstThen(MonsterAi.m("SUMMON", "Summon").approx().build(), MonsterAi.weighted(MonsterAi.w(MonsterAi.m("SNAKE_STRIKE", "Snake Strike").dmg(16, 2).weak(1).build(), 66), MonsterAi.w(MonsterAi.m("BIG_BITE", "Big Bite").dmg(34, 1).build(), 34))));
-        MonsterAi.register("Reptomancer", 18, MonsterAi.firstThen(MonsterAi.m("SUMMON", "Summon").approx().build(), MonsterAi.weighted(MonsterAi.w(MonsterAi.m("SNAKE_STRIKE", "Snake Strike").dmg(16, 2).weak(1).build(), 66), MonsterAi.w(MonsterAi.m("BIG_BITE", "Big Bite").dmg(34, 1).build(), 34))));
         MonsterAi.register("Repulsor", 0, MonsterAi.weighted(MonsterAi.w(MonsterAi.m("DEBUFF", "Debuff").approx().build(), 80), MonsterAi.w(MonsterAi.m("ATTACK", "Attack").dmg(11, 1).build(), 20)));
         MonsterAi.register("Repulsor", 2, MonsterAi.weighted(MonsterAi.w(MonsterAi.m("DEBUFF", "Debuff").approx().build(), 80), MonsterAi.w(MonsterAi.m("ATTACK", "Attack").dmg(13, 1).build(), 20)));
         MonsterAi.register("Repulsor", 7, MonsterAi.weighted(MonsterAi.w(MonsterAi.m("DEBUFF", "Debuff").approx().build(), 80), MonsterAi.w(MonsterAi.m("ATTACK", "Attack").dmg(13, 1).build(), 20)));

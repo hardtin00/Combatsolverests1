@@ -857,6 +857,34 @@ public final class MonsterAi {
         return new SimState.Mob(monsterId, monsterId, 30, 30, 0, 8, 1, 0, true);
     }
 
+    /** 同类召唤物的场上上限：蛇形匕最多 4 只，其余 2 只。 */
+    public static int summonCap(String monsterId) {
+        return "Dagger".equals(monsterId) ? 4 : 2;
+    }
+
+    /** 场上某类召唤物/怪物的存活数量。 */
+    public static int aliveCount(SimState s, String monsterId) {
+        int n = 0;
+        for (SimState.Mob m : s.mobs) {
+            if (m.alive && monsterId.equals(m.id)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** 场上的地精小怪数量（地精首领的决策依据）。 */
+    public static int aliveGremlins(SimState s) {
+        int n = 0;
+        for (SimState.Mob m : s.mobs) {
+            if (m.alive && m.id != null && m.id.startsWith("Gremlin")
+                    && !"GremlinNob".equals(m.id) && !"GremlinLeader".equals(m.id)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     /** 涅墨西斯每隔一回合处于无形（近似：按出招游标奇偶判断）。 */
     public static boolean intangibleNow(SimState.Mob mob) {
         if (mob.intangible > 0) {

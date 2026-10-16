@@ -50,13 +50,16 @@ public class CombatSolver1Mod implements
     }
 
     private static void configureEngineBridge() {
+        // 先把解析到的游戏目录写进日志：多个静默失败（找不到存档 / 找不到桥目录）都在这一步暴露
+        CombatLog.info("game dir: " + com.combatsolver1.runtime.EngineBridge.gameDirectory());
         String engine = firstNonEmpty(System.getProperty("combatsolver1.engine"),
                 System.getenv("COMBATSOLVER1_ENGINE"), settingsValue("engine.path"));
         String mingw = firstNonEmpty(System.getProperty("combatsolver1.mingw"),
                 System.getenv("COMBATSOLVER1_MINGW"), settingsValue("engine.mingw"));
         if (engine.isEmpty()) {
             CombatLog.info("solver source: local java search"
-                    + "（未配置外部引擎；设置文件 ~/.combatsolver1/settings.properties 里写 engine.path=... 可启用）");
+                    + "（未配置外部引擎；设置文件 ~/.combatsolver1/settings.properties 里写 engine.path=... 可启用）"
+                    + " —— 注意：内置引擎自带一套近似 RNG，**跨回合结果只是近似预测**，不要当成精确路线");
             return;
         }
         if (!new java.io.File(engine).isFile()) {

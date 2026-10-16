@@ -31,7 +31,40 @@ public final class EngineBridge {
 
     private static String enginePath = "";
     private static String mingwBin = "";
-    private static File workDir = new File("mods/combatsolver1-bridge");
+    private static File workDir;
+
+    /**
+     * 游戏安装目录。
+     *
+     * 原来 `new File("saves")` / `new File("mods/combatsolver1-bridge")` 都是相对**进程工作目录**，
+     * 而经 ModTheSpire 启动时 JVM 的工作目录经常不是游戏根目录 → 找不到自动存档 →
+     * 静默回退到内置近似引擎，UI 上完全看不出来。这里改成从游戏本体的 jar 位置推导绝对路径，
+     * 并允许用系统属性 / 环境变量 / 设置项覆盖。
+     */
+    public static File gameDirectory() {
+        String configured = System.getProperty("combatsolver1.gameDir", "");
+        if (configured.isEmpty()) {
+            configured = System.getenv("COMBATSOLVER1_GAMEDIR");
+        }
+        if (configured != null && !configured.isEmpty()) {
+            File f = new File(configured);
+            if (f.isDirectory()) {
+                return f;
+            }
+        }
+        try {
+            // 关键：引用**游戏本体**的类（不是本 mod 的类），它的 code source 才是游戏目录
+            File self = new File(com.megacrit.cardcrawl.core.Settings.class
+                    .getProtectionDomain().getCodeSource().getLocation().toURI());
+            File dir = self.isDirectory() ? self : self.getParentFile();
+            if (dir != null && dir.isDirectory()) {
+                return dir;
+            }
+        } catch (Throwable ignored) {
+            // 取不到就退回工作目录
+        }
+        return new File(System.getProperty("user.dir", "."));
+    }
 
     public static void configure(String engineExe, String mingwBinDir) {
         enginePath = engineExe;
@@ -48,6 +81,9 @@ public final class EngineBridge {
     }
 
     public static File workDirectory() {
+        if (workDir == null) {
+            workDir = new File(gameDirectory(), "mods/combatsolver1-bridge");
+        }
         return workDir;
     }
 
@@ -65,7 +101,7 @@ public final class EngineBridge {
 
     /** 找到游戏目录下最新的自动存档（战斗开始时游戏刚写过）。 */
     public static java.io.File latestAutosave() {
-        java.io.File dir = new java.io.File("saves");
+        java.io.File dir = new java.io.File(gameDirectory(), "saves");
         java.io.File best = null;
         java.io.File[] files = dir.listFiles();
         if (files == null) {
@@ -410,10 +446,11 @@ public final class EngineBridge {
     /** 把动作日志写入桥目录，返回文件路径。 */
     public static String writeJournal(Iterable<String> actionHex) {
         try {
-            if (!workDir.isDirectory() && !workDir.mkdirs()) {
+            java.io.File dir = workDirectory();
+            if (!dir.isDirectory() && !dir.mkdirs()) {
                 return null;
             }
-            File f = new File(workDir, "journal.txt");
+            File f = new File(workDirectory(), "journal.txt");
             Writer w = new FileWriter(f);
             try {
                 for (String hex : actionHex) {

@@ -56,6 +56,8 @@ public class SimState {
     /** 能力：回合结束对全体造成伤害（欧米伽）。 */
     public int pOmega;
     /** 炸弹倒计时与爆炸伤害。 */
+    /** 本回合手牌费用上限（启蒙：全部降到 1）。0 表示不生效。 */
+    public int costOverrideThisTurn;
     public int bombTimer;
     public int bombDamage;
 
@@ -121,6 +123,7 @@ public class SimState {
         s.pMagnetism = pMagnetism;
         s.pMayhem = pMayhem;
         s.pOmega = pOmega;
+        s.costOverrideThisTurn = costOverrideThisTurn;
         s.bombTimer = bombTimer;
         s.bombDamage = bombDamage;
         s.firstEnemyTurn = firstEnemyTurn;
@@ -271,6 +274,9 @@ public class SimState {
         public int blockLockTurns;
         public int bombDamage;
         public int bombTurns;
+        public boolean setCostOverride;    // 启蒙：本回合手牌费用降到 N
+        public int costOverrideValue;
+        public int damagePerDrawPileCard;  // 心灵爆震：伤害 = 牌堆张数 × N
 
         public Card(String id, String name, int cost, int damage, int hits, int block,
                     boolean attack, boolean aoe, boolean needsTarget,
@@ -365,6 +371,9 @@ public class SimState {
             c.blockLockTurns = blockLockTurns;
             c.bombDamage = bombDamage;
             c.bombTurns = bombTurns;
+            c.setCostOverride = setCostOverride;
+            c.costOverrideValue = costOverrideValue;
+            c.damagePerDrawPileCard = damagePerDrawPileCard;
             return c;
         }
 

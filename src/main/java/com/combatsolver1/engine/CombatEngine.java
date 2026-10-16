@@ -59,6 +59,9 @@ public final class CombatEngine {
         if (c.xCost) {
             return -1; // X 费：费用在出牌时按全部剩余能量结算
         }
+        if (s.costOverrideThisTurn > 0 && c.cost > s.costOverrideThisTurn) {
+            return s.costOverrideThisTurn; // 启蒙：本回合手牌费用上限
+        }
         if (s.pCorruption && !c.attack && c.power == null) {
             return 0;
         }
@@ -169,6 +172,9 @@ public final class CombatEngine {
                 dmg = card.damage + (card.strengthMult > 0
                         ? strength * card.strengthMult
                         : strength);
+            }
+            if (card.damagePerDrawPileCard > 0) {
+                dmg = card.damagePerDrawPileCard * s.drawPile.size() + strength; // 心灵爆震
             }
             if (card.damagePerStrike > 0) {
                 dmg += card.damagePerStrike * countStrikeCards(s);
@@ -384,6 +390,9 @@ public final class CombatEngine {
             }
         }
 
+        if (card.setCostOverride) {
+            s.costOverrideThisTurn = card.costOverrideValue; // 启蒙：影响之后打出的牌
+        }
         if (card.grantIntangible > 0) {
             s.playerIntangible += card.grantIntangible; // 幻影：获得无形
         }
@@ -961,6 +970,7 @@ public final class CombatEngine {
         }
         s.cardsPlayedThisTurn = 0;
         s.turnLocked = false;
+        s.costOverrideThisTurn = 0;
         for (SimState.Mob mob : s.mobs) {
             mob.malleableBlock = 0; // 可塑的格挡量在玩家回合开始重置
         }

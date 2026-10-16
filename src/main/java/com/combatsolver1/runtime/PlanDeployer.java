@@ -112,6 +112,13 @@ public class PlanDeployer {
             return;
         }
         try {
+            // 游戏弹出了选牌界面（武装 / 双持 / 头槌 / 发掘 / 燃烧契约…）：
+            // 这些选择我暂时无法自动完成，此时**必须停手**，把控制权交还玩家；
+            // 否则下面的"动作已排完 + 空闲"判断会直接把回合结束掉。
+            if (AbstractDungeon.isScreenUp) {
+                finish(false, "游戏弹出了选牌界面：已停下本回合的自动执行，等你选完后重新规划");
+                return;
+            }
             if (cursor < pending.actions.size()) {
                 if (!isIdle()) {
                     readyFrames = 0;
@@ -348,7 +355,8 @@ public class PlanDeployer {
     /** 完全空闲：待执行动作为空、没有正在执行的动作、出牌队列为空、未在出牌中。 */
     private boolean isIdle() {
         GameActionManager manager = AbstractDungeon.actionManager;
-        return manager.isEmpty()
+        return !AbstractDungeon.isScreenUp
+                && manager.isEmpty()
                 && manager.currentAction == null
                 && manager.cardQueue.isEmpty()
                 && !manager.usingCard;

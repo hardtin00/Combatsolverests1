@@ -1007,6 +1007,7 @@ public final class CombatEngine {
     /** 对怪物造成伤害，返回实际削减的生命值（用于收割回血）。 */
     private static int hitMob(SimState s, SimState.Mob m, int baseDamage, int hits) {
         int dealt = 0;
+        boolean hadBlock = m.block > 0;
         int dmg = baseDamage;
         if (m.vulnerable > 0) {
             // 纸蛙：易伤加成从 50% 提升到 75%
@@ -1041,6 +1042,9 @@ public final class CombatEngine {
             if (m.hp <= 0) {
                 break;
             }
+        }
+        if (dealt > 0 && hadBlock && m.block == 0 && s.hasRelic("Hand Drill")) {
+            applyDebuff(s, m, 2, DEBUFF_VULN); // 手钻：击破格挡时施加 2 层易伤
         }
         if (dealt > 0) {
             m.invincibleTaken += dealt;
@@ -1079,12 +1083,6 @@ public final class CombatEngine {
             m.enrage = Math.max(m.enrage, MonsterAi.persistentEnrage(m.id));
             m.flight = MonsterAi.initialFlight(m.id);
             MonsterAi.applyInnatePowers(s, m);
-            if (s.hasRelic("Philosopher\u0027s Stone") && s.turn <= 1) {
-                m.strength += 1; // 贤者之石：敌人 +1 力量
-            }
-            if (s.hasRelic("Bag of Marbles") && s.turn <= 1) {
-                m.vulnerable += 1; // 弹珠袋：战斗开始时给所有敌人 1 层易伤
-            }
             if ((current != null && current.sleep) || MonsterAi.sleepingNow(m.id, m.aiCursor)) {
                 m.sleeping = true;
             }

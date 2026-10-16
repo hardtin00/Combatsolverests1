@@ -62,6 +62,18 @@ public final class CombatRecorder {
         if (snap == null) {
             return;
         }
+        // 上一张牌还没等到稳定帧就又出了牌：说明中间的状态抓不稳，
+        // 与其静默覆盖、让 pre/post 配错，不如把上一条标记为“未配对”如实写出来。
+        if (pendingCardId != null && pre != null) {
+            try {
+                writeLine("{\"type\":\"card\",\"paired\":false,\"card\":{\"id\":\"" + esc(pendingCardId)
+                        + "\",\"cost\":" + pendingCost + ",\"damage\":" + pendingDamage
+                        + ",\"block\":" + pendingBlock + "},\"target\":" + pendingTarget
+                        + ",\"pre\":" + stateJson(pre) + ",\"post\":null}");
+            } catch (Throwable ignored) {
+                // 写不进去也不能影响战斗
+            }
+        }
         pre = snap;
         pendingCardId = cardId;
         pendingCost = cost;
@@ -71,9 +83,12 @@ public final class CombatRecorder {
     }
 
     /** 动作结算完毕、回到稳定状态时：写出一条记录。 */
-    public static void onIdle() {
+    public static void onIdle(boolean stable) {
         if (!enabled) {
             return;
+        }
+        if (!stable) {
+            return; // 动作还在跑：这时抓到的不是出牌后的稳定状态
         }
         SimState now = LiveCapture.captureRoot();
         if (now == null) {
@@ -96,7 +111,7 @@ public final class CombatRecorder {
                 return;
             }
             if (pendingCardId != null && pre != null) {
-                writeLine("{\"type\":\"card\",\"card\":{\"id\":\"" + esc(pendingCardId)
+                writeLine("{\"type\":\"card\",\"paired\":true,\"card\":{\"id\":\"" + esc(pendingCardId)
                         + "\",\"cost\":" + pendingCost + ",\"damage\":" + pendingDamage
                         + ",\"block\":" + pendingBlock + "},\"target\":" + pendingTarget + ",\"pre\":"
                         + stateJson(pre) + ",\"post\":" + stateJson(now) + "}");

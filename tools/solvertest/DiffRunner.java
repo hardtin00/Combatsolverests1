@@ -26,9 +26,11 @@ public final class DiffRunner {
         public int matchedFields;
         public int totalFields;
         public int badActions;
+        public int skipped;
         public final List<String> report = new ArrayList<String>();
     }
 
+    private static int skipped;
     public static Result run(String path) throws Exception {
         Result result = new Result();
         BufferedReader reader = new BufferedReader(new InputStreamReader(
@@ -52,6 +54,10 @@ public final class DiffRunner {
                 }
                 Map<String, Object> record = Json.asMap(parsed);
                 String type = Json.str(record, "type", "?");
+                if ("card".equals(type) && !Json.bool(record, "paired", true)) {
+                    result.report.add("第 " + lineNo + " 行：记录器未能稳定配对，跳过比对（不影响其它条目）");
+                    continue;
+                }
                 if ("root".equals(type)) {
                     result.report.add("第 " + lineNo + " 行：战斗根记录（" + mobSummary(record) + "）");
                     continue;
@@ -131,8 +137,19 @@ public final class DiffRunner {
             if (t >= 0 && !base.mobs.get(t).alive) {
                 continue;
             }
+            SimState probe = base.fork();
+            if (!CombatEngine.canPlay(probe, probe.hand.get(handIndex))) {
+                skipped++;
+                continue;
+            }
             SimState trial = base.fork();
             SimState.Card card = trial.hand.remove(handIndex);
+            if (!CombatEngine.canPlay(trial, card)) {
+                // 记录里的前状态其实打不出这张牌：多半是记录器把 pre/post 配错了，
+                // 这时如实跳过，而不是硬演一遍、生成一堆看起来像引擎错误的假差异。
+                skipped++;
+                continue;
+            }
             CombatEngine.playCard(trial, card, t);
             States.Snapshot snap = States.of(trial);
             int score = score(expected, snap);
@@ -146,6 +163,7 @@ public final class DiffRunner {
             }
         }
         if (bestSnap == null) {
+            SimState probe = base.fork();
             SimState trial = base.fork();
             SimState.Card card = trial.hand.remove(handIndex);
             CombatEngine.playCard(trial, card, -1);

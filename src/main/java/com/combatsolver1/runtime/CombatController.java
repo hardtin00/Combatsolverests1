@@ -298,7 +298,11 @@ public class CombatController {
             if (!AbstractDungeon.actionManager.isEmpty()) {
                 return;
             }
-            CombatRecorder.onIdle();
+            // 每帧都问一次，但只有“动作队列彻底安静”的稳定帧才会被记录（避免抓到动画中间态）
+            CombatRecorder.onIdle(AbstractDungeon.actionManager.isEmpty()
+                    && AbstractDungeon.actionManager.currentAction == null
+                    && AbstractDungeon.actionManager.cardQueue.isEmpty()
+                    && !AbstractDungeon.actionManager.usingCard);
             recordPassiveChanges();
 
             boolean canAct = AbstractDungeon.actionManager.phase == GameActionManager.Phase.WAITING_ON_USER

@@ -53,6 +53,12 @@ public class SimState {
     public final java.util.List<Card> freeCardsThisTurn = new java.util.ArrayList<Card>();
     /** 赤牛：本场第一次攻击的加伤是否已用掉。 */
     public boolean akabekoUsed;
+    /** 本场已打出的牌数（墨水瓶每 10 张抽 1）。 */
+    public int cardsPlayedThisCombat;
+    /** 石纹护符：本场第一次掉血被免疫。 */
+    public boolean fossilUsed;
+    /** 玩家板甲层数（针与线）：回合结束获得格挡，受未格挡伤害掉一层。 */
+    public int playerPlatedArmor;
     /** 玩家本轮不能用卡牌获得格挡的剩余回合（紧急按钮）。 */
     public int blockLock;
     /** 能力：每回合打出 5 张牌就对全体造成伤害（华丽）。 */
@@ -132,6 +138,9 @@ public class SimState {
         s.shuffles = shuffles;
         s.freeCardsThisTurn.addAll(freeCardsThisTurn);
         s.akabekoUsed = akabekoUsed;
+        s.cardsPlayedThisCombat = cardsPlayedThisCombat;
+        s.fossilUsed = fossilUsed;
+        s.playerPlatedArmor = playerPlatedArmor;
         s.blockLock = blockLock;
         s.pPanache = pPanache;
         s.pSadistic = pSadistic;

@@ -158,6 +158,10 @@ public final class CombatEngine {
         if (card.attack) {
             s.attacksThisCombat++;
             s.attacksThisTurn++;
+            s.cardsPlayedThisCombat++;
+            if (s.hasRelic("Ink Bottle") && s.cardsPlayedThisCombat % 10 == 0) {
+                drawCards(s, 1); // 墨水瓶：每 10 张牌抽 1
+            }
             applyAttackRelics(s);
             boolean vulnOk = !card.requiresVulnerable
                     || (targetIndex >= 0 && targetIndex < s.mobs.size()
@@ -492,7 +496,8 @@ public final class CombatEngine {
         }
 
         // 出牌后的去向：消耗或进入弃牌堆（腐化会让技能改成消耗）
-        if (card.exhaustSelf || (s.pCorruption && !card.attack && card.power == null)) {
+        boolean spooned = s.hasRelic("Strange Spoon") && s.nextInt(100) < 50; // 奇异勺子：50% 不消耗
+        if ((card.exhaustSelf && !spooned) || (s.pCorruption && !card.attack && card.power == null)) {
             s.exhaustPile.add(card);
             onExhaustCard(s, card);
         } else {
@@ -813,6 +818,9 @@ public final class CombatEngine {
         if (spec[16] > 0) {
             s.pDoubleTap += spec[16];       // 复制药水：下一张牌打两次
         }
+        if (s.hasRelic("Toy Ornithopter")) {
+            s.hp = Math.min(s.maxHp, s.hp + 5); // 玩具管风琴：喝药水回 5 血
+        }
         settleDeaths(s, null);
     }
 
@@ -827,6 +835,10 @@ public final class CombatEngine {
             amount = Math.max(0, amount - 1); // 钨钢杖：每次掉血少 1
         }
         if (amount <= 0) {
+            return;
+        }
+        if (s.hasRelic("Fossilized Helix") && !s.fossilUsed) {
+            s.fossilUsed = true; // 石纹护符：本场第一次掉血被完全挡掉
             return;
         }
         s.hp -= amount;
@@ -854,8 +866,16 @@ public final class CombatEngine {
             remaining -= absorbed;
         }
         if (remaining > 0) {
-            s.hp -= remaining;
-            s.hpLossEvents++;
+            if (s.hasRelic("Fossilized Helix") && !s.fossilUsed) {
+                s.fossilUsed = true;
+                remaining = 0; // 石纹护符：本场第一次掉血被挡掉
+            } else {
+                s.hp -= remaining;
+                s.hpLossEvents++;
+                if (s.playerPlatedArmor > 0) {
+                    s.playerPlatedArmor--; // 针与线：受伤掉一层
+                }
+            }
         }
         return remaining;
     }
@@ -1115,8 +1135,15 @@ public final class CombatEngine {
                 keep.add(c);
             }
         }
-        s.hand.clear();
-        s.discardPile.addAll(keep);
+        if (s.hasRelic("Cloak Clasp")) {
+            s.block += s.hand.size(); // 斗篷扣：回合结束每张手牌 1 格挡
+        }
+        if (s.hasRelic("Runic Pyramid")) {
+            s.hand.addAll(keep); // 符文金字塔：手牌不再弃掉
+        } else {
+            s.hand.clear();
+            s.discardPile.addAll(keep);
+        }
         if (!s.pBarricade) {
             // 卡尺：只失去 15 点格挡而不是全部
             s.block = s.hasRelic("Calipers") ? Math.max(0, s.block - 15) : 0;
@@ -1145,7 +1172,7 @@ public final class CombatEngine {
         if (s.playerFrail > 0) s.playerFrail--;
         s.playerEntangled = 0;
         s.tempStrength = 0; // 活动肌肉的临时力量到期
-        drawCards(s, s.handSize);
+        drawCards(s, s.handSize + (s.hasRelic("Snecko Eye") ? 2 : 0)); // 蛇眼：每回合多抽 2
         if (s.hasRelic("Pocket Watch") && cardsThisTurn <= 3) {
             drawCards(s, 3); // 怀表：本回合打出 3 张及以下，下回合多抽 3
         }
@@ -1157,6 +1184,17 @@ public final class CombatEngine {
         if (s.hasRelic("Velvet Choker")) {
             s.energy += 1; // 天鹅绒项圈：每回合 +1 能量
         }
+        if (s.hasRelic("Happy Flower") && s.turn % 3 == 0) {
+            s.energy += 1; // 快乐花：每 3 回合 +1 能量
+        }
+        if (s.hasRelic("Brimstone")) {
+            s.simStrengthBonus += 2; // 硫磺：自己 +2 力量
+            for (SimState.Mob mob : s.mobs) {
+                if (mob.alive) {
+                    mob.strength += 1; // 代价：所有敌人 +1 力量
+                }
+            }
+        }
         if (s.hasRelic("Art of War") && noAttackThisTurn) {
             s.energy += 1; // 战争艺术：本回合没打过攻击牌，下回合 +1 能量
         }
@@ -1167,6 +1205,12 @@ public final class CombatEngine {
             if (s.hasRelic(relic)) {
                 s.energy += 1;
             }
+        }
+        if (s.playerPlatedArmor > 0) {
+            s.block += s.playerPlatedArmor; // 针与线：玩家板甲每回合给格挡
+        }
+        if (s.hasRelic("Meat on the Bone") && s.won() && s.hp <= s.maxHp / 2) {
+            s.hp = Math.min(s.maxHp, s.hp + 12); // 骨上肉：战斗结束时残血回 12
         }
         s.turn++;
         applyStartOfTurnPowers(s);

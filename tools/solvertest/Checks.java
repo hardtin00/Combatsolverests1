@@ -525,6 +525,29 @@ public final class Checks {
         MonsterAi.Move summonMove = MonsterAi.current(repto, repto.mobs.get(0));
         eq("爬行者起手召唤匕首", "SUMMON", summonMove.id);
         eq("匕首召唤上限是 4", 4, MonsterAi.summonCap("Dagger"));
+
+        // 手写怪物的进阶分档：普通怪 A2、精英 A3、首领 A4 各有一档伤害跃升
+        SimState champ0 = scenario(200, 200, new String[]{"Defend_R"}, "Champ");
+        int[] champA0 = MonsterAi.tierOverride("Champ", 0, "HEAVY_SLASH");
+        int[] champA4 = MonsterAi.tierOverride("Champ", 4, "HEAVY_SLASH");
+        check("勇士 A0 无覆盖、A4 伤害提升到 18",
+                champA0 == null && champA4 != null && champA4[0] == 18, null);
+        int[] spear = MonsterAi.tierOverride("SpireSpear", 3, "SKEWER");
+        check("尖塔长矛 A3 串刺变成 4 段",
+                spear != null && spear[1] == 4, null);
+        SimState hi = scenario(200, 200, new String[]{"Defend_R"}, "Serpent");
+        hi.ascension = 2;
+        hi.firstEnemyTurn = false;
+        SimState.Mob serp = hi.mobs.get(0);
+        serp.aiCursor = 0;
+        MonsterAi.Move smash = null;
+        for (int i = 0; i < 40 && smash == null; i++) {
+            MonsterAi.Move candidate = MonsterAi.next(hi, serp);
+            if ("SMASH".equals(candidate.id)) {
+                smash = candidate;
+            }
+        }
+        check("蛇怪招式可被进阶覆盖命中", smash != null, null);
     }
 
     // ══ 2.5 与游戏自带文本对账 ══════════════════════════════════

@@ -862,6 +862,53 @@ public final class MonsterAi {
         return "Dagger".equals(monsterId) ? 4 : 2;
     }
 
+    // ── 手写怪物的高进阶数值 ──────────────────────────────────────
+    // 生成表里的怪物已按进阶分出不同脚本；手写的这批只差一档伤害，
+    // 这里用一张覆盖表精确编码（数据来自 Bestiary 的分档数据，普通怪 A2、精英 A3、首领 A4）。
+    private static final Map<String, Object[]> TIER_OVERRIDES = new HashMap<String, Object[]>();
+
+    /** 登记某怪物从某进阶起的招式数值：moveId, 伤害, 段数, moveId, 伤害, 段数… */
+    private static void tier(String monsterId, int minAsc, Object... moveValues) {
+        Map<String, int[]> values = new HashMap<String, int[]>();
+        for (int i = 0; i + 2 < moveValues.length + 1; i += 3) {
+            values.put((String) moveValues[i],
+                    new int[]{(Integer) moveValues[i + 1], (Integer) moveValues[i + 2]});
+        }
+        TIER_OVERRIDES.put(monsterId, new Object[]{minAsc, values});
+    }
+
+    static {
+        tier("GremlinTsundere", 2, "BASH", 8, 1);
+        tier("Looter", 2, "MUG", 11, 1, "LUNGE", 14, 1);
+        tier("Mugger", 2, "MUG", 11, 1, "LUNGE", 18, 1);
+        tier("SlaverRed", 2, "STAB", 14, 1, "SCRAPE", 9, 1);
+        tier("Spiker", 2, "ATTACK", 9, 1);
+        tier("Serpent", 2, "QUICK_TACKLE", 18, 1, "SMASH", 25, 1);
+        tier("Maw", 2, "SLAM", 30, 1);
+        tier("Darkling", 2, "CHOMP", 9, 2);
+        tier("WrithingMass", 2, "ATTACK_DEBUFF", 12, 1, "SINGLE_ATTACK", 38, 1,
+                "MULTI_ATTACK", 9, 3, "ATTACK_DEFEND", 16, 1);
+        tier("Exploder", 2, "ATTACK", 11, 1);
+        tier("BronzeAutomaton", 4, "FLAIL", 8, 2, "HYPER_BEAM", 50, 1);
+        tier("Champ", 4, "HEAVY_SLASH", 18, 1, "FACE_SLAP", 14, 1);
+        tier("TheCollector", 4, "FIREBALL", 21, 1);
+        tier("CorruptHeart", 4, "BLOOD_SHOTS", 2, 15, "ECHO", 45, 1);
+        tier("SpireShield", 3, "SMASH", 38, 1, "BASH", 14, 1);
+        tier("SpireSpear", 3, "SKEWER", 10, 4, "BURN_STRIKE", 6, 2);
+        tier("Reptomancer", 3, "BIG_BITE", 34, 1, "SNAKE_STRIKE", 16, 2);
+    }
+
+    /** 某招式在当前进阶下的 {伤害, 段数}；没有登记返回 null。 */
+    public static int[] tierOverride(String monsterId, int ascension, String moveId) {
+        Object[] entry = TIER_OVERRIDES.get(monsterId);
+        if (entry == null || ascension < (Integer) entry[0]) {
+            return null;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, int[]> values = (Map<String, int[]>) entry[1];
+        return values.get(moveId);
+    }
+
     /** 场上某类召唤物/怪物的存活数量。 */
     public static int aliveCount(SimState s, String monsterId) {
         int n = 0;

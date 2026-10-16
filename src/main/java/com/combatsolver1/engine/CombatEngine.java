@@ -1042,6 +1042,14 @@ public final class CombatEngine {
                 hits = 1;
             }
 
+            // 手写怪物的高进阶数值覆盖（普通怪 A2、精英 A3、首领 A4）
+            if (mv != null) {
+                int[] tier = MonsterAi.tierOverride(m.id, s.ascension, mv.id);
+                if (tier != null) {
+                    damage = tier[0];
+                    hits = Math.max(1, tier[1]);
+                }
+            }
             int per = Math.max(0, damage + m.strength);
             if (per > 0 && m.weak > 0) {
                 per = per * 3 / 4; // 怪物虚弱：攻击伤害降低 25%

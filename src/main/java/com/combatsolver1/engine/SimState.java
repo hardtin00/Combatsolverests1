@@ -49,6 +49,10 @@ public class SimState {
     public int playerArtifact;
     /** 本场洗牌次数（日晷每 3 次给 2 点能量）。 */
     public int shuffles;
+    /** 本回合被木乃伊之手降到 0 费的牌，回合结束要清掉标记。 */
+    public final java.util.List<Card> freeCardsThisTurn = new java.util.ArrayList<Card>();
+    /** 赤牛：本场第一次攻击的加伤是否已用掉。 */
+    public boolean akabekoUsed;
     /** 玩家本轮不能用卡牌获得格挡的剩余回合（紧急按钮）。 */
     public int blockLock;
     /** 能力：每回合打出 5 张牌就对全体造成伤害（华丽）。 */
@@ -126,6 +130,8 @@ public class SimState {
         s.playerIntangible = playerIntangible;
         s.playerArtifact = playerArtifact;
         s.shuffles = shuffles;
+        s.freeCardsThisTurn.addAll(freeCardsThisTurn);
+        s.akabekoUsed = akabekoUsed;
         s.blockLock = blockLock;
         s.pPanache = pPanache;
         s.pSadistic = pSadistic;
@@ -288,6 +294,7 @@ public class SimState {
         public int damagePerDrawPileCard;  // 心灵爆震：伤害 = 牌堆张数 × N
         public int playerArtifact;         // 万灵药：玩家获得神器
         public int drawIfNoAttacks;        // 急躁：手牌无攻击牌才抽
+        public boolean freeThisTurn;       // 本回合费用为 0（木乃伊之手）
 
         public Card(String id, String name, int cost, int damage, int hits, int block,
                     boolean attack, boolean aoe, boolean needsTarget,
@@ -387,6 +394,7 @@ public class SimState {
             c.damagePerDrawPileCard = damagePerDrawPileCard;
             c.playerArtifact = playerArtifact;
             c.drawIfNoAttacks = drawIfNoAttacks;
+            c.freeThisTurn = freeThisTurn;
             return c;
         }
 

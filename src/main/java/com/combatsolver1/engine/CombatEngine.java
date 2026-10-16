@@ -53,6 +53,9 @@ public final class CombatEngine {
 
     /** 实际费用（腐化让技能变 0 费；血怒按本场掉血次数递减）。 */
     public static int costOf(SimState s, SimState.Card c) {
+        if (c.freeThisTurn) {
+            return 0; // 木乃伊之手：本回合这张牌免费
+        }
         if (c.bloodForBlood) {
             return Math.max(0, c.cost - s.hpLossEvents);
         }
@@ -143,7 +146,7 @@ public final class CombatEngine {
         int xValue = 0;
         int dealtThisPlay = 0;
         if (card.xCost && !free) {
-            xValue = s.energy;
+            xValue = s.energy + (s.hasRelic("Chemical X") ? 2 : 0); // 化学 X：X 费牌多算 2
             s.energy = 0;
         } else if (spend > 0) {
             s.energy -= spend;
@@ -191,6 +194,10 @@ public final class CombatEngine {
             if (s.hasRelic("Pen Nib") && s.attacksThisCombat % 10 == 0) {
                 dmg *= 2; // 钢笔尖：每第 10 次攻击伤害翻倍
             }
+            if (s.hasRelic("Akabeko") && !s.akabekoUsed) {
+                dmg += 8; // 赤牛：本场第一次攻击 +8
+                s.akabekoUsed = true;
+            }
             if (s.hasRelic("Wrist Blade") && card.cost == 0) {
                 dmg += 4; // 腕刃：0 费攻击 +4 伤害
             }
@@ -230,6 +237,13 @@ public final class CombatEngine {
                 if (m.alive && m.enrage > 0) {
                     m.strength += m.enrage;
                 }
+            }
+        }
+        if (card.power != null && s.hasRelic("Mummified Hand") && !s.hand.isEmpty()) {
+            SimState.Card pick = s.hand.get(s.nextInt(s.hand.size()));
+            if (!pick.freeThisTurn) {
+                pick.freeThisTurn = true;
+                s.freeCardsThisTurn.add(pick); // 木乃伊之手：打能力牌后随机一张牌本回合 0 费
             }
         }
         if (card.power != null && s.hasRelic("Bird-Faced Urn")) {
@@ -1045,6 +1059,9 @@ public final class CombatEngine {
             m.enrage = Math.max(m.enrage, MonsterAi.persistentEnrage(m.id));
             m.flight = MonsterAi.initialFlight(m.id);
             MonsterAi.applyInnatePowers(s, m);
+            if (s.hasRelic("Philosopher\u0027s Stone") && s.turn <= 1) {
+                m.strength += 1; // 贤者之石：敌人 +1 力量
+            }
             if (s.hasRelic("Bag of Marbles") && s.turn <= 1) {
                 m.vulnerable += 1; // 弹珠袋：战斗开始时给所有敌人 1 层易伤
             }
@@ -1063,6 +1080,10 @@ public final class CombatEngine {
             loseHp(s, s.constricted);
         }
         // 战争艺术 / 怀表要在本回合数据被清零前先记下来
+        for (SimState.Card free : s.freeCardsThisTurn) {
+            free.freeThisTurn = false; // 木乃伊之手的免费只持续一回合
+        }
+        s.freeCardsThisTurn.clear();
         boolean noAttackThisTurn = s.attacksThisTurn == 0;
         int cardsThisTurn = s.cardsPlayedThisTurn;
         s.cardsPlayedThisTurn = 0;
@@ -1138,6 +1159,14 @@ public final class CombatEngine {
         }
         if (s.hasRelic("Art of War") && noAttackThisTurn) {
             s.energy += 1; // 战争艺术：本回合没打过攻击牌，下回合 +1 能量
+        }
+        // 能量类遗物（代价都在局外，对战斗只有正面效果）
+        String[] energyRelics = {"Coffee Dripper", "Cursed Key", "Ectoplasm", "Fusion Hammer",
+                "Philosopher\u0027s Stone", "Mark of Pain", "Busted Crown", "Runic Dome"};
+        for (String relic : energyRelics) {
+            if (s.hasRelic(relic)) {
+                s.energy += 1;
+            }
         }
         s.turn++;
         applyStartOfTurnPowers(s);

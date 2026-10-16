@@ -66,6 +66,9 @@ public final class CombatEngine {
         if (s.playerDead() || s.won()) {
             return false;
         }
+        if (s.turnLocked) {
+            return false; // 时间扭曲触发：本回合已不能再出牌
+        }
         if (c.cost < 0 && !c.xCost) {
             return false; // 状态牌与诅咒
         }
@@ -386,6 +389,23 @@ public final class CombatEngine {
             }
         }
 
+        // 时间扭曲：每打出 N 张牌就强制结束本回合，并让持有者获得 2 点力量
+        s.cardsPlayedThisTurn++;
+        int warp = 0;
+        for (SimState.Mob mob : s.mobs) {
+            if (mob.alive && mob.timeWarp > 0) {
+                warp = Math.max(warp, mob.timeWarp);
+            }
+        }
+        if (warp > 0 && s.cardsPlayedThisTurn >= warp) {
+            s.turnLocked = true;
+            for (SimState.Mob mob : s.mobs) {
+                if (mob.alive && mob.timeWarp > 0) {
+                    mob.strength += 2;
+                }
+            }
+        }
+
         // 出牌后的去向：消耗或进入弃牌堆（腐化会让技能改成消耗）
         if (card.exhaustSelf || (s.pCorruption && !card.attack && card.power == null)) {
             s.exhaustPile.add(card);
@@ -401,6 +421,13 @@ public final class CombatEngine {
     private static void settleDeaths(SimState s, SimState.Card source) {
         for (SimState.Mob m : s.mobs) {
             if (m.alive && m.hp <= 0) {
+                if ("Darkling".equals(m.id) && hasLivingCompanion(s, m)) {
+                    // 暗影：血量归零不会死，两回合后以半血复活
+                    m.alive = false;
+                    m.hp = 0;
+                    m.reviveIn = 2;
+                    continue;
+                }
                 m.alive = false;
                 m.hp = 0;
                 MonsterAi.onDeath(s, m);
@@ -408,6 +435,30 @@ public final class CombatEngine {
                     s.maxHp += 3;
                     s.hp += 3;
                 }
+            }
+        }
+    }
+
+    private static boolean hasLivingCompanion(SimState s, SimState.Mob self) {
+        for (SimState.Mob other : s.mobs) {
+            if (other != self && other.alive && other.hp > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 复活的倒计时（暗影半血站起来）。 */
+    private static void tickRevives(SimState s) {
+        for (SimState.Mob m : s.mobs) {
+            if (m.reviveIn <= 0) {
+                continue;
+            }
+            m.reviveIn--;
+            if (m.reviveIn == 0 && hasLivingCompanion(s, m)) {
+                m.alive = true;
+                m.hp = Math.max(1, m.maxHp / 2);
+                m.block = 0;
             }
         }
     }
@@ -802,7 +853,12 @@ public final class CombatEngine {
         if (dealt > 0) {
             m.invincibleTaken += dealt;
             if (m.malleable > 0) {
-                m.block += m.malleable; // 可塑：受伤后获得格挡
+                // 可塑：受伤后获得格挡，且每次触发的量 +1，玩家回合开始重置
+                if (m.malleableBlock <= 0) {
+                    m.malleableBlock = m.malleable;
+                }
+                m.block += m.malleableBlock;
+                m.malleableBlock++;
             }
             if (m.platedArmor > 0) {
                 m.platedArmor--; // 板甲：每次受到攻击伤害掉一层
@@ -820,6 +876,9 @@ public final class CombatEngine {
             if (!MonsterAi.isModeled(m.id)) {
                 continue;
             }
+            if (m.intent != null) {
+                continue; // 已经初始化过（也用于刚被召唤出来的怪只初始化一次）
+            }
             MonsterAi.Move current = MonsterAi.current(s, m);
             // 当前招式的仪式由第一回合结算时补上；否则按“已经吟唱过”推断
             if (current == null || current.ritual <= 0) {
@@ -827,6 +886,7 @@ public final class CombatEngine {
             }
             m.enrage = Math.max(m.enrage, MonsterAi.persistentEnrage(m.id));
             m.flight = MonsterAi.initialFlight(m.id);
+            MonsterAi.applyInnatePowers(s, m);
             if ((current != null && current.sleep) || MonsterAi.sleepingNow(m.id, m.aiCursor)) {
                 m.sleeping = true;
             }
@@ -837,6 +897,16 @@ public final class CombatEngine {
     }
 
     public static void endTurn(SimState s) {
+        // 缠绕：玩家回合结束先吃一次伤害（尖塔生长）
+        if (s.constricted > 0) {
+            loseHp(s, s.constricted);
+        }
+        s.cardsPlayedThisTurn = 0;
+        s.turnLocked = false;
+        for (SimState.Mob mob : s.mobs) {
+            mob.malleableBlock = 0; // 可塑的格挡量在玩家回合开始重置
+        }
+        tickRevives(s);
         monsterTurn(s);
         if (s.playerDead()) {
             return;
@@ -923,7 +993,10 @@ public final class CombatEngine {
 
     private static void monsterTurn(SimState s) {
         boolean first = s.firstEnemyTurn;
-        for (SimState.Mob m : s.mobs) {
+        // 用下标遍历并固定初始数量：本回合召唤出来的小怪不会立刻行动
+        int mobCountAtTurnStart = s.mobs.size();
+        for (int mi = 0; mi < mobCountAtTurnStart; mi++) {
+            SimState.Mob m = s.mobs.get(mi);
             if (!m.alive) {
                 continue;
             }
@@ -1049,6 +1122,29 @@ public final class CombatEngine {
         }
         if (mv.selfThorns > 0) {
             m.thorns += mv.selfThorns;
+        }
+        if (mv.constrict > 0) {
+            s.constricted = Math.max(s.constricted, mv.constrict); // 缠绕：玩家回合结束受伤
+        }
+        if (mv.summonId != null && mv.summonCount > 0) {
+            int existing = 0;
+            for (SimState.Mob ally : s.mobs) {
+                if (ally.alive && mv.summonId.equals(ally.id)) {
+                    existing++;
+                }
+            }
+            int room = Math.max(0, 2 - existing); // 召唤物上限 2 只
+            int count = Math.min(mv.summonCount, room);
+            for (int i = 0; i < count; i++) {
+                s.mobs.add(MonsterAi.summon(mv.summonId));
+            }
+            if (count > 0) {
+                initMonsters(s); // 给新召唤物算好下一招
+            }
+        }
+        if (mv.escape) {
+            m.alive = false; // 逃跑：脱离战斗，不再出手
+            m.hp = Math.max(0, m.hp);
         }
         if (mv.allyHeal > 0) {
             SimState.Mob target = mostInjured(s, m);

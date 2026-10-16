@@ -35,6 +35,12 @@ public class SimState {
     public int hpLossEvents;
     /** 本局进阶等级（影响怪物的伤害与 AI 分档）。 */
     public int ascension;
+    /** 缠绕（尖塔生长）：玩家回合结束时受到的伤害。 */
+    public int constricted;
+    /** 本回合已打出的牌数（时间扭曲按 12 张触发）。 */
+    public int cardsPlayedThisTurn;
+    /** 时间扭曲触发后本回合不能再出牌。 */
+    public boolean turnLocked;
 
     // ── 能力牌（铁甲核心机制）──
     public int pMetallicize;
@@ -88,6 +94,9 @@ public class SimState {
         s.tempStrength = tempStrength;
         s.hpLossEvents = hpLossEvents;
         s.ascension = ascension;
+        s.constricted = constricted;
+        s.cardsPlayedThisTurn = cardsPlayedThisTurn;
+        s.turnLocked = turnLocked;
         s.firstEnemyTurn = firstEnemyTurn;
         s.pMetallicize = pMetallicize;
         s.pFeelNoPain = pFeelNoPain;
@@ -384,6 +393,12 @@ public class SimState {
         public int invincibleTaken;
         /** 死亡节拍：玩家每打出一张牌就受到的伤害（腐化之心）。 */
         public int beatOfDeath;
+        /** 时间扭曲计数：玩家每打出这么多张牌，强制结束回合并获得力量（时间吞噬者）。 */
+        public int timeWarp;
+        /** 可塑当前能给的格挡量（每触发一次 +1，玩家回合开始重置）。 */
+        public int malleableBlock;
+        /** 复活倒计时（暗影：血量归零后隔两回合半血复活）。 */
+        public int reviveIn;
 
         public Mob(String id, String name, int hp, int maxHp, int block,
                    int atkDamage, int atkHits, int strength, boolean alive) {
@@ -424,6 +439,9 @@ public class SimState {
             m.invincible = invincible;
             m.invincibleTaken = invincibleTaken;
             m.beatOfDeath = beatOfDeath;
+            m.timeWarp = timeWarp;
+            m.malleableBlock = malleableBlock;
+            m.reviveIn = reviveIn;
             return m;
         }
 

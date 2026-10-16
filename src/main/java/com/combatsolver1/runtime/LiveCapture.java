@@ -61,6 +61,8 @@ public final class LiveCapture {
                 s.potionIds.add(p.ID);
             }
         }
+        // 玩家身上的缠绕（尖塔生长）：回合结束会掉血
+        s.constricted = powerAmount(AbstractDungeon.player, "Constricted");
         for (AbstractMonster m : AbstractDungeon.getCurrRoom().monsters.monsters) {
             if (!m.isDeadOrEscaped()) {
                 s.mobs.add(simMob(m));
@@ -161,6 +163,7 @@ public final class LiveCapture {
         mob.intangible = powerAmount(m, "Intangible");
         mob.invincible = powerAmount(m, "Invincible");
         mob.beatOfDeath = powerAmount(m, "Beat of Death");
+        mob.timeWarp = powerAmount(m, "Time Warp");
         mob.aiCursor = Math.max(0, m.moveHistory.size());
         // 记录本回合观察，用来估计这类怪物之后每回合的平均输出。
         int turn = AbstractDungeon.actionManager.turn;

@@ -34,12 +34,12 @@ final class MonsterManual {
         MonsterAi.Move looterLunge = m("LUNGE", "突刺").dmg(12, 1).build();
         MonsterAi.Move looterSmoke = m("SMOKE_BOMB", "烟雾弹").blk(6).build();
         // 「抢两次 → 50% 突刺 → 烟雾弹 → 逃跑」：逃跑未建模，按循环近似
-        MonsterAi.register("Looter", 0, MonsterAi.cycle(looterMug, looterMug, looterLunge, looterSmoke));
+        MonsterAi.register("Looter", 0, MonsterAi.cycle(looterMug, looterMug, looterLunge, looterSmoke, m("ESCAPE", "逃跑").escape().build()));
 
         MonsterAi.Move muggerMug = m("MUG", "抢夺").dmg(10, 1).build();
         MonsterAi.Move muggerLunge = m("LUNGE", "突刺").dmg(16, 1).build();
         MonsterAi.Move muggerSmoke = m("SMOKE_BOMB", "烟雾弹").blk(11).build();
-        MonsterAi.register("Mugger", 0, MonsterAi.cycle(muggerMug, muggerMug, muggerLunge, muggerSmoke));
+        MonsterAi.register("Mugger", 0, MonsterAi.cycle(muggerMug, muggerMug, muggerLunge, muggerSmoke, m("ESCAPE", "逃跑").escape().build()));
 
         MonsterAi.Move slaverStab = m("STAB", "刺击").dmg(13, 1).build();
         MonsterAi.Move slaverScrape = m("SCRAPE", "刮擦").dmg(8, 1).vuln(1).build();
@@ -59,7 +59,7 @@ final class MonsterManual {
 
         MonsterAi.Move serpentQuick = m("QUICK_TACKLE", "快速擒抱").dmg(16, 1).build();
         MonsterAi.Move serpentSmash = m("SMASH", "重砸").dmg(22, 1).build();
-        MonsterAi.Move serpentConstrict = m("CONSTRICT", "缠绕").approx().build();
+        MonsterAi.Move serpentConstrict = m("CONSTRICT", "缠绕").constrict(10).build();
         // 缠绕带来的持续伤害未建模，按权重近似
         MonsterAi.register("Serpent", 0, MonsterAi.weighted(
                 w(serpentQuick, 40).maxStreak(2),
@@ -126,7 +126,7 @@ final class MonsterManual {
                 w(orbSupport, 70).maxStreak(2),
                 w(orbBeam, 30).maxStreak(2))));
 
-        MonsterAi.Move autoSpawn = m("SPAWN_ORBS", "召唤能量球").approx().build();
+        MonsterAi.Move autoSpawn = m("SPAWN_ORBS", "召唤能量球").summon("BronzeOrb", 2).build();
         MonsterAi.Move autoFlail = m("FLAIL", "连枷").dmg(7, 2).build();
         MonsterAi.Move autoBoost = m("BOOST", "强化").str(3).blk(9).build();
         MonsterAi.Move autoBeam = m("HYPER_BEAM", "超能光束").dmg(45, 1).build();
@@ -156,8 +156,8 @@ final class MonsterManual {
             }
         });
 
-        MonsterAi.Move colSpawn = m("SPAWN", "召唤火炬头").approx().build();
-        MonsterAi.Move colRevive = m("REVIVE", "复活火炬头").approx().build();
+        MonsterAi.Move colSpawn = m("SPAWN", "召唤火炬头").summon("TorchHead", 2).build();
+        MonsterAi.Move colRevive = m("REVIVE", "复活火炬头").summon("TorchHead", 2).build();
         MonsterAi.Move colFireball = m("FIREBALL", "火球").dmg(18, 1).build();
         MonsterAi.Move colBuff = m("BUFF", "强化").blk(15).partyStr(3).build();
         MonsterAi.Move colMega = m("MEGA_DEBUFF", "大削弱").weak(3).vuln(3).frail(3).build();

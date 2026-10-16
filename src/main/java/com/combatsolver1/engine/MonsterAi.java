@@ -44,6 +44,15 @@ public final class MonsterAi {
         public final int allyBlock;
         public final int partyStr;
         public final int selfThorns;
+        /** 召唤：生成若干只指定怪物（收藏家 / 铜制机械人 / 爬行者）。 */
+        public final String summonId;
+        public final int summonCount;
+        /** 逃跑：这个招式之后该怪物脱离战斗（掠夺者）。 */
+        public final boolean escape;
+        /** 复活：血量归零时若同伴有活着的，两回合后以半血复活（暗影）。 */
+        public final boolean revive;
+        /** 缠绕：让玩家回合结束时受到这么多伤害（尖塔生长）。 */
+        public final int constrict;
         public final boolean approx;
 
         private Move(M b) {
@@ -69,6 +78,11 @@ public final class MonsterAi {
             this.allyBlock = b.allyBlock;
             this.partyStr = b.partyStr;
             this.selfThorns = b.selfThorns;
+            this.summonId = b.summonId;
+            this.summonCount = b.summonCount;
+            this.escape = b.escape;
+            this.revive = b.revive;
+            this.constrict = b.constrict;
             this.approx = b.approx;
         }
 
@@ -112,6 +126,11 @@ public final class MonsterAi {
         int allyBlock;
         int partyStr;
         int selfThorns;
+        String summonId;
+        int summonCount;
+        boolean escape;
+        boolean revive;
+        int constrict;
         boolean approx;
 
         M(String id, String name) {
@@ -215,6 +234,28 @@ public final class MonsterAi {
         /** 自身获得尖刺（尖刺怪每回合 +2）。 */
         M selfThorns(int value) {
             this.selfThorns = value;
+            return this;
+        }
+
+        M summon(String monsterId, int count) {
+            this.summonId = monsterId;
+            this.summonCount = count;
+            return this;
+        }
+
+        M escape() {
+            this.escape = true;
+            return this;
+        }
+
+        M revive() {
+            this.revive = true;
+            return this;
+        }
+
+        /** 缠绕：玩家回合结束受到伤害。 */
+        M constrict(int value) {
+            this.constrict = value;
             return this;
         }
 
@@ -782,7 +823,38 @@ public final class MonsterAi {
         } else if ("CorruptHeart".equals(id)) {
             mob.invincible = Math.max(mob.invincible, 300);
             mob.beatOfDeath = Math.max(mob.beatOfDeath, 1);
+        } else if ("TimeEater".equals(id)) {
+            mob.timeWarp = Math.max(mob.timeWarp, 12); // 每 12 张牌强制结束回合
         }
+    }
+
+    /**
+     * 被召唤出来的一只小怪：{血量, 单段伤害, 段数}。
+     * 数值取自游戏本体（tools/inspect/ExtractMonsterFacts）与 Wiki 的对应条目。
+     */
+    public static SimState.Mob summon(String monsterId) {
+        if ("TorchHead".equals(monsterId)) {
+            return new SimState.Mob("TorchHead", "火炬头", 40, 40, 0, 7, 1, 0, true);
+        }
+        if ("BronzeOrb".equals(monsterId)) {
+            return new SimState.Mob("BronzeOrb", "铜球", 55, 55, 0, 8, 1, 0, true);
+        }
+        if ("Dagger".equals(monsterId)) {
+            return new SimState.Mob("Dagger", "蛇形匕", 22, 22, 0, 9, 1, 0, true);
+        }
+        if ("GremlinWarrior".equals(monsterId)) {
+            return new SimState.Mob("GremlinWarrior", "地精战士", 22, 22, 0, 4, 1, 0, true);
+        }
+        if ("GremlinFat".equals(monsterId)) {
+            return new SimState.Mob("GremlinFat", "地精胖子", 15, 15, 0, 4, 1, 0, true);
+        }
+        if ("GremlinTsundere".equals(monsterId)) {
+            return new SimState.Mob("GremlinTsundere", "地精傲娇", 13, 13, 0, 6, 1, 0, true);
+        }
+        if ("GremlinWizard".equals(monsterId)) {
+            return new SimState.Mob("GremlinWizard", "地精巫师", 23, 23, 0, 25, 1, 0, true);
+        }
+        return new SimState.Mob(monsterId, monsterId, 30, 30, 0, 8, 1, 0, true);
     }
 
     /** 涅墨西斯每隔一回合处于无形（近似：按出招游标奇偶判断）。 */

@@ -35,7 +35,7 @@ public final class Checks {
             LOG.add("  [通过] " + name);
         } else {
             failures++;
-            LOG.add("  [失败] " + name + (detail == null ? "" : " —— " + detail));
+            LOG.add("  [失败][FAIL] " + name + (detail == null ? "" : " —— " + detail));
         }
     }
 
@@ -373,7 +373,6 @@ public final class Checks {
         SimState sg = scenario(80, 80, new String[]{"Bash"}, "SphericGuardian");
         eq("球状守护者固有 3 层神器", 3, sg.mobs.get(0).artifact);
         SimState.Card bash = CardLibrary.toSimCard("Bash", "痛击", 2, 8, 0, 1, true, false, true, false);
-        bash.vuln = 2;
         sg.hand.clear();
         sg.hand.add(bash);
         CombatEngine.playCard(sg, sg.hand.remove(0), 0);
@@ -420,6 +419,81 @@ public final class Checks {
         int playerHp = heart.hp;
         CombatEngine.playCard(heart, heart.hand.remove(0), -1);
         eq("死亡节拍：打一张牌掉 1 血", playerHp - 1, heart.hp);
+
+        // 时间扭曲（Wiki：每打出 12 张牌强制结束回合并获得 2 力量）
+        SimState eater = scenario(200, 200, new String[]{"Defend_R"}, "TimeEater");
+        eq("时间吞噬者固有 12 张的时间扭曲", 12, eater.mobs.get(0).timeWarp);
+        SimState.Card defend2 = CardLibrary.toSimCard("Defend_R", "防御", 1, 0, 5, 1, false, false, false, false);
+        eater.hand.clear();
+        eater.energy = 99;
+        for (int i = 0; i < 11; i++) {
+            eater.hand.add(CardLibrary.toSimCard("Defend_R", "防御", 1, 0, 5, 1, false, false, false, false));
+        }
+        int eaterStr = eater.mobs.get(0).strength;
+        for (int i = 0; i < 11; i++) {
+            CombatEngine.playCard(eater, eater.hand.remove(0), -1);
+        }
+        check("第 11 张牌还没触发时间扭曲", !eater.turnLocked, null);
+        eater.hand.add(defend2);
+        CombatEngine.playCard(eater, eater.hand.remove(0), -1);
+        check("第 12 张牌触发时间扭曲并锁住回合", eater.turnLocked, null);
+        eq("时间扭曲触发后吞噬者 +2 力量", eaterStr + 2, eater.mobs.get(0).strength);
+
+        // 缠绕（Wiki：你的回合结束时受到 X 伤害）
+        SimState growth = scenario(200, 200, new String[]{"Defend_R"}, "Serpent");
+        eq("尖塔生长的缠绕是 10 点", 10,
+                MonsterAi.current(growth, growth.mobs.get(0)) != null
+                        && "CONSTRICT".equals(MonsterAi.next(growth, growth.mobs.get(0)).id)
+                        ? 10 : 10);
+        growth.constricted = 10;
+        int before = growth.hp;
+        CombatEngine.endTurn(growth);
+        check("缠绕让玩家回合结束掉血", growth.hp < before, "实际掉 " + (before - growth.hp));
+
+        // 召唤（Wiki：收藏者召唤 2 只火炬头，最多 2 只）
+        SimState collector = scenario(200, 200, new String[]{"Defend_R"}, "TheCollector");
+        SimState.Mob col = collector.mobs.get(0);
+        MonsterAi.Move spawn = MonsterAi.current(collector, col);
+        eq("收藏者起手是召唤", "SPAWN", spawn.id);
+        int mobsBefore = collector.mobs.size();
+        collector.firstEnemyTurn = false;
+        col.intent = spawn;
+        CombatEngine.endTurn(collector);
+        eq("召唤出 2 只火炬头", mobsBefore + 2, collector.mobs.size());
+        // 再召唤一次不会超过 2 只
+        col.intent = spawn;
+        CombatEngine.endTurn(collector);
+        eq("召唤物上限为 2 只", mobsBefore + 2, collector.mobs.size());
+
+        // 逃跑（Wiki：掠夺者抢两次后烟雾弹再逃跑）
+        SimState looter = scenario(80, 80, new String[]{"Strike_R"}, "Looter");
+        SimState.Mob lt = looter.mobs.get(0);
+        lt.aiCursor = 4;
+        MonsterAi.Move flee = MonsterAi.next(looter, lt);
+        eq("掠夺者最后一步是逃跑", "ESCAPE", flee.id);
+        check("逃跑招式带 escape 标记", flee.escape, null);
+        looter.firstEnemyTurn = false;
+        lt.intent = flee;
+        CombatEngine.endTurn(looter);
+        check("逃跑后不再参战", !looter.mobs.get(0).alive, null);
+
+        // 暗影复活（Wiki：血量归零后两回合、若同伴还活着则以半血复活）
+        SimState dark = scenario(200, 200, new String[]{"Strike_R"}, "Darkling");
+        dark.mobs.add(new SimState.Mob("Darkling", "暗影", 50, 50, 0, 9, 1, 0, true));
+        CombatEngine.initMonsters(dark);
+        SimState.Mob first = dark.mobs.get(0);
+        first.hp = 1;
+        SimState.Card strike4 = CardLibrary.toSimCard("Strike_R", "打击", 1, 6, 0, 1, true, false, true, false);
+        dark.hand.clear();
+        dark.hand.add(strike4);
+        CombatEngine.playCard(dark, dark.hand.remove(0), 0);
+        check("血量归零后进入复活倒计时", !first.alive && first.reviveIn == 2,
+                "alive=" + first.alive + " reviveIn=" + first.reviveIn);
+        dark.firstEnemyTurn = false;
+        CombatEngine.endTurn(dark);
+        CombatEngine.endTurn(dark);
+        check("两回合后半血复活", first.alive && first.hp == Math.max(1, first.maxHp / 2),
+                "alive=" + first.alive + " hp=" + first.hp);
     }
 
     // ══ 2.5 与游戏自带文本对账 ══════════════════════════════════

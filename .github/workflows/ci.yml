@@ -40,9 +40,8 @@ jobs:
           javac -encoding UTF-8 -d build/inspect tools/inspect/ExtractMonsterFacts.java
 
   mod-build:
-    name: Mod 构建（需要 libs/ 提供游戏依赖 jar）
+    name: 完整 Mod 构建（需要仓库提供 libs/ 下的游戏依赖；否则本步会明确报告"未执行"）
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -52,11 +51,28 @@ jobs:
           distribution: temurin
           java-version: "8"
 
-      - name: 如果仓库提供了 libs/ 依赖则编译完整 Mod
+      # 注意：这一步不能用 continue-on-error 掩盖结果。要么真的编译通过，
+      # 要么在 summary 里明确写"未执行"，避免把"跳过的构建"当成"完整的绿色通过"。
+      - name: 编译完整 Mod（有依赖就真编译，没有就明确标记未执行）
         run: |
           if [ -d libs ] && ls libs/*.jar >/dev/null 2>&1; then
             mkdir -p build/classes
             javac -encoding UTF-8 -cp "libs/*" -d build/classes $(find src/main/java -name '*.java')
+            echo "完整 Mod 编译通过。" >> "$GITHUB_STEP_SUMMARY"
+            echo "FULL_MOD_BUILD=passed" >> "$GITHUB_ENV"
           else
-            echo "未提供 libs/ 下的游戏依赖 jar，跳过完整 Mod 编译。"
+            echo "FULL_MOD_BUILD=not_run" >> "$GITHUB_ENV"
+            {
+              echo "### 完整 Mod 构建：未执行"
+              echo ""
+              echo "仓库没有提供游戏依赖 jar（desktop-1.0.jar / ModTheSpire.jar / BaseMod.jar 有版权，不入库）。"
+              echo "因此本次绿色只代表**离线模拟层自检通过**，不代表完整 Mod 能从这份提交构建。"
+              echo "完整构建请在装有游戏的机器上运行：\`powershell -File tools/build/build-release.ps1\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "未提供游戏依赖：完整 Mod 编译未执行（详见本次运行的 Summary）。"
           fi
+
+      - name: 汇总本次实际覆盖范围
+        run: |
+          echo "离线模拟层自检：已执行并通过"
+          echo "完整 Mod 构建：$FULL_MOD_BUILD"

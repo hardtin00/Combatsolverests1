@@ -155,6 +155,20 @@ combatsolver1/
 
 ## 构建
 
+**完整 Mod 构建（推荐）**：在装有游戏的机器上运行
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/build/build-release.ps1          # 只编译打包
+powershell -ExecutionPolicy Bypass -File tools/build/build-release.ps1 -Deploy  # 顺带装进 mods/
+```
+
+脚本会自动找游戏目录与创意工坊里的 ModTheSpire / BaseMod，编译、打包，并输出
+**版本号、commit SHA、jar 的 SHA-256**（同时写到 `build/libs/release-info.txt`）。
+对外发布时请以这份产物的 commit 为准——仓库**不再**存放 jar，避免下载者拿到过期版本。
+
+注意：GitHub Actions 只跑不依赖游戏文件的离线自检；CI 里的"完整 Mod 构建"在仓库没有
+`libs/` 时会**明确标记为未执行**（会在运行摘要里写明），不会把"跳过的构建"算成通过。
+
 前置条件：
 
 - JDK 8 或更高版本

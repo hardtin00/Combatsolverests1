@@ -201,11 +201,8 @@ public class SimState {
     }
 
     /**
-     * 完整状态键：同时用于「实机与预测一致则复用路线」的核对，以及搜索里的状态去重。
-     *
-     * 只比血量/格挡/能量是不够的——两场战斗即使这些相同，手牌、两个牌堆的内容与顺序、
-     * 玩家减益与能力层数、怪物意图与 AI 游标不同，后续能走的路线也完全不同。
-     * 用同一份键做「去重」和「复用核对」，可以避免把不同未来误当成同一个状态。
+     * 实机可比状态签名：用于路线复用核对，包含当前实机捕获器能可靠读取的状态子集。
+     * 它不是搜索去重的完整键；模拟器内部的 RNG、回合计数器和怪物 AI 隐藏状态由 searchKey() 补齐。
      */
     public String signature() {
         StringBuilder sb = new StringBuilder(256);
@@ -255,6 +252,129 @@ public class SimState {
               .append(',').append(m.aiCursor).append(';');
         }
         return sb.toString();
+    }
+
+    /**
+     * 搜索分支专用键：在可与实机对照的 signature 基础上，补入模拟器内部会影响未来的
+     * 随机游标、触发计数器、牌实例数据及完整怪物状态。不要用它直接核对实机——
+     * LiveCapture 当前没有真实游戏 RNG，也无法读取所有内部计数器。
+     */
+    public String searchKey() {
+        StringBuilder sb = new StringBuilder(signature());
+        sb.append("|rng:").append(rngState)
+          .append("|asc:").append(ascension)
+          .append("|firstEnemy:").append(firstEnemyTurn)
+          .append("|simStr:").append(simStrengthBonus)
+          .append("|simDex:").append(simDexBonus)
+          .append("|hpLossEvents:").append(hpLossEvents)
+          .append("|shuffles:").append(shuffles)
+          .append("|cardsTurn:").append(cardsPlayedThisTurn)
+          .append("|attacksTurn:").append(attacksThisTurn)
+          .append("|cardsCombat:").append(cardsPlayedThisCombat)
+          .append("|attacksCombat:").append(attacksThisCombat)
+          .append("|skillsCombat:").append(skillsThisCombat)
+          .append("|akabeko:").append(akabekoUsed)
+          .append("|fossil:").append(fossilUsed)
+          .append("|costOverride:").append(costOverrideThisTurn)
+          .append("|bomb:").append(bombTimer).append(',').append(bombDamage)
+          .append("|freeCards:");
+        for (Card c : freeCardsThisTurn) {
+            appendCardKey(sb, c);
+        }
+        sb.append("|growth:");
+        java.util.TreeMap<String, Integer> sortedGrowth = new java.util.TreeMap<>(growth);
+        for (java.util.Map.Entry<String, Integer> entry : sortedGrowth.entrySet()) {
+            appendToken(sb, entry.getKey());
+            sb.append(entry.getValue()).append(';');
+        }
+        sb.append("|Dfull:");
+        for (Card c : drawPile) appendCardKey(sb, c);
+        sb.append("|Xfull:");
+        for (Card c : discardPile) appendCardKey(sb, c);
+        sb.append("|Efull:");
+        for (Card c : exhaustPile) appendCardKey(sb, c);
+        sb.append("|Hfull:");
+        for (Card c : hand) appendCardKey(sb, c);
+        sb.append("|Mfull:");
+        for (Mob m : mobs) {
+            appendToken(sb, m.id);
+            sb.append(m.hp).append(',').append(m.maxHp).append(',').append(m.block).append(',')
+              .append(m.atkDamage).append(',').append(m.atkHits).append(',').append(m.strength).append(',')
+              .append(m.vulnerable).append(',').append(m.weak).append(',').append(m.alive).append(',')
+              .append(m.avgDamage).append(',');
+            appendToken(sb, m.pattern);
+            sb.append(m.patternIndex).append(',').append(m.aiCursor).append(',').append(m.aiCounter)
+              .append(',').append(m.aiState).append(',');
+            appendToken(sb, m.lastMoveId);
+            sb.append(m.lastMoveStreak).append(',').append(m.sleeping).append(',')
+              .append(m.ritual).append(',').append(m.enrage).append(',').append(m.thorns).append(',')
+              .append(m.damageTakenTotal).append(',').append(m.flight).append(',').append(m.artifact).append(',')
+              .append(m.malleable).append(',').append(m.platedArmor).append(',').append(m.intangible).append(',')
+              .append(m.invincible).append(',').append(m.invincibleTaken).append(',').append(m.beatOfDeath).append(',')
+              .append(m.timeWarp).append(',').append(m.malleableBlock).append(',').append(m.reviveIn).append(';');
+            appendMoveKey(sb, m.intent);
+        }
+        return sb.toString();
+    }
+
+    private static void appendToken(StringBuilder sb, String value) {
+        if (value == null) {
+            sb.append("-1:");
+        } else {
+            sb.append(value.length()).append(':').append(value);
+        }
+    }
+
+    private static void appendCardKey(StringBuilder sb, Card c) {
+        appendToken(sb, c.id);
+        appendToken(sb, c.name);
+        sb.append(c.cost).append(',').append(c.damage).append(',').append(c.hits).append(',').append(c.block).append(',')
+          .append(c.attack).append(',').append(c.aoe).append(',').append(c.needsTarget).append(',')
+          .append(c.draw).append(',').append(c.energyGain).append(',').append(c.vuln).append(',').append(c.weak).append(',')
+          .append(c.strength).append(',').append(c.unmodeled).append(',').append(c.selfDamage).append(',')
+          .append(c.strGain).append(',').append(c.dexGain).append(',').append(c.blockPerExhaust).append(',')
+          .append(c.damagePerExhaust).append(',').append(c.exhaustHand).append(',').append(c.damageFromBlock).append(',')
+          .append(c.exhaustNonAttacks).append(',').append(c.vulnAll).append(',').append(c.weakAll).append(',')
+          .append(c.selfVuln).append(',').append(c.strengthMult).append(',');
+        appendToken(sb, c.power);
+        sb.append(c.powerAmount).append(',').append(c.approx).append(',').append(c.xCost).append(',')
+          .append(c.damagePerEnergy).append(',').append(c.doubleBlock).append(',').append(c.doubleStrength).append(',')
+          .append(c.healOnDamage).append(',').append(c.gainMaxHpOnKill).append(',').append(c.energyOnExhaust).append(',');
+        appendToken(sb, c.addCardToDiscard);
+        sb.append(c.addCount).append(',').append(c.exhaustSelf).append(',').append(c.ethereal).append(',')
+          .append(c.enemyStrDown).append(',').append(c.requiresVulnerable).append(',').append(c.requiresAttackIntent).append(',')
+          .append(c.damagePerStrike).append(',').append(c.copyHandAttack).append(',').append(c.playTopExhaust).append(',')
+          .append(c.discardToDraw).append(',').append(c.exhaustToHand).append(',').append(c.exhaustOneDrawTwo).append(',')
+          .append(c.bloodForBlood).append(',').append(c.growPerPlay).append(',').append(c.generateStrike).append(',')
+          .append(c.bonusDamage).append(',').append(c.bonusBlock).append(',').append(c.upgradeHand).append(',')
+          .append(c.endTurnSelfDamage).append(',').append(c.regret).append(',').append(c.tempStrength).append(',')
+          .append(c.upgraded).append(',').append(c.requiresAllAttacks).append(',').append(c.shuffleAddedToDraw).append(',')
+          .append(c.putBackWorst).append(',').append(c.healFlat).append(',');
+        appendToken(sb, c.randomCardKind);
+        sb.append(c.randomCardCount).append(',').append(c.grantIntangible).append(',').append(c.blockLockTurns).append(',')
+          .append(c.bombDamage).append(',').append(c.bombTurns).append(',').append(c.setCostOverride).append(',')
+          .append(c.costOverrideValue).append(',').append(c.damagePerDrawPileCard).append(',').append(c.playerArtifact).append(',')
+          .append(c.drawIfNoAttacks).append(',').append(c.freeThisTurn).append(';');
+    }
+
+    private static void appendMoveKey(StringBuilder sb, MonsterAi.Move move) {
+        if (move == null) {
+            sb.append("intent:null;");
+            return;
+        }
+        sb.append("intent:");
+        appendToken(sb, move.id);
+        sb.append(move.damage).append(',').append(move.damageMax).append(',').append(move.hits).append(',')
+          .append(move.block).append(',').append(move.strGain).append(',').append(move.ritual).append(',')
+          .append(move.playerWeak).append(',').append(move.playerVuln).append(',').append(move.playerFrail).append(',')
+          .append(move.playerStrDown).append(',').append(move.playerDexDown).append(',');
+        appendToken(sb, move.addCard);
+        sb.append(move.addCount).append(',').append(move.addToDraw).append(',').append(move.sleep).append(',')
+          .append(move.entangle).append(',').append(move.allyHeal).append(',').append(move.allyBlock).append(',')
+          .append(move.partyStr).append(',').append(move.selfThorns).append(',');
+        appendToken(sb, move.summonId);
+        sb.append(move.summonCount).append(',').append(move.escape).append(',').append(move.revive).append(',')
+          .append(move.constrict).append(',').append(move.approx).append(';');
     }
 
     /** 确定性随机数（xorshift），fork 后可复现。 */

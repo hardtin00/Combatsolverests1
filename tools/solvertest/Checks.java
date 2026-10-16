@@ -635,6 +635,37 @@ public final class Checks {
 
     public static void search() {
         LOG.add("· 整场搜索");
+        SimState keyBase = scenario(80, 80, new String[]{"Strike_R"}, "JawWorm");
+        check("相同模拟状态的搜索键稳定", keyBase.searchKey().equals(keyBase.fork().searchKey()), null);
+        SimState keyRng = keyBase.fork();
+        keyRng.rngState++;
+        check("随机数游标不同的分支不合并", !keyBase.searchKey().equals(keyRng.searchKey()), null);
+        SimState keyCounter = keyBase.fork();
+        keyCounter.cardsPlayedThisTurn++;
+        check("本回合触发计数不同的分支不合并",
+                !keyBase.searchKey().equals(keyCounter.searchKey()), null);
+        SimState keyGrowth = keyBase.fork();
+        keyGrowth.growth.put("Rampage", 1);
+        check("成长牌实例计数不同的分支不合并",
+                !keyBase.searchKey().equals(keyGrowth.searchKey()), null);
+        SimState keyMob = keyBase.fork();
+        keyMob.mobs.get(0).aiCounter++;
+        check("怪物 AI 隐藏计数不同的分支不合并",
+                !keyBase.searchKey().equals(keyMob.searchKey()), null);
+        SimState keyCard = keyBase.fork();
+        keyCard.hand.set(0, CardLibrary.toSimCard("Strike_R", "打击", 1, 9, 0, 1,
+                true, false, true, false));
+        check("同 ID 但不同卡牌实例数值的分支不合并",
+                !keyBase.searchKey().equals(keyCard.searchKey()), null);
+        SimState keyExhaust = keyBase.fork();
+        keyExhaust.exhaustPile.add(CardLibrary.toSimCard("Strike_R", "打击", 1, 6, 0, 1,
+                true, false, true, false));
+        SimState keyExhaustOther = keyExhaust.fork();
+        keyExhaustOther.exhaustPile.set(0, CardLibrary.toSimCard("Defend_R", "防御", 1, 0, 5, 1,
+                false, false, false, false));
+        check("消耗堆内容不同但张数相同的分支不合并",
+                !keyExhaust.searchKey().equals(keyExhaustOther.searchKey()), null);
+
         SimState s = scenario(80, 80,
                 new String[]{"Strike_R", "Strike_R", "Strike_R", "Defend_R", "Defend_R"}, "Cultist");
         s.energy = 3;

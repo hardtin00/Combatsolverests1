@@ -111,7 +111,7 @@ public class CombatSearch {
             if (merged.size() >= cfg.beamWidth) {
                 break;
             }
-            String sig = w.state.signature() + "|e" + w.state.energy + "|t" + w.state.turn;
+            String sig = w.state.searchKey();
             // 循环检测：同一状态在更早的深度已经展开过，就不必再展开一次
             boolean revisited = !visited.add(sig);
             if (seen.add(sig) && !revisited) {
@@ -366,8 +366,7 @@ public class CombatSearch {
                 }
                 int idx = order.get(i);
                 // 同签名状态只保留分数最高的一个，避免整条宽度被等价状态占满
-                String sig = nextStates.get(idx).signature() + "|e" + nextStates.get(idx).energy
-                        + "|h" + nextStates.get(idx).hand.size();
+                String sig = nextStates.get(idx).searchKey();
                 if (!seen.add(sig)) {
                     continue;
                 }
@@ -475,4 +474,3 @@ public class CombatSearch {
         }
     }
 }
-

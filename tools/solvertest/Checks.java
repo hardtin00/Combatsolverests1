@@ -527,6 +527,7 @@ public final class Checks {
         eq("匕首召唤上限是 4", 4, MonsterAi.summonCap("Dagger"));
 
         // 手写怪物的进阶分档：普通怪 A2、精英 A3、首领 A4 各有一档伤害跃升
+        recordedCase();
         SimState champ0 = scenario(200, 200, new String[]{"Defend_R"}, "Champ");
         int[] champA0 = MonsterAi.tierOverride("Champ", 0, "HEAVY_SLASH");
         int[] champA4 = MonsterAi.tierOverride("Champ", 4, "HEAVY_SLASH");
@@ -779,5 +780,30 @@ public final class Checks {
 
     public static List<String> modeledMonsterIds() {
         return Arrays.asList(MonsterAi.modeledIds().toArray(new String[0]));
+    }
+
+    /**
+     * 实机记录里的一条可复现差异（2026-10-16 的对局，第 22 条动作）：
+     *
+     *   card : Strike_R  dmg=4  cost=1  target=0
+     *   pre  : energy=1  hand=[Strike_R, Strike_R, Anger]  Lagavulin hp14 blk0 vuln1
+     *   post : energy=0  hand=[]                            Lagavulin hp8  blk0 vuln1
+     *
+     * 实机打掉 6 点（4 基础 × 易伤 1.5 = 6，14→8）。把这条固定下来当回归用例：
+     * 它既能验证引擎的伤害路径，也能在差分工具误读时立刻暴露差异。
+     */
+    private static void recordedCase() {
+        SimState real = scenario(21, 21, new String[]{"Strike_R"}, "Lagavulin");
+        real.energy = 1;
+        SimState.Mob lag = real.mobs.get(0);
+        lag.hp = 14;
+        lag.maxHp = 110;
+        lag.block = 0;
+        lag.vulnerable = 1;
+        real.hand.clear();
+        real.hand.add(CardLibrary.toSimCard("Strike_R", "打击", 1, 4, 0, 1, true, false, true, false));
+        CombatEngine.playCard(real, real.hand.remove(0), 0);
+        eq("实机记录用例：4 点打击打易伤 1 层 = 6 点（14→8）", 8, lag.hp);
+        eq("实机记录用例：能量从 1 扣到 0", 0, real.energy);
     }
 }

@@ -100,7 +100,11 @@ public final class DiffRunner {
             Map<String, Object> cardJson = Json.obj(record, "card");
             int target = replayCard(sim, cardJson, postJson);
             if (target == Integer.MIN_VALUE) {
-                issues.add("记录里的牌在手牌里找不到：" + Json.str(cardJson, "id", "?"));
+                // 这条不是“引擎算错了”，而是记录本身对不上：出牌记录里的数值与 pre 快照里的同名牌不一致。
+                // 如实说明并跳过，避免把数据问题当成引擎差异。
+                issues.add("记录自相矛盾：出牌记录 " + Json.str(cardJson, "id", "?")
+                        + " damage=" + Json.num(cardJson, "damage", -1)
+                        + "，而 pre 快照里同名牌是 " + handSummary(preJson, Json.str(cardJson, "id", "?")));
                 return 0;
             }
         } else {
@@ -228,14 +232,10 @@ public final class DiffRunner {
     }
 
     private static int findHandIndex(SimState s, String id, int damage, int block, int cost) {
-        int fallback = -1;
         for (int i = 0; i < s.hand.size(); i++) {
             SimState.Card c = s.hand.get(i);
             if (!id.equals(c.id)) {
                 continue;
-            }
-            if (fallback < 0) {
-                fallback = i;
             }
             boolean damageOk = damage <= 0 || c.damage == damage;
             boolean blockOk = block <= 0 || c.block == block;
@@ -243,7 +243,9 @@ public final class DiffRunner {
                 return i;
             }
         }
-        return fallback;
+        // 严格匹配：对不上就如实报告，不要再回退取第一张同名牌。
+        // 以前的回退会重放一张**不同的牌**，产出看起来像引擎错误的假差异。
+        return -1;
     }
 
     private static int compare(States.Snapshot expected, States.Snapshot actual, List<String> issues) {
@@ -335,5 +337,21 @@ public final class DiffRunner {
             sb.append(Json.str(Json.asMap(o), "name", Json.str(Json.asMap(o), "id", "?")));
         }
         return sb.toString();
+    }
+    /** 把 pre 快照里同名牌的数值列出来，便于核对记录为什么对不上。 */
+    private static String handSummary(Map<String, Object> preJson, String id) {
+        StringBuilder sb = new StringBuilder();
+        for (Object o : Json.list(preJson, "hand")) {
+            Map<String, Object> c = Json.asMap(o);
+            if (id.equals(Json.str(c, "id", ""))) {
+                if (sb.length() > 0) {
+                    sb.append('|');
+                }
+                sb.append("damage=").append(Json.num(c, "damage", -1))
+                  .append(" cost=").append(Json.num(c, "cost", -1))
+                  .append(" from=").append(Json.str(c, "valueFrom", "?"));
+            }
+        }
+        return sb.length() == 0 ? "(无同名牌)" : sb.toString();
     }
 }

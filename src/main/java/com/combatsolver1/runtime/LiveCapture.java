@@ -160,8 +160,12 @@ public final class LiveCapture {
         boolean aoe = c.target == AbstractCard.CardTarget.ALL_ENEMY;
         boolean needsTarget = c.target == AbstractCard.CardTarget.ENEMY || aoe;
         int cost = c.freeToPlay() ? 0 : c.costForTurn;
-        int damage = attack ? Math.max(c.damage, c.baseDamage) : 0;
-        int block = c.block > 0 ? Math.max(c.block, c.baseBlock) : 0;
+        // 取**实机当前生效值**，而不是基础值：
+        // 玩家处于虚弱 / 残废时，一张打击的 damage=4（6 被削弱）、baseDamage 仍是 6。
+        // 原来取 max() 会让模拟按 6 计算——既与出牌记录（读 card.damage=4）自相矛盾，
+        // 也直接把承伤预测算错。只有当前值为 0（例如刚抽到、尚未 applyPowers）才回退基础值。
+        int damage = attack ? (c.damage > 0 ? c.damage : c.baseDamage) : 0;
+        int block = c.block > 0 ? c.block : (c.baseBlock > 0 ? c.baseBlock : 0);
         boolean unmodeled = t.unmodeled || (!attack && block == 0 && !CardLibrary.isKnown(c.cardID));
         return CardLibrary.toSimCard(c.cardID, c.name, cost, damage, block, t.hits,
                 attack, aoe, needsTarget, unmodeled);

@@ -221,7 +221,11 @@ public final class CombatRecorder {
             sb.append("{\"id\":\"").append(esc(c.id)).append("\",\"cost\":").append(c.cost)
               .append(",\"damage\":").append(c.damage)
               .append(",\"block\":").append(c.block)
-              .append(",\"hits\":").append(c.hits).append('}');
+              .append(",\"hits\":").append(c.hits)
+              // 同时记下“这张牌的数值是怎么来的”：live = 实机当前生效值，base = 基础值回退。
+              // 差分工具遇到两者不一致时能直接说明原因，而不是猜。
+              .append(",\"valueFrom\":\"").append(c.damage > 0 ? "live" : "base").append('"')
+              .append('}');
         }
         sb.append("],\"drawPile\":[");
         appendIds(sb, s.drawPile);

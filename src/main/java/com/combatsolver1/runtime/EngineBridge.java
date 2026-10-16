@@ -42,6 +42,11 @@ public final class EngineBridge {
         return enginePath != null && !enginePath.isEmpty();
     }
 
+    /** 当前实际使用的引擎描述：写进日志与战斗记录，避免测试结果对不上来源。 */
+    public static String describe() {
+        return isConfigured() ? "sts_lightspeed(" + enginePath + ")" : "local";
+    }
+
     public static File workDirectory() {
         return workDir;
     }

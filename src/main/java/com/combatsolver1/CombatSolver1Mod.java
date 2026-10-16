@@ -43,16 +43,55 @@ public class CombatSolver1Mod implements
 
     @Override
     public void receivePostInitialize() {
-        // 配置引擎桥（路径不存在时自动停用，模组退回自带的求解器）
-        String engine = "C:\\Users\\3476\\Documents\\Codex\\2026-10-15\\jie\\work\\sts_build_mingw\\test.exe";
-        String mingw = "C:\\Users\\3476\\Documents\\Codex\\2026-10-15\\jie\\work\\mingw64\\mingw64\\bin";
-        if (new java.io.File(engine).isFile()) {
-            com.combatsolver1.runtime.EngineBridge.configure(engine, mingw);
-            CombatLog.info("engine bridge enabled");
-        } else {
-            CombatLog.info("engine bridge disabled (engine not found)");
-        }
+        // 外部引擎（sts_lightspeed）是可选的：路径从系统属性 / 环境变量 / 设置文件读取，
+        // 不再写死开发机路径；无论启用还是回退都在日志里说明原因，测试结果才能追溯来源。
+        configureEngineBridge();
         CombatLog.info("post-initialize");
+    }
+
+    private static void configureEngineBridge() {
+        String engine = firstNonEmpty(System.getProperty("combatsolver1.engine"),
+                System.getenv("COMBATSOLVER1_ENGINE"), settingsValue("engine.path"));
+        String mingw = firstNonEmpty(System.getProperty("combatsolver1.mingw"),
+                System.getenv("COMBATSOLVER1_MINGW"), settingsValue("engine.mingw"));
+        if (engine.isEmpty()) {
+            CombatLog.info("solver source: local java search"
+                    + "（未配置外部引擎；设置文件 ~/.combatsolver1/settings.properties 里写 engine.path=... 可启用）");
+            return;
+        }
+        if (!new java.io.File(engine).isFile()) {
+            CombatLog.info("solver source: local java search（配置的外部引擎不存在：" + engine + "）");
+            return;
+        }
+        com.combatsolver1.runtime.EngineBridge.configure(engine, mingw);
+        CombatLog.info("solver source: sts_lightspeed (" + engine + ")"
+                + (mingw.isEmpty() ? "" : "，MinGW: " + mingw));
+    }
+
+    private static String firstNonEmpty(String... values) {
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
+    /** 从 ~/.combatsolver1/settings.properties 读一个键（没有返回空串）。 */
+    private static String settingsValue(String key) {
+        java.io.File file = new java.io.File(
+                new java.io.File(System.getProperty("user.home", "."), ".combatsolver1"),
+                "settings.properties");
+        if (!file.isFile()) {
+            return "";
+        }
+        java.util.Properties properties = new java.util.Properties();
+        try (java.io.InputStream in = new java.io.FileInputStream(file)) {
+            properties.load(in);
+            return properties.getProperty(key, "");
+        } catch (Throwable t) {
+            return "";
+        }
     }
 
     @Override

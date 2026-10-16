@@ -88,7 +88,8 @@ public final class CombatRecorder {
                 pendingCardId = null;
             }
             if (rootPending) {
-                writeLine("{\"type\":\"root\",\"state\":" + stateJson(now) + "}");
+                writeLine("{\"type\":\"root\",\"engine\":\"" + esc(EngineBridge.describe())
+                        + "\",\"state\":" + stateJson(now) + "}");
                 rootPending = false;
                 lastState = now;
                 lastTurn = now.turn;

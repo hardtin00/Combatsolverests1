@@ -61,8 +61,37 @@ public final class LiveCapture {
                 s.potionIds.add(p.ID);
             }
         }
-        // 玩家身上的缠绕（尖塔生长）：回合结束会掉血
+        // 玩家侧的减益与状态：模拟器有字段，就必须把实机层数真的读进来，
+        // 否则搜索会从错误起点出发（只有字段没有捕获等于没有）。
+        s.playerVulnerable = powerAmount(AbstractDungeon.player, "Vulnerable");
+        s.playerWeak = powerAmount(AbstractDungeon.player, "Weakened");
+        s.playerFrail = powerAmount(AbstractDungeon.player, "Frail");
+        s.playerEntangled = powerAmount(AbstractDungeon.player, "Entangled");
+        s.playerIntangible = powerAmount(AbstractDungeon.player, "Intangible");
+        s.playerArtifact = powerAmount(AbstractDungeon.player, "Artifact");
         s.constricted = powerAmount(AbstractDungeon.player, "Constricted");
+        s.playerPlatedArmor = powerAmount(AbstractDungeon.player, "Plated Armor");
+        // 玩家的能力牌层数：同样必须照实捕获
+        s.pMetallicize = powerAmount(AbstractDungeon.player, "Metallicize");
+        s.pFeelNoPain = powerAmount(AbstractDungeon.player, "Feel No Pain");
+        s.pDarkEmbrace = powerAmount(AbstractDungeon.player, "Dark Embrace");
+        s.pDemonForm = powerAmount(AbstractDungeon.player, "Demon Form");
+        s.pJuggernaut = powerAmount(AbstractDungeon.player, "Juggernaut");
+        s.pCombust = powerAmount(AbstractDungeon.player, "Combust");
+        s.pRupture = powerAmount(AbstractDungeon.player, "Rupture");
+        s.pThorns = powerAmount(AbstractDungeon.player, "Thorns");
+        s.pDoubleTap = powerAmount(AbstractDungeon.player, "Double Tap");
+        s.pRage = powerAmount(AbstractDungeon.player, "Rage");
+        s.pBerserk = powerAmount(AbstractDungeon.player, "Berserk");
+        s.pBrutality = powerAmount(AbstractDungeon.player, "Brutality");
+        s.pBarricade = powerAmount(AbstractDungeon.player, "Barricade") > 0;
+        s.pCorruption = powerAmount(AbstractDungeon.player, "Corruption") > 0;
+        s.pPanache = powerAmount(AbstractDungeon.player, "Panache");
+        s.pSadistic = powerAmount(AbstractDungeon.player, "Sadistic Nature");
+        s.pMagnetism = powerAmount(AbstractDungeon.player, "Magnetism");
+        s.pMayhem = powerAmount(AbstractDungeon.player, "Mayhem");
+        s.pOmega = powerAmount(AbstractDungeon.player, "Omega");
+        s.blockLock = powerAmount(AbstractDungeon.player, "No Block") > 0 ? 1 : 0;
         for (AbstractMonster m : AbstractDungeon.getCurrRoom().monsters.monsters) {
             if (!m.isDeadOrEscaped()) {
                 s.mobs.add(simMob(m));

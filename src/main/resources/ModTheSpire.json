@@ -2,8 +2,8 @@
   "modid": "combatsolver1",
   "name": "CombatSolver1",
   "author_list": ["Codex"],
-  "description": "A Slay the Spire 1 combat route solver mod: Act 1 monsters are modeled move by move, with offline differential verification against in-game recordings.",
-  "version": "0.2.0",
+  "description": "Combat Solver 1 build 0.3.0 - all 65 vanilla monsters modelled (ascension tiers, summons, phases), Ironclad + colourless cards, potions, relics; offline differential verification against in-game recordings. Built from the commit tagged 0.3.0; see STATUS.md for the support matrix.",
+  "version": "0.3.0",
   "sts_version": "12-18-2022",
   "mts_version": "3.30.0",
   "dependencies": ["basemod"]

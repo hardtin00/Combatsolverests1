@@ -200,14 +200,59 @@ public class SimState {
         return n;
     }
 
-    /** 稳定状态签名：用于“实机与预测一致则复用路线”的核对。 */
+    /**
+     * 完整状态键：同时用于「实机与预测一致则复用路线」的核对，以及搜索里的状态去重。
+     *
+     * 只比血量/格挡/能量是不够的——两场战斗即使这些相同，手牌、两个牌堆的内容与顺序、
+     * 玩家减益与能力层数、怪物意图与 AI 游标不同，后续能走的路线也完全不同。
+     * 用同一份键做「去重」和「复用核对」，可以避免把不同未来误当成同一个状态。
+     */
     public String signature() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(hp).append('|').append(block).append('|').append(energy).append('|');
+        StringBuilder sb = new StringBuilder(256);
+        sb.append(turn).append('#')
+          .append(hp).append('|').append(maxHp).append('|').append(block).append('|')
+          .append(energy).append('|').append(energyPerTurn).append('|').append(handSize).append('|')
+          .append(playerVulnerable).append('|').append(playerWeak).append('|')
+          .append(playerFrail).append('|').append(playerEntangled).append('|')
+          .append(playerIntangible).append('|').append(playerArtifact).append('|')
+          .append(playerPlatedArmor).append('|').append(constricted).append('|')
+          .append(tempStrength).append('|').append(turnLocked ? 1 : 0).append('|');
+        sb.append(pMetallicize).append('|').append(pFeelNoPain).append('|')
+          .append(pDarkEmbrace).append('|').append(pDemonForm).append('|')
+          .append(pJuggernaut).append('|').append(pCombust).append('|')
+          .append(pRupture).append('|').append(pThorns).append('|')
+          .append(pDoubleTap).append('|').append(pRage).append('|')
+          .append(pBerserk).append('|').append(pBrutality).append('|')
+          .append(pBarricade ? 1 : 0).append('|').append(pCorruption ? 1 : 0).append('|')
+          .append(pPanache).append('|').append(pSadistic).append('|')
+          .append(pMagnetism).append('|').append(pMayhem).append('|').append(pOmega).append('|');
+        sb.append("H:");
+        for (Card c : hand) {
+            sb.append(c.id).append(c.freeThisTurn ? '*' : ',').append(c.cost).append(';');
+        }
+        sb.append("|D:");
+        for (Card c : drawPile) {
+            sb.append(c.id).append(',');
+        }
+        sb.append("|X:");
+        for (Card c : discardPile) {
+            sb.append(c.id).append(',');
+        }
+        sb.append("|E:").append(exhaustPile.size()).append('|');
+        for (String relic : relics) {
+            sb.append(relic).append(',');
+        }
+        sb.append("|P:");
+        for (String potion : potionIds) {
+            sb.append(potion).append(',');
+        }
+        sb.append("|M:");
         for (Mob m : mobs) {
-            if (m.alive) {
-                sb.append(m.hp).append(',').append(m.block).append(';');
-            }
+            sb.append(m.id).append(':').append(m.hp).append(',').append(m.block)
+              .append(',').append(m.vulnerable).append(',').append(m.weak)
+              .append(',').append(m.strength).append(',').append(m.alive ? 1 : 0)
+              .append(',').append(m.intent == null ? "-" : m.intent.id)
+              .append(',').append(m.aiCursor).append(';');
         }
         return sb.toString();
     }

@@ -62,14 +62,16 @@ public final class CombatRecorder {
         if (snap == null) {
             return;
         }
-        // 上一张牌还没等到稳定帧就又出了牌：说明中间的状态抓不稳，
-        // 与其静默覆盖、让 pre/post 配错，不如把上一条标记为“未配对”如实写出来。
+        // 上一张牌还没被稳定帧收尾就又出了牌。
+        // 关键点：游戏只有在上一张**完全结算**之后才允许打出下一张，
+        // 所以此刻抓到的状态就是上一张牌可靠的“出牌后”状态——用它收尾，配对成功。
+        // （稳定帧判据太严时配对率只有三分之一，差分就没法当依据了。）
         if (pendingCardId != null && pre != null) {
             try {
-                writeLine("{\"type\":\"card\",\"paired\":false,\"card\":{\"id\":\"" + esc(pendingCardId)
+                writeLine("{\"type\":\"card\",\"paired\":true,\"card\":{\"id\":\"" + esc(pendingCardId)
                         + "\",\"cost\":" + pendingCost + ",\"damage\":" + pendingDamage
                         + ",\"block\":" + pendingBlock + "},\"target\":" + pendingTarget
-                        + ",\"pre\":" + stateJson(pre) + ",\"post\":null}");
+                        + ",\"pre\":" + stateJson(pre) + ",\"post\":" + stateJson(snap) + "}");
             } catch (Throwable ignored) {
                 // 写不进去也不能影响战斗
             }

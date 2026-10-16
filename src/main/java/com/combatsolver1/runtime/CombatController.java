@@ -71,6 +71,11 @@ public class CombatController {
 
     private boolean planValidated;
     private boolean planStale;
+    /**
+     * 本回合已放弃自动执行：计划反复校验失败、且牌与实机手牌对不上时置位，
+     * 避免每帧重复搜索却每次都在打到一半时失效。状态一变（出牌 / 抽牌 / 换回合 / 手动重算）就复位。
+     */
+    private boolean suppressed;
     private String validatedSignature;
     private int searchAttempts;
     private boolean searching;
@@ -132,10 +137,12 @@ public class CombatController {
 
     public void onPlayerTurnStart() {
         planValidated = false;
+        suppressed = false;
     }
 
     public void onCardDrawn(AbstractCard card) {
         planValidated = false;
+        suppressed = false;
     }
 
     /** 玩家（或模组）打出一张牌。用于把“手动出牌”也记录进动作日志。 */
@@ -181,6 +188,7 @@ public class CombatController {
 
             if (edge(Input.Keys.G)) {
                 executeRequested = true;
+                suppressed = false; // 玩家明确要求执行：再试一次
             }
             if (edge(Input.Keys.H)) {
                 fullAuto = !fullAuto;
@@ -198,6 +206,7 @@ public class CombatController {
                 recalculate();
             } else if (uiAction == OverlayRenderer.ACTION_EXECUTE_TURN) {
                 executeRequested = true;
+                suppressed = false;
             } else if (uiAction == OverlayRenderer.ACTION_TOGGLE_AUTO) {
                 fullAuto = !fullAuto;
                 CombatLog.info("full auto: " + fullAuto);
@@ -233,6 +242,7 @@ public class CombatController {
                 }
                 lastTurn = turn;
                 searchAttempts = 0;
+                suppressed = false;
                 planValidated = false;
                 planStale = false;
                 validatedSignature = null;
@@ -247,6 +257,7 @@ public class CombatController {
                     && !validatedSignature.equals(liveSignature())) {
                 planStale = true;
                 planValidated = false;
+                suppressed = false;
                 CombatLog.info("live state changed; plan invalidated");
             }
 
@@ -304,9 +315,18 @@ public class CombatController {
                     planStale = false;
                     validatedSignature = root.signature();
                     CombatLog.info("local route reused for turn " + turn);
+                } else if (suppressed) {
+                    // 本回合已经放弃自动执行，不再反复搜索
                 } else if (plan != null && searchAttempts >= 3) {
-                    planValidated = true;
-                    CombatLog.info("validation kept failing; using current plan as-is");
+                    if (planActionsResolvable(plan, root)) {
+                        planValidated = true;
+                        CombatLog.info("validation kept failing; using current plan as-is");
+                    } else {
+                        // 计划里的牌和实机手牌对不上：强行执行只会打到一半就失效，本回合不再自动出牌
+                        suppressed = true;
+                        CombatLog.info("计划与实机手牌对不上，本回合停止自动执行"
+                                + "（计划 " + planActionSummary(plan) + "）");
+                    }
                 } else if (enginePlanAvailable()) {
                     // 引擎路线在手，不必再跑本地搜索。
                     planValidated = true;
@@ -328,7 +348,7 @@ public class CombatController {
 
             Plan active = currentPlan();
             if (active != null && active.turns.size() > 0 && (executeRequested || fullAuto)
-                    && engineTurnUsable(active)) {
+                    && !suppressed && engineTurnUsable(active)) {
                 boolean autoTurn = fullAuto;
                 executeRequested = false;
                 Plan.Turn firstTurn = active.turns.get(0);
@@ -1066,8 +1086,24 @@ public class CombatController {
         }
         Plan.Turn t = p.turns.get(0);
         if (t.stateSignature == null || !t.stateSignature.equals(live.signature())) {
+            CombatLog.info("reuse rejected by state: plan[" + t.stateSignature
+                    + "] live[" + live.signature() + "]");
             return false;
         }
+        if (!planActionsResolvable(p, live)) {
+            CombatLog.info("reuse rejected by hand: plan " + planActionSummary(p)
+                    + " hand " + handSummary(live));
+            return false;
+        }
+        return true;
+    }
+
+    /** 计划当前回合的牌是否都能在实机手牌里找到（药水 / 选牌动作不参与判断）。 */
+    private boolean planActionsResolvable(Plan p, SimState live) {
+        if (p == null || p.turns.isEmpty() || live == null) {
+            return false;
+        }
+        Plan.Turn t = p.turns.get(0);
         for (Plan.Action a : t.actions) {
             if (a.isPotion() || a.isSelect()) {
                 continue;
@@ -1084,6 +1120,20 @@ public class CombatController {
             }
         }
         return true;
+    }
+
+    private String planActionSummary(Plan p) {
+        if (p == null || p.turns.isEmpty()) {
+            return "(空)";
+        }
+        StringBuilder sb = new StringBuilder("[");
+        for (Plan.Action a : p.turns.get(0).actions) {
+            if (sb.length() > 1) {
+                sb.append(' ');
+            }
+            sb.append(a.cardId).append('@').append(a.handIndex);
+        }
+        return sb.append(']').toString();
     }
 
     private void stopAndPause() {
@@ -1105,6 +1155,7 @@ public class CombatController {
         expectedEndState = null;
         planValidated = false;
         planStale = false;
+        suppressed = false;
         validatedSignature = null;
         searchAttempts = 0;
         if (searching) {

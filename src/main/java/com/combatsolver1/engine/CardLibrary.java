@@ -144,7 +144,7 @@ public final class CardLibrary {
         card("Cleave");
         card("Clothesline").weak(2);
         card("Flex").str(2).tempStrength();     // 临时力量（回合结束失效）
-        card("Havoc").playTopExhaust();         // 打出牌堆顶牌并消耗
+        card("Havoc").playTopExhaust();         // 打出牌堆顶牌并消耗“那张牌”（自身不消耗）
         card("Headbutt").discardToDraw();       // 从弃牌堆取回一张放到牌堆顶
         card("Heavy Blade").strengthMult(3);
         card("Iron Wave");
@@ -155,18 +155,18 @@ public final class CardLibrary {
         card("Thunderclap").vulnAll(1);
         card("True Grit");
         card("Twin Strike").hits(2);
-        card("Warcry").draw(1).putBackWorst();  // 抽牌后把最差的一张放回牌堆顶
+        card("Warcry").draw(1).putBackWorst().exhaustSelf(); // 抽牌后放回一张，自身消耗
         card("Wild Strike").addCard("Wound", 1).shuffleAddedToDraw(); // 洗入一张伤口
 
         // ── 少见 ───────────────────────────────────────────────────
         card("Battle Trance").draw(3);
         card("Blood for Blood").bloodForBlood(); // 费用随本场掉血次数降低
         card("Bloodletting").energy(2).selfDamage(3);
-        card("Burning Pact").exhaustOneDrawTwo(); // 消耗最差的一张牌并抽两张
+        card("Burning Pact").exhaustOneDrawTwo(); // 消耗最差的一张牌并抽两张（自身不消耗）
         card("Carnage").ethereal();             // 虚灵（回合结束消耗）
         card("Combust").power("combust", 5);
         card("Dark Embrace").power("darkEmbrace", 1);
-        card("Disarm").enemyStrDown(2);         // 降低敌人力量
+        card("Disarm").enemyStrDown(2).exhaustSelf(); // 降低敌人力量，自身消耗
         card("Dropkick").draw(1).energy(1).reqVulnerable(); // 需目标处于易伤
         card("Dual Wield").copyHandAttack();    // 复制手牌里最好的一张攻击牌
         card("Entrench").doubleBlock();         // 格挡翻倍
@@ -176,7 +176,7 @@ public final class CardLibrary {
         card("Flame Barrier").power("thorns", 4);
         card("Ghostly Armor").ethereal();       // 虚灵
         card("Hemokinesis").selfDamage(2);
-        card("Infernal Blade").generateStrike(); // 生成一张随机攻击牌
+        card("Infernal Blade").generateStrike().exhaustSelf(); // 生成一张随机攻击牌，自身消耗
         card("Inflame").str(2);
         card("Intimidate").weakAll(1).exhaustSelf(); // 消耗
         card("Metallicize").power("metallicize", 3);
@@ -189,7 +189,7 @@ public final class CardLibrary {
         card("Searing Blow").approx();          // 可反复升级加伤
         card("Second Wind").blockPerExhaust(5).exhaustHand();
         card("Seeing Red").energy(2).exhaustSelf(); // 消耗
-        card("Sentinel").energyOnExhaust(2).exhaustSelf(); // 消耗；被消耗时给能量
+        card("Sentinel").energyOnExhaust(2);    // 被消耗时给能量（自身不消耗）
         card("Sever Soul").exhaustNonAttacks();
         card("Shockwave").vulnAll(3).weakAll(3).exhaustSelf(); // 消耗
         card("Spot Weakness").str(3).reqAttackIntent(); // 需目标意图为攻击
@@ -206,11 +206,11 @@ public final class CardLibrary {
         card("Double Tap").power("doubleTap", 1);
         card("Exhume").exhaustToHand();         // 取回一张已消耗的牌
         card("Feed").gainMaxHpOnKill();         // 击杀时提升最大生命
-        card("Fiend Fire").damagePerExhaust(7).exhaustHand();
+        card("Fiend Fire").damagePerExhaust(7).exhaustHand().exhaustSelf();
         card("Immolate").approx();              // 全体伤害并把一张灼伤洗入弃牌堆
         card("Impervious");
         card("Juggernaut").power("juggernaut", 5);
-        card("Limit Break").doubleStrength();   // 力量翻倍
+        card("Limit Break").doubleStrength().exhaustSelf(); // 力量翻倍，自身消耗
         card("Offering").energy(2).draw(3).selfDamage(6).exhaustSelf(); // 消耗
         card("Reaper").healOnDamage();          // 全体伤害并回复未格挡伤害
 
@@ -231,9 +231,6 @@ public final class CardLibrary {
         card("Intimidate").exhaustSelf();
         card("Seeing Red").exhaustSelf();
         card("Offering").exhaustSelf();
-        card("Sentinel").exhaustSelf();
-        card("Havoc").exhaustSelf();
-        card("Burning Pact").exhaustSelf();
         card("Exhume").exhaustSelf();
         // 虚灵：回合结束若仍在手牌则消耗
         card("Carnage").ethereal();
@@ -273,6 +270,13 @@ public final class CardLibrary {
 
     public static boolean isKnown(String id) {
         return TABLE.containsKey(id);
+    }
+
+    /** 已登记的全部卡牌 id（离线自检用，可用于与游戏自带文本对账）。 */
+    public static java.util.List<String> ids() {
+        java.util.List<String> list = new java.util.ArrayList<String>(TABLE.keySet());
+        java.util.Collections.sort(list);
+        return list;
     }
 
     /**

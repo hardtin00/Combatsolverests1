@@ -1,5 +1,9 @@
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 离线自检入口（不依赖游戏进程，也不需要游戏 jar）。
@@ -10,6 +14,8 @@ import java.util.List;
  *   java -cp <工具输出目录> Solvertest search           整场搜索断言
  *   java -cp <工具输出目录> Solvertest diff <记录.jsonl>  实机记录差分重放
  *   java -cp <工具输出目录> Solvertest summary          列出建模怪物的模拟输出
+ *   java -cp <工具输出目录> Solvertest gamedata <游戏卡牌文本.json>
+ *                                                     用游戏自带文本核对卡牌标记
  *   java -cp <工具输出目录> Solvertest all [fixtures]   全部执行（默认路径见下）
  */
 public final class Solvertest {
@@ -31,6 +37,14 @@ public final class Solvertest {
         if ("summary".equals(command)) {
             printSummary();
             System.exit(0);
+        }
+        if ("gamedata".equals(command)) {
+            if (args.length < 2) {
+                System.out.println("用法：Solvertest gamedata <游戏卡牌文本.json>");
+                System.exit(2);
+            }
+            runGameData(args[1]);
+            System.exit(Checks.failures() == 0 ? 0 : 1);
         }
 
         boolean all = "all".equals(command);
@@ -93,5 +107,17 @@ public final class Solvertest {
         for (String id : ids) {
             System.out.println("  " + Checks.simulateSummary(id, 8));
         }
+    }
+
+    /** 用游戏自带卡牌文本对账；文本可从 desktop-1.0.jar 的 localization 目录下 cards.json 取出。 */
+    private static void runGameData(String path) throws Exception {
+        byte[] bytes = Files.readAllBytes(Paths.get(path));
+        Object parsed = Json.parse(new String(bytes, StandardCharsets.UTF_8));
+        Checks.gameData((Map<String, Object>) parsed);
+        for (String line : Checks.log()) {
+            System.out.println(line);
+        }
+        System.out.println();
+        System.out.println(Checks.failures() == 0 ? "对账通过。" : "对账失败 " + Checks.failures() + " 项。");
     }
 }

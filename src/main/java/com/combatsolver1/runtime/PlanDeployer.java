@@ -1,6 +1,7 @@
 package com.combatsolver1.runtime;
 
 import com.combatsolver1.CombatLog;
+import com.combatsolver1.engine.CardLibrary;
 import com.combatsolver1.search.Plan;
 import com.megacrit.cardcrawl.actions.GameActionManager;
 import com.megacrit.cardcrawl.actions.utility.NewQueueCardAction;
@@ -35,6 +36,8 @@ import java.util.Set;
  */
 public class PlanDeployer {
     private static final int IDLE_FRAMES_REQUIRED = 3;
+    /** 计划里的牌暂时不在手里（多半是本回合内刚抽到的）时，最多等几次空闲帧再判失效。 */
+    private static final int MAX_DEFERRALS = 8;
 
     /** 一次部署的结果。 */
     public static class Result {
@@ -60,6 +63,8 @@ public class PlanDeployer {
     private final List<AbstractCard> virtualHand = new ArrayList<>();
     private Result result;
     private final Set<AbstractPotion> usedPotions = new HashSet<>();
+    /** 计划里的牌暂时不在手里（多半是本回合内刚抽到的）时，允许等待的帧数。 */
+    private int deferrals;
 
     public boolean isActive() {
         return pending != null;
@@ -78,6 +83,7 @@ public class PlanDeployer {
         pending = null;
         virtualHand.clear();
         usedPotions.clear();
+        deferrals = 0;
         idleFrames = 0;
         readyFrames = 0;
     }
@@ -95,6 +101,7 @@ public class PlanDeployer {
         readyFrames = 0;
         virtualHand.clear();
         usedPotions.clear();
+        deferrals = 0;
         this.endTurnAfter = endTurnAfter;
         CombatLog.info("deploy turn " + turn.turnNumber + ": " + turn.actions.size()
                 + " action(s), endTurn=" + endTurnAfter);
@@ -193,10 +200,18 @@ public class PlanDeployer {
 
             Resolved resolved = resolveCard(action);
             if (resolved.card == null) {
+                if (deferrals < MAX_DEFERRALS) {
+                    // 计划里可能是“本回合内刚抽到”的牌：等这一段结算完，再对着实机手牌重新解析。
+                    deferrals++;
+                    CombatLog.info("deploy: waiting for " + action.displayName()
+                            + "（下标 " + action.handIndex + "），可能是本回合内刚抽到的牌");
+                    return;
+                }
                 finish(false, "计划里的牌取不到：" + action.displayName()
                         + "（下标 " + action.handIndex + "）");
                 return;
             }
+            deferrals = 0;
             AbstractCard card = resolved.card;
             int cost = card.freeToPlay() ? 0 : card.costForTurn;
             if (cost < 0) {
@@ -239,13 +254,27 @@ public class PlanDeployer {
         int index;
     }
 
-    /** 按引擎语义取牌：下标是“这一刻的手牌下标”，取走后后面的牌前移。 */
+    /**
+     * 按引擎语义取牌：下标是“这一刻的手牌下标”，取走后后面的牌前移。
+     *
+     * 名字只在“可信”时才用于校验：引擎（sts_lightspeed）给出的可能是截断的英文名
+     * （例如 Shrug）或占位符 [MISSING_TITLE]，这时位置才是权威信息，按位置取牌。
+     */
     private Resolved resolveCard(Plan.Action action) {
         Resolved r = new Resolved();
         int idx = action.handIndex;
+        boolean nameTrustworthy = action.cardId != null && CardLibrary.isKnown(action.cardId);
         if (idx >= 0 && idx < virtualHand.size()) {
             AbstractCard candidate = virtualHand.get(idx);
             if (action.cardId == null || action.cardId.equals(candidate.cardID)) {
+                virtualHand.remove(idx);
+                r.card = candidate;
+                r.index = idx;
+                return r;
+            }
+            if (!nameTrustworthy) {
+                CombatLog.info("deploy: 计划里的牌名不可信（" + action.cardId
+                        + "），按位置取 hand[" + idx + "]=" + candidate.cardID);
                 virtualHand.remove(idx);
                 r.card = candidate;
                 r.index = idx;

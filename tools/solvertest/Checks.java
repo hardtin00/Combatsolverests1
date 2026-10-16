@@ -8,6 +8,7 @@ import com.combatsolver1.search.Plan;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 离线自检：不依赖游戏运行，也不需要游戏 jar，直接对引擎数据表与搜索做断言。
@@ -115,6 +116,31 @@ public final class Checks {
                 false, false, false, false));
         CombatEngine.playCard(d, d.hand.remove(0), -1);
         eq("防御获得 5 点格挡", 5, d.block);
+
+        // 哨卫（回归）：打出不给能量、也不自己消耗；只有被别的效果消耗时才给 2 点能量。
+        // 游戏原文是「如果这张牌被 消耗 ，获得 [R][R]」——之前误标成“打出即消耗”，
+        // 导致模拟多算能量、规划出实机执行不了的路线。
+        SimState sentinel = scenario(80, 80, new String[]{"Sentinel"}, "JawWorm");
+        sentinel.hand.clear();
+        sentinel.hand.add(CardLibrary.toSimCard("Sentinel", "哨卫", 1, 0, 5, 1,
+                false, false, false, false));
+        sentinel.energy = 3;
+        CombatEngine.playCard(sentinel, sentinel.hand.remove(0), -1);
+        eq("哨卫打出只扣自身 1 费，不额外回能", 2, sentinel.energy);
+        eq("哨卫打出后进入弃牌堆", 1, sentinel.discardPile.size());
+        eq("哨卫打出后不在消耗堆", 0, sentinel.exhaustPile.size());
+        check("哨卫标记为“被消耗时给能量”而不是“打出即消耗”",
+                CardLibrary.get("Sentinel").energyOnExhaust > 0
+                        && !CardLibrary.get("Sentinel").exhaustSelf, null);
+        check("燃烧契约 / 破灭不自己消耗",
+                !CardLibrary.get("Burning Pact").exhaustSelf
+                        && !CardLibrary.get("Havoc").exhaustSelf, null);
+        check("缴械 / 恶魔之焰 / 地狱之刃 / 突破极限 / 战吼 打出即消耗",
+                CardLibrary.get("Disarm").exhaustSelf
+                        && CardLibrary.get("Fiend Fire").exhaustSelf
+                        && CardLibrary.get("Infernal Blade").exhaustSelf
+                        && CardLibrary.get("Limit Break").exhaustSelf
+                        && CardLibrary.get("Warcry").exhaustSelf, null);
     }
 
     // ══ 2. 怪物 AI ══════════════════════════════════════════════
@@ -208,6 +234,89 @@ public final class Checks {
     }
 
     // ══ 3. 搜索 ═════════════════════════════════════════════════
+
+    // ══ 2.5 与游戏自带文本对账 ══════════════════════════════════
+
+    /**
+     * 用游戏自带的卡牌文本（localization/zhs/cards.json，从 desktop-1.0.jar 取出）
+     * 对账「打出即消耗」标记：文本里独立成行的「消耗 。」才是打出即消耗，
+     * 而「如果这张牌被消耗」这类是被别的效果消耗时触发的效果。
+     */
+    public static void gameData(Map<String, Object> cards) {
+        LOG.add("· 与游戏自带卡牌文本对账（打出即消耗）");
+        int missing = 0;
+        int mismatched = 0;
+        for (String id : CardLibrary.ids()) {
+            Object raw = cards.get(id);
+            if (raw == null) {
+                missing++;
+                LOG.add("    游戏文本里没有这个 id：" + id);
+                continue;
+            }
+            Map<String, Object> entry = Json.asMap(raw);
+            String text = Json.str(entry, "DESCRIPTION", "") + " NL "
+                    + Json.str(entry, "UPGRADE_DESCRIPTION", "");
+            boolean gameExhausts = hasExhaustKeyword(text);
+            boolean tableExhausts = CardLibrary.get(id).exhaustSelf;
+            if (gameExhausts != tableExhausts) {
+                mismatched++;
+                LOG.add("    [不一致] " + id + "：" + Json.str(entry, "NAME", "?")
+                        + " 表里 exhaustSelf=" + tableExhausts
+                        + "，游戏文本=" + gameExhausts);
+            }
+        }
+        check("所有登记卡牌都能在游戏文本里找到", missing == 0, "缺失 " + missing + " 张");
+        check("「打出即消耗」标记与游戏文本一致", mismatched == 0, "不一致 " + mismatched + " 张");
+    }
+
+    /**
+     * 判断文本里是否出现「打出即消耗」这个关键字。
+     *
+     * 游戏文本用 “ NL ” 表示换行。独立成行的「消耗 。」就是关键字；
+     * 少数牌的文本漏了换行（如狂宴“……最大生命。 消耗 。”），所以再补一条
+     * 「句末标点后紧跟“消耗。”」的规则。反过来，“将其消耗”（破灭）、
+     * “消耗 1 张牌”（燃烧契约）、“如果这张牌被消耗，”（哨卫）指的都是别的牌，不算。
+     */
+    private static boolean hasExhaustKeyword(String text) {
+        if (text == null) {
+            return false;
+        }
+        String normalized = text.replace(" NL ", "\n");
+        for (String rawLine : normalized.split("\n")) {
+            String line = stripSpaces(rawLine);
+            if (line.equals("消耗。") || line.equalsIgnoreCase("Exhaust.")) {
+                return true;
+            }
+            int idx = line.indexOf("消耗。");
+            while (idx >= 0) {
+                int before = idx - 1;
+                if (before >= 0 && isSentenceEnd(line.charAt(before))) {
+                    return true;
+                }
+                idx = line.indexOf("消耗。", idx + 2);
+            }
+        }
+        return false;
+    }
+
+    private static String stripSpaces(String value) {
+        StringBuilder sb = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (!isSpace(c)) {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    private static boolean isSentenceEnd(char c) {
+        return c == '。' || c == '！' || c == '？';
+    }
+
+    private static boolean isSpace(char c) {
+        return c == ' ' || c == '　';
+    }
 
     public static void search() {
         LOG.add("· 整场搜索");

@@ -21,6 +21,7 @@ CI（`.github/workflows/ci.yml`）会在每次提交时跑同一套命令。
 | `search` | 整场搜索断言：能给出路线、预测可击败、承伤范围、两次搜索完全一致（可复现） |
 | `diff <文件>` | 读取实机记录 JSONL，重放每条动作并逐字段比对 |
 | `summary` | 列出所有建模怪物“空过 8 回合”的累计掉血，便于人工核对数值 |
+| `gamedata <cards.json>` | 用游戏自带卡牌文本核对「打出即消耗」等标记 |
 | `all` | 前三条 + fixtures 里的差分重放 |
 
 ## 实机记录从哪里来
@@ -70,11 +71,18 @@ tools/solvertest/
 
 ## 相关工具
 
-`tools/inspect/ExtractMonsterFacts.java` 从游戏 `desktop-1.0.jar` 里读出每个怪物类的
-真实 `ID` 常量与静态数值字段（血量、招式伤害等），用于核对 `MonsterAi` / `MonsterPatterns`
-的数据。它需要游戏本体，只在开发机上运行：
+`tools/inspect/` 下三个工具都从游戏 `desktop-1.0.jar` 读数据，只在开发机上运行：
+
+| 工具 | 用途 |
+| --- | --- |
+| `ExtractMonsterFacts` | 读出每个怪物类的真实 `ID` 常量与静态数值字段（血量、招式伤害等） |
+| `DumpBytecode` | 打印某个方法的字节码（用来确认游戏内部实现，例如牌堆顶取哪一端） |
+| `TraceMethod` | 按顺序打印某方法的常量与调用轨迹（含 `tableswitch` / `lookupswitch` 解码），用来还原 `getMove` / `takeTurn` 里的出招分支 |
 
 ```powershell
-javac -encoding UTF-8 -d build/inspect tools/inspect/ExtractMonsterFacts.java
-java -cp build/inspect ExtractMonsterFacts "C:/Program Files (x86)/Steam/steamapps/common/SlayTheSpire/desktop-1.0.jar"
+javac -encoding UTF-8 -d build/inspect tools/inspect/ExtractMonsterFacts.java tools/inspect/DumpBytecode.java tools/inspect/TraceMethod.java
+java -cp build/inspect ExtractMonsterFacts "<游戏>/desktop-1.0.jar"
+java -cp build/inspect TraceMethod "<游戏>/desktop-1.0.jar" com/megacrit/cardcrawl/monsters/city/Chosen getMove
 ```
+
+卡牌文本对账用的 `cards.json` 可直接从游戏 jar 里取出（`localization/zhs/cards.json`）。

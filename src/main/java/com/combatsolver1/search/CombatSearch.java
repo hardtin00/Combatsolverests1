@@ -210,8 +210,10 @@ public class CombatSearch {
                             SimState.Card c2 = ns.hand.remove(hi);
                             CombatEngine.playCard(ns, c2, t);
                             List<Plan.Action> na = new ArrayList<>(acts);
-                            na.add(new Plan.Action(c2.id, c2.name, t, c2.cost)
-                                    .target(st.mobs.get(t).name));
+                            Plan.Action act = new Plan.Action(c2.id, c2.name, t, c2.cost)
+                                    .target(st.mobs.get(t).name);
+                            act.handIndex = hi; // 引擎语义：动作发生这一刻的手牌下标
+                            na.add(act);
                             nextStates.add(ns);
                             nextActions.add(na);
                             nextScores.add(turnScore(state, ns, incoming, na.size()));
@@ -221,7 +223,9 @@ public class CombatSearch {
                         SimState.Card c2 = ns.hand.remove(hi);
                         CombatEngine.playCard(ns, c2, -1);
                         List<Plan.Action> na = new ArrayList<>(acts);
-                        na.add(new Plan.Action(c2.id, c2.name, -1, c2.cost));
+                        Plan.Action act = new Plan.Action(c2.id, c2.name, -1, c2.cost);
+                        act.handIndex = hi;
+                        na.add(act);
                         nextStates.add(ns);
                         nextActions.add(na);
                         nextScores.add(turnScore(state, ns, incoming, na.size()));

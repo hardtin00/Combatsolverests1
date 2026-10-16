@@ -758,6 +758,28 @@ public final class CombatEngine {
         if (spec[9] > 0) {
             s.pThorns += spec[9];
         }
+        if (spec[10] > 0) {
+            s.simDexBonus += spec[10];      // 敏捷药水 / 迅捷药水
+        }
+        if (spec[11] > 0) {
+            s.pMetallicize += spec[11];     // 铁心药水
+        }
+        if (spec[12] > 0) {
+            s.playerIntangible += spec[12]; // 罐中幽灵
+        }
+        if (spec[13] > 0) {
+            s.playerArtifact += spec[13];   // 古代药水
+        }
+        if (spec[14] > 0) {
+            s.maxHp += spec[14];            // 果汁：最大生命
+            s.hp += spec[14];
+        }
+        if (spec[15] > 0) {
+            s.tempStrength += spec[15];     // 屈伸药水：本回合力量
+        }
+        if (spec[16] > 0) {
+            s.pDoubleTap += spec[16];       // 复制药水：下一张牌打两次
+        }
         settleDeaths(s, null);
     }
 

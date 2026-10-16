@@ -54,6 +54,9 @@ public class SolverSettings {
 
     /** 把预设映射到搜索参数。 */
     public void applyTo(CombatSearch.Config cfg) {
+        // 墙钟时间预算：预设越深给得越宽；"自定义"不限时，只受节点/回合预算约束
+        long[] timeBudgets = {3000L, 8000L, 20000L, 45000L, 0L};
+        cfg.timeBudgetMs = timeBudgets[Math.max(0, Math.min(timeBudgets.length - 1, preset))];
         switch (preset) {
             case 0:
                 cfg.beamWidth = 3;

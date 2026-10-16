@@ -282,6 +282,7 @@ public class CombatController {
                                 + " win=" + plan.predictedWin
                                 + " nodes=" + plan.nodesSearched
                                 + " | " + plan.confidenceNote());
+                        CombatLog.info("提示：这是当前预算内找到的最好路线，不保证全局最优。");
                     }
                 }
             }

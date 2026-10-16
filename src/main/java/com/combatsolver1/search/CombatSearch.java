@@ -22,6 +22,8 @@ public class CombatSearch {
         public int withinTurnWidth = 8;
         public int maxTurns = 8;
         public int maxNodes = 4000;
+        /** 墙钟时间预算（毫秒）；0 表示不限时，仅用节点/回合预算。 */
+        public long timeBudgetMs = 0;
     }
 
     private Config cfg;
@@ -32,6 +34,9 @@ public class CombatSearch {
     private int nodes;
     private boolean done;
     private Plan plan;
+    /** 搜索开始时间与已访问状态签名：用于墙钟预算与循环检测。 */
+    private long startedAtMs;
+    private final java.util.HashSet<String> visited = new java.util.HashSet<String>();
     /** 搜索起点的副本：随机分支复推时从它再 fork，保证起点一致。 */
     private SimState rootState;
 
@@ -44,6 +49,8 @@ public class CombatSearch {
         this.best = null;
         this.depth = 0;
         this.nodes = 0;
+        this.startedAtMs = System.currentTimeMillis();
+        this.visited.clear();
         this.done = false;
         this.plan = null;
     }
@@ -55,6 +62,10 @@ public class CombatSearch {
         }
         if (depth >= cfg.maxTurns || nodes >= cfg.maxNodes) {
             finish();
+            return true;
+        }
+        if (cfg.timeBudgetMs > 0 && System.currentTimeMillis() - startedAtMs >= cfg.timeBudgetMs) {
+            finish(); // 时间预算耗尽：给出现在找到的最好路线
             return true;
         }
         List<World> next = new ArrayList<>();
@@ -101,7 +112,9 @@ public class CombatSearch {
                 break;
             }
             String sig = w.state.signature() + "|e" + w.state.energy + "|t" + w.state.turn;
-            if (seen.add(sig)) {
+            // 循环检测：同一状态在更早的深度已经展开过，就不必再展开一次
+            boolean revisited = !visited.add(sig);
+            if (seen.add(sig) && !revisited) {
                 merged.add(w);
             }
         }

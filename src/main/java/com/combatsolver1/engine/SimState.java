@@ -15,11 +15,24 @@ public class SimState {
     public int energyPerTurn;
     public int handSize;
     public int playerVulnerable;
+    /** 玩家虚弱：造成的攻击伤害 ×3/4（由怪物施加）。 */
+    public int playerWeak;
+    /** 玩家残废：获得的格挡 ×3/4（由怪物施加）。 */
+    public int playerFrail;
+    /** 玩家缠身：本回合不能打出攻击牌（红奴隶主）。 */
+    public int playerEntangled;
     public int turn;
     /** 模拟过程中获得的力量加成，用于同一回合内后续攻击。 */
     public int simStrengthBonus;
+    /** 模拟过程中的敏捷变化（被吸魂等效果削减，影响后续格挡牌）。 */
+    public int simDexBonus;
+    /** 本回合临时力量（活动肌肉），回合结束失效。 */
+    public int tempStrength;
     /** 是否还没打过第一次怪物回合（第一次用当前意图，之后用平均估计）。 */
     public boolean firstEnemyTurn = true;
+
+    /** 本场战斗玩家累计失去的生命次数（血怒费用按次数递减）。 */
+    public int hpLossEvents;
 
     // ── 能力牌（铁甲核心机制）──
     public int pMetallicize;
@@ -38,6 +51,8 @@ public class SimState {
     public boolean pCorruption;
     /** 本场战斗已打出的攻击牌数量（钢笔尖 / 苦无类遗物按次数触发）。 */
     public int attacksThisCombat;
+    /** 本场战斗已打出的技能牌数量（开信刀按次数触发）。 */
+    public int skillsThisCombat;
 
     public final List<Card> hand = new ArrayList<>();
     public final List<Card> drawPile = new ArrayList<>();
@@ -62,8 +77,14 @@ public class SimState {
         s.energyPerTurn = energyPerTurn;
         s.handSize = handSize;
         s.playerVulnerable = playerVulnerable;
+        s.playerWeak = playerWeak;
+        s.playerFrail = playerFrail;
+        s.playerEntangled = playerEntangled;
         s.turn = turn;
         s.simStrengthBonus = simStrengthBonus;
+        s.simDexBonus = simDexBonus;
+        s.tempStrength = tempStrength;
+        s.hpLossEvents = hpLossEvents;
         s.firstEnemyTurn = firstEnemyTurn;
         s.pMetallicize = pMetallicize;
         s.pFeelNoPain = pFeelNoPain;
@@ -80,6 +101,7 @@ public class SimState {
         s.pBarricade = pBarricade;
         s.pCorruption = pCorruption;
         s.attacksThisCombat = attacksThisCombat;
+        s.skillsThisCombat = skillsThisCombat;
         s.rngState = rngState;
         for (Card c : hand) s.hand.add(c.copy());
         for (Card c : drawPile) s.drawPile.add(c.copy());
@@ -198,6 +220,11 @@ public class SimState {
         public boolean upgradeHand;      // 军备：升级手牌中的一张
         public int endTurnSelfDamage;    // 灼伤 / 腐朽：回合结束若在手牌则受伤
         public boolean regret;           // 悔恨：回合结束按手牌张数受伤
+        public boolean tempStrength;     // 活动肌肉：力量只在当前回合有效
+        public boolean upgraded;         // 模拟中已被升级（军备），避免重复升级
+        public boolean requiresAllAttacks; // 斗殴：仅当手牌全是攻击牌时可打出
+        public boolean shuffleAddedToDraw; // 洗入抽牌堆而不是进入弃牌堆
+        public boolean putBackWorst;       // 战吼：抽牌后把一张牌放回牌堆顶
 
         public Card(String id, String name, int cost, int damage, int hits, int block,
                     boolean attack, boolean aoe, boolean needsTarget,
@@ -280,6 +307,11 @@ public class SimState {
             c.upgradeHand = upgradeHand;
             c.endTurnSelfDamage = endTurnSelfDamage;
             c.regret = regret;
+            c.tempStrength = tempStrength;
+            c.upgraded = upgraded;
+            c.requiresAllAttacks = requiresAllAttacks;
+            c.shuffleAddedToDraw = shuffleAddedToDraw;
+            c.putBackWorst = putBackWorst;
             return c;
         }
 
@@ -311,6 +343,29 @@ public class SimState {
         /** 下一回合在 pattern 中的下标。 */
         public int patternIndex;
 
+        // ── 招式表（MonsterAi）──
+        /** 下一回合要执行的招式；null 表示该怪物未建模或尚未推进。 */
+        public MonsterAi.Move intent;
+        /** AI 游标：已经执行过的招式数（捕捉时取自实机 moveHistory 的大小）。 */
+        public int aiCursor;
+        /** AI 内部计数器（蓄力回合数、防御模式剩余回合等，由具体脚本使用）。 */
+        public int aiCounter;
+        /** 模式标记（0 进攻 / 1 防御 等，由具体脚本定义）。 */
+        public int aiState;
+        /** 最近一次执行的招式 id 与连续次数（随机怪物的“不能连续三次”约束）。 */
+        public String lastMoveId = "";
+        public int lastMoveStreak;
+        /** 睡眠中（拉格威林）：受到伤害会被打醒。 */
+        public boolean sleeping;
+        /** 仪式：每回合结束获得的力量（邪教徒）。 */
+        public int ritual;
+        /** 狂怒：玩家每打出一张技能牌时获得的力量（地精大块头）。 */
+        public int enrage;
+        /** 尖刺外甲：玩家攻击它时受到的反伤（守护者）。 */
+        public int thorns;
+        /** 本场累计承受的伤害（守护者的 30 点阈值）。 */
+        public int damageTakenTotal;
+
         public Mob(String id, String name, int hp, int maxHp, int block,
                    int atkDamage, int atkHits, int strength, boolean alive) {
             this.id = id;
@@ -331,6 +386,17 @@ public class SimState {
             m.avgDamage = avgDamage;
             m.pattern = pattern;
             m.patternIndex = patternIndex;
+            m.intent = intent;
+            m.aiCursor = aiCursor;
+            m.aiCounter = aiCounter;
+            m.aiState = aiState;
+            m.lastMoveId = lastMoveId;
+            m.lastMoveStreak = lastMoveStreak;
+            m.sleeping = sleeping;
+            m.ritual = ritual;
+            m.enrage = enrage;
+            m.thorns = thorns;
+            m.damageTakenTotal = damageTakenTotal;
             return m;
         }
 
@@ -340,6 +406,12 @@ public class SimState {
             if (firstAttack) {
                 per = atkDamage;
                 hits = Math.max(1, atkHits);
+            } else if (intent != null) {
+                if (intent.damage <= 0) {
+                    return 0;
+                }
+                per = intent.damage;
+                hits = Math.max(1, intent.hits);
             } else if (pattern != null && !pattern.isEmpty()) {
                 int idx = Math.floorMod(patternIndex, pattern.length());
                 if (pattern.charAt(idx) != 'A') {

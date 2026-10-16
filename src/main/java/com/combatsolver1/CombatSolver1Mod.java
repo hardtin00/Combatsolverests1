@@ -62,6 +62,7 @@ public class CombatSolver1Mod implements
 
     @Override
     public void receivePostBattle(AbstractRoom battleRoom) {
+        com.combatsolver1.runtime.CombatRecorder.onBattleEnd();
         CombatController.instance().onBattleEnd();
     }
 

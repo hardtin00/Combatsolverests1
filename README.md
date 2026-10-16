@@ -29,7 +29,20 @@ ui/        只读路线面板
 ## 已实现
 
 - 整场战斗的预测搜索（Beam Search），输出逐回合路线、预计承伤、是否可击败。
-- 卡牌效果建模：伤害 / 格挡 / AOE / 易伤 / 虚弱 / 力量 / 过牌 / 能量（常见牌按数据表）。
+- 卡牌效果建模：铁甲 75 张全部登记，伤害 / 格挡 / AOE / 易伤 / 虚弱 / 力量 / 过牌 / 能量 /
+  消耗联动 / 牌库操作（复制、取回、生成、洗入状态牌）。选牌类卡牌（双持 / 头槌 / 掘墓 /
+  燃烧契约 / 军备）按价值选最适合的目标，只有 2 张仍标近似。
+- 怪物行动：第一幕全部遭遇怪物（含 3 只精英与 3 个首领）逐招式建模 —— 招式伤害与血量取自
+  游戏本体数据，包含仪式（邪教徒）、睡眠与被打醒（拉格威林）、狂怒（地精大块头）、
+  蓄力（地精巫师）、模式切换（守护者）、死亡触发（真菌兽孢子云）；第二幕之后先用节奏表近似，
+  并在实战中用观察到的真实周期自我校正。
+- 牌堆语义与游戏一致：抽牌从牌堆顶取、洗牌整堆 Fisher–Yates、实机捕捉到的牌堆顺序直接沿用。
+- 玩家侧减益真实生效：虚弱（伤害 −25%）、残废（格挡 −25%）、缠身（不能打攻击牌）。
+- 遗物触发：钢笔尖 / 红骷髅 / 冰淇淋 / 水银沙漏 / 山铜护符 / 羊角扣 / 船长轮盘 / 青铜鳞片 /
+  手里剑 / 苦无 / 双节棍 / 开信刀 / 卡戎之灰。
+- **差分验证脚手架**：实机每次出牌与回合切换都会写结构化记录（JSONL），离线工具
+  （`tools/solvertest`）把记录重放回模拟器并逐字段比对；CI 每次提交都会跑数据表、
+  怪物行动、搜索与差分重放四组断言。
 - 会识别击杀并把攻击分配到合适目标，避免溢出伤害。
 - 右上角面板展示完整预测路线（逐回合出牌与预计剩余生命）。
 
@@ -69,15 +82,26 @@ ui/        只读路线面板
 
 ## 明确尚未实现
 
-- 怪物行动：当前回合按招式信息（单段伤害 × 段数）精确计算；后续回合按**行动循环表**判断
-  “这一回合是否出手”（例如哨卫是攻击 / 塞牌交替、拉格威林是睡三回合后连打），
-  未登记的怪物退回“这类怪实际每回合平均输出”的经验估计。
-- 牌效覆盖：仅常见牌进入数据表，未知牌按类型保守推断或标记未建模。
-- 遗物、药水、X 费、消耗等尚未接入；洗牌用确定性随机数采样。
-- 跨回合 Beam Search、抽牌 / 洗牌 / 怪物 AI / RNG 分叉模拟。
+- 第二幕之后的怪物仍是“节奏近似 + 实战自我校正”，尚未逐招式建模；守护者 / 六火亡魂 /
+  史莱姆首领的细节（防御模式回合数、分裂、招式权重）也是近似值。
+- 灼热打击的成长（只来自反复升级）与少数能力牌的升级幅度仍按通用数值近似。
+- 遗物以显式登记的高频项为准，剩余遗物中有一部分已由实机数值隐式包含；药水共 11 种可评估。
 - 逐瓶药水策略、局外成长策略、全自动战斗、设置页、战前预测 API、问题反馈与在线统计。
 
 详见 [ROADMAP.md](ROADMAP.md)。
+
+## 差分验证与离线自检
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/solvertest/run.ps1            # 全部自检
+powershell -ExecutionPolicy Bypass -File tools/solvertest/run.ps1 -Command diff `
+  -RecordFile "$env:USERPROFILE\.combatsolver1\recordings\combat-20261016-120000.jsonl"
+```
+
+自检**不需要游戏本体**：只编译 `engine` 与 `search` 两个纯模拟包。CI 配置见
+`.github/workflows/ci.yml`。实机记录落在 `~/.combatsolver1/recordings/`，
+每条动作比对生命 / 格挡 / 能量 / 手牌 / 三个牌堆数量 / 每个怪物的血量格挡易伤。
+详细说明见 [tools/solvertest/README.md](tools/solvertest/README.md)。
 
 ## 目录结构
 
@@ -86,16 +110,18 @@ combatsolver1/
 ├── build.gradle
 ├── settings.gradle
 ├── gradle.properties
+├── .github/workflows/ci.yml      # 离线自检 CI
+├── tools/solvertest/             # 离线自检 + 差分重放工具（纯 Java）
+├── tools/inspect/                # 从游戏 jar 读取怪物 ID / 数值的核对工具
 └── src/main/java/com/combatsolver1/
     ├── CombatSolver1Mod.java     # Mod 入口（@SpireInitializer）
-    ├── CombatController.java     # 战斗状态机
-    ├── CombatLog.java
-    ├── AutoPlayer.java           # 执行建议路线
-    ├── OverlayRenderer.java      # 覆盖层渲染
-    └── solver/
-        ├── CombatSnapshot.java   # 战斗状态快照
-        ├── Route.java            # 路线数据结构
-        └── TurnSolver.java       # 本回合求解器（v0 启发式）
+    ├── engine/                   # 纯模拟：SimState / CombatEngine / CardLibrary /
+    │                             #          MonsterAi / MonsterPatterns / PotionLibrary
+    ├── search/                   # 整场 Beam Search 与只读路线（Plan）
+    ├── runtime/                  # LiveCapture / PlanDeployer / CombatController /
+    │                             # CombatRecorder（差分记录）/ EnemyModel
+    ├── ui/                       # OverlayRenderer / PanelModel
+    └── settings/                 # SolverSettings（预算 / 透明度 / 主题持久化）
 ```
 
 ## 构建

@@ -90,8 +90,20 @@ public class CombatSearch {
             return true;
         }
         Collections.sort(next, DESC);
-        if (next.size() > cfg.beamWidth) {
-            next = new ArrayList<>(next.subList(0, cfg.beamWidth));
+        // 状态合并：签名相同的世界只保留分数最高的一个
+        List<World> merged = new ArrayList<>(Math.min(cfg.beamWidth, next.size()));
+        java.util.HashSet<String> seen = new java.util.HashSet<>();
+        for (World w : next) {
+            if (merged.size() >= cfg.beamWidth) {
+                break;
+            }
+            String sig = w.state.signature() + "|e" + w.state.energy + "|t" + w.state.turn;
+            if (seen.add(sig)) {
+                merged.add(w);
+            }
+        }
+        if (!merged.isEmpty()) {
+            next = merged;
         }
         beam = next;
         depth++;
@@ -171,7 +183,8 @@ public class CombatSearch {
         beam.add(state);
         actionBeams.add(new ArrayList<Plan.Action>());
 
-        for (int step = 0; step < state.hand.size(); step++) {
+        // 上限用固定的动作步数，而不是初始手牌数：这样“抽牌后再打出抽到的牌”也能被展开
+        for (int step = 0; step < 12; step++) {
             List<SimState> nextStates = new ArrayList<>();
             List<List<Plan.Action>> nextActions = new ArrayList<>();
             List<Double> nextScores = new ArrayList<>();
@@ -267,9 +280,18 @@ public class CombatSearch {
             });
             beam = new ArrayList<>();
             actionBeams = new ArrayList<>();
-            int keep = Math.min(cfg.withinTurnWidth, order.size());
-            for (int i = 0; i < keep; i++) {
+            java.util.HashSet<String> seen = new java.util.HashSet<>();
+            for (int i = 0; i < order.size(); i++) {
+                if (beam.size() >= cfg.withinTurnWidth) {
+                    break;
+                }
                 int idx = order.get(i);
+                // 同签名状态只保留分数最高的一个，避免整条宽度被等价状态占满
+                String sig = nextStates.get(idx).signature() + "|e" + nextStates.get(idx).energy
+                        + "|h" + nextStates.get(idx).hand.size();
+                if (!seen.add(sig)) {
+                    continue;
+                }
                 beam.add(nextStates.get(idx));
                 actionBeams.add(nextActions.get(idx));
                 results.add(new TurnEnd(nextStates.get(idx).fork(), nextActions.get(idx)));

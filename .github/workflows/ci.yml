@@ -1,0 +1,62 @@
+name: CI
+
+# 离线自检：不需要游戏本体，也不需要 ModTheSpire / BaseMod —— 
+# 只编译纯模拟层（engine / search）与离线自检工具，跑数据表、怪物行动与搜索断言，
+# 再重放 fixtures 里的差分记录。
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  solvertest:
+    name: 离线自检（数据表 / 怪物 / 搜索 / 差分重放）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: 编译纯模拟层与自检工具
+        run: |
+          mkdir -p build/solvertest
+          javac -encoding UTF-8 -d build/solvertest \
+            src/main/java/com/combatsolver1/engine/*.java \
+            src/main/java/com/combatsolver1/search/*.java \
+            tools/solvertest/*.java
+
+      - name: 运行全部离线自检
+        run: java -cp build/solvertest Solvertest all
+
+      - name: 校验游戏 ID 提取工具可编译
+        run: |
+          mkdir -p build/inspect
+          javac -encoding UTF-8 -d build/inspect tools/inspect/ExtractMonsterFacts.java
+
+  mod-build:
+    name: Mod 构建（需要 libs/ 提供游戏依赖 jar）
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: 如果仓库提供了 libs/ 依赖则编译完整 Mod
+        run: |
+          if [ -d libs ] && ls libs/*.jar >/dev/null 2>&1; then
+            mkdir -p build/classes
+            javac -encoding UTF-8 -cp "libs/*" -d build/classes $(find src/main/java -name '*.java')
+          else
+            echo "未提供 libs/ 下的游戏依赖 jar，跳过完整 Mod 编译。"
+          fi

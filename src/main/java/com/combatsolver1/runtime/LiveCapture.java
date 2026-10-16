@@ -1,10 +1,13 @@
 package com.combatsolver1.runtime;
 
 import com.combatsolver1.engine.CardLibrary;
+import com.combatsolver1.engine.CombatEngine;
 import com.combatsolver1.engine.SimState;
 import com.megacrit.cardcrawl.cards.AbstractCard;
+import com.megacrit.cardcrawl.core.AbstractCreature;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import com.megacrit.cardcrawl.monsters.AbstractMonster;
+import com.megacrit.cardcrawl.powers.AbstractPower;
 import com.megacrit.cardcrawl.potions.AbstractPotion;
 import com.megacrit.cardcrawl.relics.AbstractRelic;
 import com.megacrit.cardcrawl.ui.panels.EnergyPanel;
@@ -65,6 +68,8 @@ public final class LiveCapture {
         if (s.mobs.isEmpty()) {
             return null;
         }
+        // 初始化怪物 AI：算出下一回合的招式、睡眠与永久强化（仪式 / 狂怒）
+        CombatEngine.initMonsters(s);
         return s;
     }
 
@@ -126,38 +131,8 @@ public final class LiveCapture {
         int damage = attack ? Math.max(c.damage, c.baseDamage) : 0;
         int block = c.block > 0 ? Math.max(c.block, c.baseBlock) : 0;
         boolean unmodeled = t.unmodeled || (!attack && block == 0 && !CardLibrary.isKnown(c.cardID));
-        SimState.Card sim = new SimState.Card(c.cardID, c.name, cost, damage, t.hits, block,
-                attack, aoe, needsTarget, t.draw, t.energy, t.vuln, t.weak, t.str, unmodeled,
-                t.selfDamage, t.str, t.dex, t.blockPerExhaust, t.damagePerExhaust,
-                t.exhaustHand, t.damageFromBlock, t.exhaustNonAttacks,
-                t.vulnAll, t.weakAll, t.selfVuln, t.strengthMult, t.power, t.powerAmount, t.approx);
-        sim.xCost = t.xCost;
-        sim.damagePerEnergy = damage;
-        sim.doubleBlock = t.doubleBlock;
-        sim.doubleStrength = t.doubleStrength;
-        sim.healOnDamage = t.healOnDamage;
-        sim.gainMaxHpOnKill = t.gainMaxHpOnKill;
-        sim.energyOnExhaust = t.energyOnExhaust;
-        sim.addCardToDiscard = t.addCardToDiscard;
-        sim.addCount = t.addCount;
-        sim.exhaustSelf = t.exhaustSelf;
-        sim.ethereal = t.ethereal;
-        sim.enemyStrDown = t.enemyStrDown;
-        sim.requiresVulnerable = t.requiresVulnerable;
-        sim.requiresAttackIntent = t.requiresAttackIntent;
-        sim.damagePerStrike = t.damagePerStrike;
-        sim.copyHandAttack = t.copyHandAttack;
-        sim.playTopExhaust = t.playTopExhaust;
-        sim.discardToDraw = t.discardToDraw;
-        sim.exhaustToHand = t.exhaustToHand;
-        sim.exhaustOneDrawTwo = t.exhaustOneDrawTwo;
-        sim.bloodForBlood = t.bloodForBlood;
-        sim.growPerPlay = t.growPerPlay;
-        sim.generateStrike = t.generateStrike;
-        sim.upgradeHand = t.upgradeHand;
-        sim.endTurnSelfDamage = t.endTurnSelfDamage;
-        sim.regret = t.regret;
-        return sim;
+        return CardLibrary.toSimCard(c.cardID, c.name, cost, damage, block, t.hits,
+                attack, aoe, needsTarget, unmodeled);
     }
 
     private static SimState.Mob simMob(AbstractMonster m) {
@@ -174,6 +149,11 @@ public final class LiveCapture {
         int turnDamage = perHit * Math.max(1, hits);
         SimState.Mob mob = new SimState.Mob(m.id, m.name, m.currentHealth, m.maxHealth,
                 m.currentBlock, perHit, hits, 0, true);
+        // 实机力量 / 易伤 / 虚弱：当前意图的基础伤害不含力量，这里补齐
+        mob.strength = powerAmount(m, "Strength");
+        mob.vulnerable = powerAmount(m, "Vulnerable");
+        mob.weak = powerAmount(m, "Weak");
+        mob.aiCursor = Math.max(0, m.moveHistory.size());
         // 记录本回合观察，用来估计这类怪物之后每回合的平均输出。
         int turn = AbstractDungeon.actionManager.turn;
         EnemyModel.observe(m.id, turn, turnDamage);
@@ -189,6 +169,19 @@ public final class LiveCapture {
             mob.patternIndex = Math.max(0, m.moveHistory.size());
         }
         return mob;
+    }
+
+    /** 读取实机身上的某个 Power 层数（力量 / 易伤 / 虚弱等），没有返回 0。 */
+    private static int powerAmount(AbstractCreature creature, String powerId) {
+        if (creature == null || creature.powers == null) {
+            return 0;
+        }
+        for (AbstractPower p : creature.powers) {
+            if (p != null && powerId.equals(p.ID)) {
+                return p.amount;
+            }
+        }
+        return 0;
     }
 
     /** 面板用：怪物名 + 生命 + 当前意图（含多段次数）。 */

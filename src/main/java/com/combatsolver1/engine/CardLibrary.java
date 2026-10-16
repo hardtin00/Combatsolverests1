@@ -67,6 +67,12 @@ public final class CardLibrary {
         public boolean shuffleAddedToDraw;  // 塞入的状态牌洗进抽牌堆而不是弃牌堆
         public boolean putBackWorst;        // 战吼：抽牌后把最差的一张放回牌堆顶
         public int healFlat;                // 固定回血（吸血 / 绷带）
+        public String randomCardKind;       // 打出时生成随机牌（无色 / 攻击 / 技能）
+        public int randomCardCount;
+        public int grantIntangible;         // 幻影：获得无形
+        public int blockLockTurns;          // 紧急按钮：若干回合不能用卡牌获得格挡
+        public int bombDamage;              // 炸弹
+        public int bombTurns;
 
         Template hits(int v) { hits = v; return this; }
         Template draw(int v) { draw = v; return this; }
@@ -121,6 +127,10 @@ public final class CardLibrary {
         Template shuffleAddedToDraw() { shuffleAddedToDraw = true; approx = false; return this; }
         Template putBackWorst() { putBackWorst = true; approx = false; return this; }
         Template healFlat(int v) { healFlat = v; approx = false; return this; }
+        Template randomCard(String kind, int count) { randomCardKind = kind; randomCardCount = count; approx = false; return this; }
+        Template selfIntangible(int v) { grantIntangible = v; approx = false; return this; }
+        Template blockLock(int v) { blockLockTurns = v; approx = false; return this; }
+        Template bomb(int damage, int turns) { bombDamage = damage; bombTurns = turns; approx = false; return this; }
     }
 
     private static final Map<String, Template> TABLE = new HashMap<>();
@@ -291,6 +301,25 @@ public final class CardLibrary {
         card("Thinking Ahead").draw(2).putBackWorst().exhaustSelf();
         card("Purity").exhaustSelf().approx();      // 只近似“再消耗三张”
         card("Apotheosis").upgradeHand().exhaustSelf().approx(); // 全体升级按升级一张近似
+        // 需要新引擎能力的那批
+        card("Apparition").ethereal().selfIntangible(1).exhaustSelf();   // 无形
+        card("Panic Button").blockLock(2).exhaustSelf();                 // 30 格挡但两回合禁格挡
+        card("Panache").power("panache", 10);                            // 每 5 张牌 10 点群体伤害
+        card("Sadistic Nature").power("sadistic", 5);                    // 上减益追加 5 伤害
+        card("Magnetism").power("magnetism", 1);                         // 每回合一张随机无色牌
+        card("Mayhem").power("mayhem", 1);                               // 每回合免费打出牌堆顶
+        card("Omega").power("omega", 50);                                // 回合结束 50 点群体伤害
+        card("Beta").addCard("Omega", 1).shuffleAddedToDraw().exhaustSelf();
+        card("Discovery").randomCard("colorless", 1).exhaustSelf();
+        card("Jack of All Trades").randomCard("colorless", 1).exhaustSelf();
+        card("Metamorphosis").randomCard("attack", 3).shuffleAddedToDraw().exhaustSelf();
+        card("Chrysalis").randomCard("skill", 3).shuffleAddedToDraw().exhaustSelf();
+        card("Transmutation").x().randomCard("colorless", 2).exhaustSelf().approx();
+        card("Secret Technique").draw(1).exhaustSelf().approx();   // 从牌堆找技能 ≈ 抽 1
+        card("Secret Weapon").draw(1).exhaustSelf().approx();      // 从牌堆找攻击 ≈ 抽 1
+        card("Violence").draw(3).exhaustSelf().approx();           // 找 3 张攻击 ≈ 抽 3
+        card("The Bomb").bomb(40, 3);                              // 三回合后 40 点群体伤害
+        card("Void").approx();                                     // 抽到时掉能量未建模
     }
 
     public static Template get(String id) {
@@ -356,6 +385,12 @@ public final class CardLibrary {
         sim.shuffleAddedToDraw = t.shuffleAddedToDraw;
         sim.putBackWorst = t.putBackWorst;
         sim.healFlat = t.healFlat;
+        sim.randomCardKind = t.randomCardKind;
+        sim.randomCardCount = t.randomCardCount;
+        sim.grantIntangible = t.grantIntangible;
+        sim.blockLockTurns = t.blockLockTurns;
+        sim.bombDamage = t.bombDamage;
+        sim.bombTurns = t.bombTurns;
         return sim;
     }
 }

@@ -23,13 +23,16 @@ public final class CombatEngine {
     private static final int DEBUFF_STR = 2;
 
     /** 对怪物施加减益：有神器时先消耗一层神器把它挡掉。 */
-    private static void applyDebuff(SimState.Mob mob, int amount, int kind) {
+    private static void applyDebuff(SimState s, SimState.Mob mob, int amount, int kind) {
         if (amount <= 0) {
             return;
         }
         if (mob.artifact > 0) {
             mob.artifact--;
             return;
+        }
+        if (s.pSadistic > 0) {
+            hitMob(s, mob, s.pSadistic, 1); // 残忍天性：上减益就追加伤害
         }
         switch (kind) {
             case DEBUFF_VULN:
@@ -235,14 +238,14 @@ public final class CombatEngine {
                 if (!m.alive) {
                     continue;
                 }
-                if (card.vulnAll) applyDebuff(m, card.vuln, DEBUFF_VULN);
-                if (card.weakAll) applyDebuff(m, card.weak, DEBUFF_WEAK);
+                if (card.vulnAll) applyDebuff(s, m, card.vuln, DEBUFF_VULN);
+                if (card.weakAll) applyDebuff(s, m, card.weak, DEBUFF_WEAK);
             }
         } else if (targetIndex >= 0 && targetIndex < s.mobs.size()) {
             SimState.Mob m = s.mobs.get(targetIndex);
             if (m.alive) {
-                if (card.vuln > 0) applyDebuff(m, card.vuln, DEBUFF_VULN);
-                if (card.weak > 0) applyDebuff(m, card.weak, DEBUFF_WEAK);
+                if (card.vuln > 0) applyDebuff(s, m, card.vuln, DEBUFF_VULN);
+                if (card.weak > 0) applyDebuff(s, m, card.weak, DEBUFF_WEAK);
             }
         }
 
@@ -300,7 +303,7 @@ public final class CombatEngine {
 
         if (card.enemyStrDown > 0 && targetIndex >= 0 && targetIndex < s.mobs.size()) {
             SimState.Mob m = s.mobs.get(targetIndex);
-            applyDebuff(m, card.enemyStrDown, DEBUFF_STR);
+            applyDebuff(s, m, card.enemyStrDown, DEBUFF_STR);
         }
 
         // ── 牌库操作：按“最优目标”选择，而不是永远取第一张 ──
@@ -381,6 +384,16 @@ public final class CombatEngine {
             }
         }
 
+        if (card.grantIntangible > 0) {
+            s.playerIntangible += card.grantIntangible; // 幻影：获得无形
+        }
+        if (card.blockLockTurns > 0) {
+            s.blockLock = Math.max(s.blockLock, card.blockLockTurns);
+        }
+        if (card.bombDamage > 0) {
+            s.bombTimer = card.bombTurns;
+            s.bombDamage = card.bombDamage;
+        }
         if (card.power != null) {
             applyPower(s, card.power, card.powerAmount);
         }
@@ -405,6 +418,27 @@ public final class CombatEngine {
             for (SimState.Mob mob : s.mobs) {
                 if (mob.alive && mob.timeWarp > 0) {
                     mob.strength += 2;
+                }
+            }
+        }
+
+        // 华丽：每回合打出第 5 张牌时对全体造成伤害
+        if (s.pPanache > 0 && s.cardsPlayedThisTurn % 5 == 0) {
+            for (SimState.Mob mob : s.mobs) {
+                if (mob.alive) {
+                    hitMob(s, mob, s.pPanache, 1);
+                }
+            }
+        }
+        // 随机生成牌：加入手牌，或按牌面要求洗入抽牌堆
+        if (card.randomCardKind != null && card.randomCardCount > 0) {
+            for (int i = 0; i < card.randomCardCount; i++) {
+                SimState.Card generated = randomCardOf(s, card.randomCardKind);
+                if (card.shuffleAddedToDraw) {
+                    int at = s.drawPile.isEmpty() ? 0 : s.nextInt(s.drawPile.size() + 1);
+                    s.drawPile.add(at, generated);
+                } else {
+                    s.hand.add(generated);
                 }
             }
         }
@@ -588,6 +622,9 @@ public final class CombatEngine {
             c.addCount = 1;
             return c;
         }
+        if ("Omega".equals(id)) {
+            return CardLibrary.toSimCard("Omega", "欧米伽", 3, 0, 0, 1, false, false, false, false);
+        }
         if ("Strike_R".equals(id)) {
             return new SimState.Card("Strike_R", "打击", 1, 6, 1, 0,
                     true, false, true, 0, 0, 0, 0, 0, false);
@@ -631,6 +668,11 @@ public final class CombatEngine {
         else if (power.equals("brutality")) s.pBrutality += amount;
         else if (power.equals("barricade")) s.pBarricade = true;
         else if (power.equals("corruption")) s.pCorruption = true;
+        else if (power.equals("panache")) s.pPanache += amount;
+        else if (power.equals("sadistic")) s.pSadistic += amount;
+        else if (power.equals("magnetism")) s.pMagnetism += amount;
+        else if (power.equals("mayhem")) s.pMayhem += amount;
+        else if (power.equals("omega")) s.pOmega += amount;
     }
 
     // ══ 药水 ══════════════════════════════════════════════════════
@@ -702,7 +744,7 @@ public final class CombatEngine {
         if (amount <= 0) {
             return 0;
         }
-        int remaining = amount;
+        int remaining = s.playerIntangible > 0 ? 1 : amount; // 玩家无形：受到伤害降为 1
         if (s.block > 0) {
             int absorbed = Math.min(s.block, remaining);
             s.block -= absorbed;
@@ -731,6 +773,9 @@ public final class CombatEngine {
 
     /** 卡牌提供的格挡：吃敏捷增量与残废减益。 */
     private static void gainCardBlock(SimState s, int amount) {
+        if (s.blockLock > 0) {
+            return; // 紧急按钮：本回合不能用卡牌获得格挡
+        }
         int value = amount + s.simDexBonus;
         if (s.playerFrail > 0) {
             value = value * 3 / 4;
@@ -947,6 +992,25 @@ public final class CombatEngine {
             s.block = 0;
         }
         if (s.playerVulnerable > 0) s.playerVulnerable--;
+        if (s.playerIntangible > 0) s.playerIntangible--;
+        if (s.blockLock > 0) s.blockLock--;
+        if (s.pOmega > 0) {
+            for (SimState.Mob mob : s.mobs) {
+                if (mob.alive) {
+                    hitMob(s, mob, s.pOmega, 1);
+                }
+            }
+        }
+        if (s.bombTimer > 0) {
+            s.bombTimer--;
+            if (s.bombTimer == 0 && s.bombDamage > 0) {
+                for (SimState.Mob mob : s.mobs) {
+                    if (mob.alive) {
+                        hitMob(s, mob, s.bombDamage, 1);
+                    }
+                }
+            }
+        }
         if (s.playerWeak > 0) s.playerWeak--;
         if (s.playerFrail > 0) s.playerFrail--;
         s.playerEntangled = 0;
@@ -977,6 +1041,13 @@ public final class CombatEngine {
                 }
             }
             loseHp(s, 1);
+        }
+        if (s.pMagnetism > 0) {
+            s.hand.add(randomCardOf(s, "colorless")); // 磁力：每回合白拿一张无色牌
+        }
+        if (s.pMayhem > 0 && !s.drawPile.isEmpty()) {
+            SimState.Card top = s.drawPile.remove(s.drawPile.size() - 1);
+            playCardInternal(s, top, -1, true); // 混沌：每回合免费打出牌堆顶
         }
         if (s.pBrutality > 0) {
             loseHp(s, 1);
@@ -1244,5 +1315,17 @@ public final class CombatEngine {
         }
         s.drawPile.addAll(pile);
         pile.clear();
+    }
+    /** 生成一张随机牌：attack = 铁甲常见攻击牌池，skill = 常用格挡技能，colorless = 无色牌池。 */
+    private static SimState.Card randomCardOf(SimState s, String kind) {
+        if ("attack".equals(kind)) {
+            return randomAttackCard(s);
+        }
+        if ("skill".equals(kind)) {
+            return CardLibrary.toSimCard("Defend_R", "防御", 1, 0, 5, 1, false, false, false, false);
+        }
+        return s.nextInt(2) == 0
+                ? CardLibrary.toSimCard("Swift Strike", "迅捷打击", 0, 7, 0, 1, true, false, true, false)
+                : CardLibrary.toSimCard("Good Instincts", "良好直觉", 0, 0, 6, 1, false, false, false, false);
     }
 }

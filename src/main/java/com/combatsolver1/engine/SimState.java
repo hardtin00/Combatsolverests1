@@ -41,6 +41,23 @@ public class SimState {
     public int cardsPlayedThisTurn;
     /** 时间扭曲触发后本回合不能再出牌。 */
     public boolean turnLocked;
+    /** 玩家无形剩余回合：受到的伤害降为 1（幻影）。 */
+    public int playerIntangible;
+    /** 玩家本轮不能用卡牌获得格挡的剩余回合（紧急按钮）。 */
+    public int blockLock;
+    /** 能力：每回合打出 5 张牌就对全体造成伤害（华丽）。 */
+    public int pPanache;
+    /** 能力：每次给敌人上减益就追加伤害（残忍天性）。 */
+    public int pSadistic;
+    /** 能力：每回合开始抽到一张随机无色牌（磁力）。 */
+    public int pMagnetism;
+    /** 能力：每回合开始免费打出牌堆顶（混沌）。 */
+    public int pMayhem;
+    /** 能力：回合结束对全体造成伤害（欧米伽）。 */
+    public int pOmega;
+    /** 炸弹倒计时与爆炸伤害。 */
+    public int bombTimer;
+    public int bombDamage;
 
     // ── 能力牌（铁甲核心机制）──
     public int pMetallicize;
@@ -97,6 +114,15 @@ public class SimState {
         s.constricted = constricted;
         s.cardsPlayedThisTurn = cardsPlayedThisTurn;
         s.turnLocked = turnLocked;
+        s.playerIntangible = playerIntangible;
+        s.blockLock = blockLock;
+        s.pPanache = pPanache;
+        s.pSadistic = pSadistic;
+        s.pMagnetism = pMagnetism;
+        s.pMayhem = pMayhem;
+        s.pOmega = pOmega;
+        s.bombTimer = bombTimer;
+        s.bombDamage = bombDamage;
         s.firstEnemyTurn = firstEnemyTurn;
         s.pMetallicize = pMetallicize;
         s.pFeelNoPain = pFeelNoPain;
@@ -238,6 +264,13 @@ public class SimState {
         public boolean shuffleAddedToDraw; // 洗入抽牌堆而不是进入弃牌堆
         public boolean putBackWorst;       // 战吼：抽牌后把一张牌放回牌堆顶
         public int healFlat;               // 固定回血（吸血 / 绷带）
+        /** 打出时生成若干张随机牌："colorless" / "attack" / "skill"。 */
+        public String randomCardKind;
+        public int randomCardCount;
+        public int grantIntangible;
+        public int blockLockTurns;
+        public int bombDamage;
+        public int bombTurns;
 
         public Card(String id, String name, int cost, int damage, int hits, int block,
                     boolean attack, boolean aoe, boolean needsTarget,
@@ -326,6 +359,12 @@ public class SimState {
             c.shuffleAddedToDraw = shuffleAddedToDraw;
             c.putBackWorst = putBackWorst;
             c.healFlat = healFlat;
+            c.randomCardKind = randomCardKind;
+            c.randomCardCount = randomCardCount;
+            c.grantIntangible = grantIntangible;
+            c.blockLockTurns = blockLockTurns;
+            c.bombDamage = bombDamage;
+            c.bombTurns = bombTurns;
             return c;
         }
 

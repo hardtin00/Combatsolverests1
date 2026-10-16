@@ -63,14 +63,14 @@ public final class DiffRunner {
                 List<String> issues = new ArrayList<String>();
                 int matched = compareRecord(record, issues);
                 if (issues.isEmpty()) {
-                    result.matchedFields += 7 + mobCount(record);
-                    result.totalFields += 7 + mobCount(record);
+                    result.matchedFields += 9 + mobCount(record);
+                    result.totalFields += 9 + mobCount(record);
                     result.report.add("第 " + lineNo + " 行 [" + type + "] "
                             + describe(record) + "：一致");
                 } else {
                     result.badActions++;
                     result.matchedFields += matched;
-                    result.totalFields += 7 + mobCount(record);
+                    result.totalFields += 9 + mobCount(record);
                     result.report.add("第 " + lineNo + " 行 [" + type + "] "
                             + describe(record) + "：不一致");
                     for (String issue : issues) {
@@ -239,6 +239,16 @@ public final class DiffRunner {
             matched++;
         } else {
             issues.add("消耗堆数量：实机 " + expected.exhaust + " / 模拟 " + actual.exhaust);
+        }
+        if (expected.drawIds.equals(actual.drawIds)) {
+            matched++;
+        } else {
+            issues.add("抽牌堆内容：实机 " + expected.drawIds + " / 模拟 " + actual.drawIds);
+        }
+        if (expected.discardIds.equals(actual.discardIds)) {
+            matched++;
+        } else {
+            issues.add("弃牌堆内容：实机 " + expected.discardIds + " / 模拟 " + actual.discardIds);
         }
         int mobs = Math.min(expected.mobs.size(), actual.mobs.size());
         for (int i = 0; i < mobs; i++) {

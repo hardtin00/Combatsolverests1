@@ -72,7 +72,20 @@ public final class Solvertest {
         int code = Checks.failures() == 0 ? 0 : 1;
         if (all) {
             File fixture = new File(args.length > 1 ? args[1] : DEFAULT_RECORDING);
-            if (fixture.isFile()) {
+            // 重放 fixtures 目录里的全部记录：把真实对局记录（脱敏后）直接放进去即可纳入回归
+            File dir = fixture.getParentFile();
+            File[] recordings = dir == null ? null : dir.listFiles();
+            if (recordings != null && recordings.length > 0) {
+                for (File recording : recordings) {
+                    if (recording.isFile() && recording.getName().endsWith(".jsonl")) {
+                        System.out.println();
+                        int diffCode = runDiff(recording.getPath());
+                        if (diffCode != 0) {
+                            code = diffCode;
+                        }
+                    }
+                }
+            } else if (fixture.isFile()) {
                 System.out.println();
                 int diffCode = runDiff(fixture.getPath());
                 if (diffCode != 0) {

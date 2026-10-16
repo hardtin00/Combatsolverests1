@@ -146,6 +146,11 @@ public class CombatController {
     }
 
     /** 玩家（或模组）打出一张牌。用于把“手动出牌”也记录进动作日志。 */
+    /** 记录器用的当前目标下标（鼠标悬停的敌人）。 */
+    public int recordingTarget() {
+        return hoveredMonsterIndex;
+    }
+
     public void onCardUsed(AbstractCard card) {
         if (!inCombat) {
             return;

@@ -98,6 +98,9 @@ public final class States {
         public int discard;
         public int exhaust;
         public final List<String> mobs = new ArrayList<String>();
+        /** 两个牌堆的牌身份（排序后比较，顺序交由记录侧单独核对）。 */
+        public final List<String> drawIds = new ArrayList<String>();
+        public final List<String> discardIds = new ArrayList<String>();
 
         public List<String> handSorted() {
             List<String> copy = new ArrayList<String>(hand);
@@ -115,11 +118,20 @@ public final class States {
         for (SimState.Card c : s.hand) {
             snap.hand.add(c.id);
         }
+        for (SimState.Card c : s.drawPile) {
+            snap.drawIds.add(c.id);
+        }
+        for (SimState.Card c : s.discardPile) {
+            snap.discardIds.add(c.id);
+        }
+        Collections.sort(snap.drawIds);
+        Collections.sort(snap.discardIds);
         snap.draw = s.drawPile.size();
         snap.discard = s.discardPile.size();
         snap.exhaust = s.exhaustPile.size();
         for (SimState.Mob m : s.mobs) {
-            snap.mobs.add(m.id + ":" + m.hp + ":" + m.block + ":" + m.vulnerable + (m.alive ? "" : ":dead"));
+            snap.mobs.add(m.id + ":" + m.hp + ":" + m.block + ":" + m.vulnerable + ":" + m.weak
+                    + ":" + m.strength + (m.alive ? "" : ":dead"));
         }
         return snap;
     }
@@ -133,6 +145,14 @@ public final class States {
         for (Object o : Json.list(state, "hand")) {
             snap.hand.add(Json.str(Json.asMap(o), "id", "?"));
         }
+        for (Object o : Json.list(state, "drawPile")) {
+            snap.drawIds.add(String.valueOf(o));
+        }
+        for (Object o : Json.list(state, "discardPile")) {
+            snap.discardIds.add(String.valueOf(o));
+        }
+        Collections.sort(snap.drawIds);
+        Collections.sort(snap.discardIds);
         snap.draw = Json.list(state, "drawPile").size();
         snap.discard = Json.list(state, "discardPile").size();
         snap.exhaust = Json.list(state, "exhaustPile").size();
@@ -140,7 +160,8 @@ public final class States {
             Map<String, Object> m = Json.asMap(o);
             boolean alive = Json.bool(m, "alive", true);
             snap.mobs.add(Json.str(m, "id", "?") + ":" + Json.num(m, "hp", 0) + ":"
-                    + Json.num(m, "block", 0) + ":" + Json.num(m, "vuln", 0)
+                    + Json.num(m, "block", 0) + ":" + Json.num(m, "vuln", 0) + ":"
+                    + Json.num(m, "weak", 0) + ":" + Json.num(m, "str", 0)
                     + (alive ? "" : ":dead"));
         }
         return snap;

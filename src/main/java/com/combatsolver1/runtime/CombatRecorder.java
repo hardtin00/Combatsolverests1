@@ -37,6 +37,7 @@ public final class CombatRecorder {
     private static int pendingCost;
     private static int pendingDamage;
     private static int pendingBlock;
+    private static int pendingTarget = -1;
 
     private static SimState lastState;
     private static int lastTurn = Integer.MIN_VALUE;
@@ -53,7 +54,7 @@ public final class CombatRecorder {
     }
 
     /** 出牌瞬间：记下出牌前的稳定状态。 */
-    public static void onCardUsed(String cardId, int cost, int damage, int block) {
+    public static void onCardUsed(String cardId, int cost, int damage, int block, int targetIndex) {
         if (!enabled) {
             return;
         }
@@ -66,6 +67,7 @@ public final class CombatRecorder {
         pendingCost = cost;
         pendingDamage = damage;
         pendingBlock = block;
+        pendingTarget = targetIndex;
     }
 
     /** 动作结算完毕、回到稳定状态时：写出一条记录。 */
@@ -95,7 +97,7 @@ public final class CombatRecorder {
             if (pendingCardId != null && pre != null) {
                 writeLine("{\"type\":\"card\",\"card\":{\"id\":\"" + esc(pendingCardId)
                         + "\",\"cost\":" + pendingCost + ",\"damage\":" + pendingDamage
-                        + ",\"block\":" + pendingBlock + "},\"target\":-1,\"pre\":"
+                        + ",\"block\":" + pendingBlock + "},\"target\":" + pendingTarget + ",\"pre\":"
                         + stateJson(pre) + ",\"post\":" + stateJson(now) + "}");
                 pendingCardId = null;
             } else if (lastState != null && now.turn > lastTurn) {

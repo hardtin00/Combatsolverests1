@@ -69,7 +69,7 @@ public class CombatSolver1Mod implements
     @Override
     public void receiveCardUsed(AbstractCard card) {
         com.combatsolver1.runtime.CombatRecorder.onCardUsed(card.cardID, card.costForTurn,
-                card.damage, card.block);
+                card.damage, card.block, CombatController.instance().recordingTarget());
         CombatController.instance().onCardUsed(card);
     }
 

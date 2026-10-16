@@ -302,7 +302,8 @@ public class CombatController {
             CombatRecorder.onIdle(AbstractDungeon.actionManager.isEmpty()
                     && AbstractDungeon.actionManager.currentAction == null
                     && AbstractDungeon.actionManager.cardQueue.isEmpty()
-                    && !AbstractDungeon.actionManager.usingCard);
+                    && !AbstractDungeon.actionManager.usingCard
+                    && !AbstractDungeon.isScreenUp); // 选牌界面上的手牌/牌堆不是稳定态，不能当 post
             recordPassiveChanges();
 
             boolean canAct = AbstractDungeon.actionManager.phase == GameActionManager.Phase.WAITING_ON_USER

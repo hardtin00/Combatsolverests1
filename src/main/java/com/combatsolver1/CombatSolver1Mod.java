@@ -110,8 +110,11 @@ public class CombatSolver1Mod implements
 
     @Override
     public void receiveCardUsed(AbstractCard card) {
+        // 只有攻击牌才有意义的伤害值：技能/能力牌的 card.damage 是游戏内部的占位值（0 或 1），
+        // 照抄进记录会让差分去找一个不存在的“同名牌”，把数据问题误报成差异。
+        int recordedDamage = card.type == AbstractCard.CardType.ATTACK ? card.damage : 0;
         com.combatsolver1.runtime.CombatRecorder.onCardUsed(card.cardID, card.costForTurn,
-                card.damage, card.block, CombatController.instance().recordingTarget());
+                recordedDamage, card.block, CombatController.instance().recordingTarget());
         CombatController.instance().onCardUsed(card);
     }
 

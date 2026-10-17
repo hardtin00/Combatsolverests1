@@ -10,6 +10,16 @@
 - 完整构建/部署命令 `powershell -ExecutionPolicy Bypass -File tools/build/build-release.ps1 -Deploy` 退出 0，Java 8 major 52、85 个 JAR 条目通过；部署 JAR SHA-256：`CEB1B7B1ADD3647B5E49B764CAF2AE79C582DA8CE99C195FD831F19D7ACED482`。源码提交 `62eb833276e137c7edec438393bef657367bc4e3`；状态记录提交随后补入。仅 L2 离线/构建验证，未做 L4，也未修改搜索算法或 sts_lightspeed 规则；用户尚未验收。
 # 项目现状与后续工作
 
+## 2026-10-18：真实 bundle 根状态对照
+
+- 样本 `battle-20261018-054109-273-e6990591-c40b-4854-a3e6-4d0822290532` 的 manifest 为 closed；raw autosave、engine-in.save、JSONL 和 journal 均存在且 SHA-256 与 manifest 一致。root 阶段为首个稳定可操作状态；自动存档采集更早，未假定两者等价。
+- 对原记录引擎执行 `replay_trace <engine-in.save> <empty-actions> 0`，得到 `TRACE0`、`REPLAY_OK n=0`，退出 0。turn 映射为游戏 turn = 引擎 turn + 1（BattleContext 初值 0，`getMonsterTurnNumber()` 返回 turn+1）。未回放真实 journal。
+- 最小诊断输出提交 `e204c984`（`vendor/sts_lightspeed/apps/test.cpp`），只追加 TRACE0_DETAIL / MONSTER / RNG 行，不改模拟规则。隔离构建退出 0；使用该扩展引擎对同一 engine-in.save 执行零动作 trace 退出 0。外部原始设置路径所指二进制未替换。
+- 逐字段对照 62 个可比字段路径，61 匹配。唯一差异为 `hand[1].cost`：JSONL root 的 AscendersBane 为 -2，引擎 CardInstance 初始化为 -3；源码将其作为不可打出牌的内部标记。本轮不修改规则。Akabeko、三件遗物、药水、手牌顺序/攻击伤害、三类牌堆及可见怪物状态均匹配。
+- 未捕获项：JSONL root 无真实 RNG 状态（`LiveCapture.rngState` 不在 root JSON 中）；玩家 Berserk 缺引擎字段；怪物 localized name 与 move cursor 无同名可比字段。不能把这些计为一致。
+- 第 7、13、18 行断链的差异字段仅为 hand 与 discardPile：旧回合尾牌由手牌整体移入弃牌堆，turn 不变，属于合法 end-turn 自动清理阶段；这是记录事件边界缺口，非外部引擎规则对照差异，本轮不改记录器。
+- 证据等级：诊断输出与隔离构建为 L2；存在一份真实样本的同场根状态对照，但由于 1 个字段差异和未捕获字段，不构成通过的 L4 准确性验收。未执行整场连续回放、未启动游戏、未改个人样本。
+
 ## 2026-10-18：真实战斗样本配对归档
 
 - 每场战斗按 UUID battleId 建立独立目录，保存 UTF-8 `combat.jsonl`、带 battleId 注释的 `actions.journal`、未经修改的 `raw-autosave.save`、引擎派生存档及 `manifest.json`。manifest 记录来源路径/时间、SHA-256、引擎协议与二进制 SHA-256、JSONL 根状态阶段和动作日志状态；原始存档与首次玩家动作前 root 的阶段明确分开。

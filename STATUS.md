@@ -1,3 +1,11 @@
+## 2026-10-18：AscendersBane 费用哨兵差异审计
+
+- 既有同场 root 对照中 62 个可比字段有 61 个相同；唯一差异为 AscendersBane 费用：实机 JSONL 为 -2，sts_lightspeed `CardInstance` 初始化为 -3。本轮没有改卡牌规则或真实预期值。
+- 费用路径核查：`CardInstance::canUse` 先按卡牌类型拒绝无蓝蜡烛的诅咒；带蓝蜡烛时能量检查对正常非负能量下的 -2/-3 都成立。`BattleContext::useCard` 仅对 `costForTurn > 0` 扣能量。费用折扣、随机费用和选牌筛选只针对正费或非负费用，二者同样不会命中；X 费按卡牌 ID 判断。
+- 合法选择路径按手牌/牌堆下标处理，不读取费用。新增现有引擎测试程序命令 `ascenders_bane_cost_check`，检查普通动作门控、蓝蜡烛下两种负费用编码的可用性与能量扣除、单/多张消耗选择、Gamble 弃牌选择及普通 Defend 动作。
+- 验证命令：`cmake --build build/engine --target combatsolver1-engine --parallel 4` 退出 0；`build/engine/combatsolver1-engine.exe ascenders_bane_cost_check` 退出 0。真实配对存档的单动作 `replay_trace` 拒绝 AscendersBane（`REPLAY_INVALID n=1`），接受 Bash 并输出状态；未回放整份 journal。
+- 当前证据为 L2 离线测试，未启动游戏。该表示差异没有发现规则影响；已知样本第 7/13/18 行仍有结束回合状态断链，因此本样本尚不满足严格连续动作重放条件。不能据此宣称整场 L4 通过。
+
 ## 2026-10-18：首份真实 bundle 复盘与归档/root 修复
 
 - 实样本 `battle-20261018-051005-474-f7972e19-b4b3-4f16-9cc0-24b7a1620b09` 未入库。manifest 为 `open`，raw autosave 与引擎输入均 `pending`，root 的 engine 字段为 `local`。控制器原先只在 `sts_lightspeed` 已配置时启动初始工作线程，所以此样本没有执行 autosave 查找；pending 不能据此说明游戏存档本身不存在，也不能归因于转换失败。

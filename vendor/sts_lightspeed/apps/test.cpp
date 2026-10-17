@@ -27,12 +27,100 @@
 #include "sim/RandomAgent.h"
 #include "sim/search/ScumSearchAgent2.h"
 #include "sim/search/SimpleAgent.h"
+#include "sim/search/Action.h"
 
 #include "sim/search/BattleScumSearcher2.h"
 
 using namespace sts;
 
 #include "choice_protocol.h"
+
+static int ascendersBaneCostSentinelCheck() {
+    auto fail = [](const char *reason) {
+        std::cerr << "ASCENDERS_BANE_CHECK_FAIL reason=" << reason << '\n';
+        return 1;
+    };
+
+    BattleContext bc;
+    bc.outcome = Outcome::UNDECIDED;
+    bc.inputState = InputState::PLAYER_NORMAL;
+    bc.cards.cardsInHand = 2;
+    bc.cards.hand[0] = CardInstance(CardId::ASCENDERS_BANE);
+    bc.cards.hand[1] = CardInstance(CardId::DEFEND_RED);
+    bc.player.energy = 1;
+
+    const search::Action banePlay(search::ActionType::CARD, 0, 0);
+    const search::Action defendPlay(search::ActionType::CARD, 1, 0);
+    if (bc.cards.hand[0].cost != -3 || bc.cards.hand[0].costForTurn != -3) {
+        return fail("engine_cost_sentinel");
+    }
+    if (bc.cards.hand[0].canUseOnAnyTarget(bc) || banePlay.isValidAction(bc)) {
+        return fail("curse_played_without_blue_candle");
+    }
+    if (!bc.cards.hand[1].canUseOnAnyTarget(bc) || !defendPlay.isValidAction(bc)) {
+        return fail("ordinary_card_rejected");
+    }
+
+    CardInstance gameEncodedBane(CardId::ASCENDERS_BANE);
+    gameEncodedBane.cost = gameEncodedBane.costForTurn = -2;
+    bc.player.energy = 0;
+    bc.player.setHasRelic<RelicId::BLUE_CANDLE>(true);
+    bc.cards.hand[0] = gameEncodedBane;
+    const bool gameEncodingPlayable = banePlay.isValidAction(bc);
+    const bool gameEncodingGenerated = bc.cards.hand[0].canUseOnAnyTarget(bc);
+    bc.cards.hand[0] = CardInstance(CardId::ASCENDERS_BANE);
+    const bool engineEncodingPlayable = banePlay.isValidAction(bc);
+    const bool engineEncodingGenerated = bc.cards.hand[0].canUseOnAnyTarget(bc);
+    if (!gameEncodingPlayable || !gameEncodingGenerated
+            || gameEncodingPlayable != engineEncodingPlayable
+            || gameEncodingGenerated != engineEncodingGenerated) {
+        return fail("negative_cost_playability_differs");
+    }
+
+    auto energyAfterBlueCandleUse = [](const CardInstance &card) {
+        BattleContext useContext;
+        useContext.player.energy = 0;
+        useContext.player.setHasRelic<RelicId::BLUE_CANDLE>(true);
+        useContext.cards.cardsInHand = 1;
+        useContext.cards.hand[0] = card;
+        useContext.cards.hand[0].setUniqueId(1);
+        useContext.curCardQueueItem = CardQueueItem(card, 0, 0);
+        useContext.useCard();
+        return useContext.player.energy;
+    };
+    if (energyAfterBlueCandleUse(gameEncodedBane) != 0
+            || energyAfterBlueCandleUse(bc.cards.hand[0]) != 0) {
+        return fail("negative_cost_deducted_energy");
+    }
+
+    bc.inputState = InputState::CARD_SELECT;
+    bc.cardSelectInfo.cardSelectTask = CardSelectTask::EXHAUST_ONE;
+    const auto singleChoices = search::Action::enumerateCardSelectActions(bc);
+    const bool baneCanBeSelected = std::find(singleChoices.begin(), singleChoices.end(),
+            search::Action(search::ActionType::SINGLE_CARD_SELECT, 0)) != singleChoices.end()
+            && search::Action(search::ActionType::SINGLE_CARD_SELECT, 0).isValidAction(bc);
+    if (!baneCanBeSelected) {
+        return fail("bane_blocked_from_single_exhaust_selection");
+    }
+
+    bc.cardSelectInfo.cardSelectTask = CardSelectTask::EXHAUST_MANY;
+    bc.cardSelectInfo.pickCount = 2;
+    if (!search::Action(search::ActionType::MULTI_CARD_SELECT, 1).isValidAction(bc)) {
+        return fail("bane_blocked_from_multi_exhaust_selection");
+    }
+
+    bc.cardSelectInfo.cardSelectTask = CardSelectTask::GAMBLE;
+    bc.cards.hand[0] = gameEncodedBane;
+    const bool gameEncodingDiscardSelectable = search::Action(search::ActionType::MULTI_CARD_SELECT, 1).isValidAction(bc);
+    bc.cards.hand[0] = CardInstance(CardId::ASCENDERS_BANE);
+    const bool engineEncodingDiscardSelectable = search::Action(search::ActionType::MULTI_CARD_SELECT, 1).isValidAction(bc);
+    if (!gameEncodingDiscardSelectable || gameEncodingDiscardSelectable != engineEncodingDiscardSelectable) {
+        return fail("negative_cost_discard_selection_differs");
+    }
+
+    std::cout << "ASCENDERS_BANE_CHECK_OK engineCost=-3 gameCost=-2 normalPlay=blocked blueCandlePlay=equivalent energyDeduction=none singleExhaust=allowed multiExhaust=allowed gambleDiscard=equivalent ordinaryCard=allowed\n";
+    return 0;
+}
 
 // ---------------------------------------------------------------------------
 // 结构化输出：给 CombatSolver1 的 Java 侧解析用（避免解析人类可读文本）。
@@ -568,6 +656,10 @@ int main(int argc, const char* argv[]) {
     }
 
     const std::string command(argv[1]);
+
+    if (command == "ascenders_bane_cost_check") {
+        return ascendersBaneCostSentinelCheck();
+    }
 
     if (command == "protocol") {
         std::cout << "COMBATSOLVER1_PROTOCOL version=2 commands=mcts_save,replay_search,replay_trace,json,json_to_save" << std::endl;

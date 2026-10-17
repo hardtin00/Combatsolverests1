@@ -37,8 +37,8 @@ public final class TargetReferenceCheck {
         check(manual.trusted && automatic.trusted, "known target was rejected");
         check(manual.engineIndex == 2 && manual.liveIndex == 1,
                 "dead monster removal shifted the engine slot or lost the compact live index");
-        check(manual.journalTarget() == 1 && manual.jsonFields().contains("\"target\":1"),
-                "sts_lightspeed target did not use the compact live monster index");
+        check(manual.journalTarget() == 2 && manual.jsonFields().contains("\"target\":2"),
+                "sts_lightspeed target did not preserve the engine's fixed monster slot");
         check("SENTRY#3".equals(manual.identity), "same-id monster identity is not unique");
         check(manual.engineIndex == automatic.engineIndex
                         && manual.liveIndex == automatic.liveIndex
@@ -89,7 +89,7 @@ public final class TargetReferenceCheck {
         journal.recordCard(2, "Strike_R", manual);
         List<String> replay = journal.snapshotWithMetadata();
         check(replay.size() == 2 && replay.get(0).contains("targetEngineIndex=2")
-                        && replay.get(0).contains("targetLiveIndex=1") && "10002".equals(replay.get(1)),
+                        && replay.get(0).contains("targetLiveIndex=1") && "20002".equals(replay.get(1)),
                 "journal metadata and sts_lightspeed wire target do not share one reference");
         ActionJournal dirty = new ActionJournal();
         dirty.recordCard(0, "Strike_R", missingTarget);
@@ -139,7 +139,7 @@ public final class TargetReferenceCheck {
         check(archived.contains("targetMode=single targetTrusted=true targetEngineIndex=2 targetLiveIndex=1")
                         && archived.contains("targetMode=all_enemies targetTrusted=true targetEngineIndex=-1 targetLiveIndex=-1")
                         && archived.contains("targetMode=untrusted targetTrusted=false")
-                        && archived.contains("\n10002\n") && archived.contains("\n1\n"),
+                        && archived.contains("\n20002\n") && archived.contains("\n1\n"),
                 "archived action journal lost target identity or no-target semantics");
         String manifest = new String(Files.readAllBytes(
                 new File(root, "target-reference-check/manifest.json").toPath()), StandardCharsets.UTF_8);

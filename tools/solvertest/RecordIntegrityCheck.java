@@ -46,7 +46,7 @@ public final class RecordIntegrityCheck {
                         String prefix=identity.contains("#")?identity.substring(0,identity.indexOf('#')):identity;
                         String liveId=liveIndex>=0&&liveIndex<preMobs.size()
                                 ?Json.str(Json.asMap(preMobs.get(liveIndex)),"id",""):"";
-                        if(target<0||target!=liveIndex||engineIndex<0||liveIndex<0||!prefix.equals(liveId)) {
+                        if(target<0||target!=engineIndex||engineIndex<0||liveIndex<0||!prefix.equals(liveId)) {
                             broken++;
                             System.out.println(f.getName()+":"+line+" invalid target mapping: target="+target
                                     +" engineIndex="+engineIndex+" liveIndex="+liveIndex

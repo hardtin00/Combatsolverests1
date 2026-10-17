@@ -14,7 +14,7 @@ public final class CardTargetRef {
     public final boolean trusted;
     /** Original AbstractRoom monster-list slot; dead slots are retained. */
     public final int engineIndex;
-    /** Position in LiveCapture/sts_lightspeed's compact active monster array. */
+    /** Position in LiveCapture's compact active-only list, for JSONL identity checks. */
     public final int liveIndex;
     /** Stable within the room roster, including duplicate monster ids. */
     public final String identity;
@@ -98,11 +98,11 @@ public final class CardTargetRef {
 
     /** Engine action bits require a bounded target field even when the card has no target. */
     public int journalTarget() {
-        return trusted && "single".equals(mode) ? liveIndex : 0;
+        return trusted && "single".equals(mode) ? engineIndex : 0;
     }
 
     public String jsonFields() {
-        int jsonTarget = trusted && "single".equals(mode) ? liveIndex : -1;
+        int jsonTarget = trusted && "single".equals(mode) ? engineIndex : -1;
         StringBuilder out = new StringBuilder();
         out.append("\"target\":").append(jsonTarget)
                 .append(",\"targetMode\":\"").append(jsonEscape(mode)).append('"')

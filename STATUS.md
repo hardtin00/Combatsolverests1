@@ -668,3 +668,11 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - 离线回归覆盖最后一张牌后立即结束、多张保留牌与普通牌/虚灵清理、跨回合抽弃牌、连续回合和 root → card → endTurn → card 顺序。
 - 验证：`CombatRecorderTransitionCheck` 编译并运行退出 0；`tools/build/build-release.ps1` 完整 Mod Java 8 构建退出 0，字节码 major=52、85 个 JAR 条目有效，SHA-256 `15B0F6DC0DA0FEDB5A5FBB0663D587A989509BA8D950313D33F7AC867D464173`。原真实样本严格检查仍按预期在第 7、13、18 行失败，证明历史证据保留；未运行游戏，尚无新实机记录，证据等级 L2，不宣称 L4。
 - 用户已授权本轮源码提交并推送；待提交。用户尚未验收。
+
+## 2026-10-18：前移结束回合边界到原生队列入口
+
+- 新 bundle `battle-20261018-062233-943-f6adba14-d616-4c37-ba3f-227bb14d046c` 的第 19 行相对前一张牌 post 差异为 Burn 从手牌移入弃牌堆、格挡 13→11；第 23 行为 Burn 移入弃牌堆、Metallicize 使格挡 8→11、Burn 消耗 2 格挡后为 9，并由 Juggernaut 对 Hexaghost 造成 5 伤害（141→136）。相应原生证据来自游戏 JAR：`GameActionManager.getNextAction` 在 null-card end-turn sentinel 处分派 `callEndOfTurnActions`；该方法先触发 end-turn relic/pre-card powers，再调用手牌的 `triggerOnEndOfTurnForPlayingCard`。因此 `AbstractRoom.endTurn()` 前缀采样已经太迟。
+- 最小修复：删除 `AbstractRoomEndTurnRecorderPatch`，新增 `GameActionManagerEndTurnRecorderPatch`，在 `callEndOfTurnActions` 前缀捕获 pre；原生 Burn、Metallicize、Juggernaut、弃牌和下一回合变化继续保留在 endTurn.post。未修改战斗规则、搜索、UI 或 bundle 身份机制。
+- 回归先在旧目标上失败（断言钩子必须位于 `GameActionManager.callEndOfTurnActions`），迁移后通过。测试反射确认游戏方法和 ModTheSpire prefix 注解，并按原生顺序执行 Burn-only（block 13→11）和 Metallicize/Juggernaut/Burn（block 8→9、怪物 HP 141→136）状态边界，另覆盖立即结束、保留手牌、弃牌/抽牌及连续回合。命令：Java 8 `javac --release 8 ... CombatRecorderTransitionCheck.java`，然后 `java -cp <test-classes;desktop-1.0.jar;ModTheSpire.jar;BaseMod.jar> com.combatsolver1.runtime.CombatRecorderTransitionCheck`，退出 0。
+- 真实旧 bundle 严格完整性检查仍只报第 19、23 行，退出 1（预期保留诊断失败）；文件及 manifest 未改写。最后记录时 boss 仍存活，manifest 为 open、JSONL/journal 哈希陈旧，表示 bundle 在未封存时被检查；缺少游戏日志，无法判断稍后是否执行 `receivePostBattle`，不归因于结束回调异常。
+- 源码提交 `2859cbaba0cacfa6b89660faaf8ee5a858d09e8a` 已推送 `main`。状态记录随后更新。完整 Mod Java 8 构建尚待源码状态记录完成后最终复跑。当前证据为 L2，不宣称新实机连续性或外部引擎 L4。用户尚未验收。

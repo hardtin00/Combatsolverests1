@@ -26,30 +26,36 @@ public final class ActionJournal {
     public static final int DISCARD_POTION_TARGET = 6;
 
     private final List<String> actions = new ArrayList<>();
+    private final List<String> metadata = new ArrayList<String>();
     private boolean dirty;
     private String dirtyReason = "";
 
-    public void recordCard(int handIndex, int targetIndex) {
-        record(bits(TYPE_CARD, handIndex, targetIndex));
+    public void recordCard(int handIndex, String cardId, CardTargetRef target) {
+        CardTargetRef ref = target == null ? CardTargetRef.missing() : target;
+        String hex = bits(TYPE_CARD, handIndex, ref.journalTarget());
+        String meta = ref.journalMetadata(actions.size() + 1, handIndex, cardId);
+        record(hex, meta);
+        if (!ref.trusted) markDirty("card target is untrusted: " + ref.error);
     }
 
     public void recordPotion(int potionSlot, int targetIndex) {
-        record(bits(TYPE_POTION, potionSlot, targetIndex));
+        record(bits(TYPE_POTION, potionSlot, targetIndex), "");
     }
 
     public void recordEndTurn() {
-        record(bits(TYPE_END_TURN, 0, 0));
+        record(bits(TYPE_END_TURN, 0, 0), "");
     }
 
     public void recordSelection(com.combatsolver1.search.Plan.Action action) {
         if (!action.isSelect() || action.selectBits == null) throw new IllegalArgumentException("missing selection bits");
-        record(action.selectBits);
+        record(action.selectBits, "");
     }
 
-    private void record(String hex) {
+    private void record(String hex, String actionMetadata) {
         if (!dirty) {
             actions.add(hex);
-            if (!BattleArtifacts.appendAction(hex)) {
+            metadata.add(actionMetadata == null ? "" : actionMetadata);
+            if (!BattleArtifacts.appendAction(hex, actionMetadata)) {
                 markDirty("动作日志写入本场归档失败");
             }
         }
@@ -89,8 +95,20 @@ public final class ActionJournal {
         return new ArrayList<>(actions);
     }
 
+    /** Replay readers ignore comment lines; they preserve target meaning in the archived journal. */
+    public List<String> snapshotWithMetadata() {
+        List<String> result = new ArrayList<String>();
+        for (int i = 0; i < actions.size(); i++) {
+            String comment = metadata.get(i);
+            if (!comment.isEmpty()) result.add(comment);
+            result.add(actions.get(i));
+        }
+        return result;
+    }
+
     public void clear() {
         actions.clear();
+        metadata.clear();
         dirty = false;
         dirtyReason = "";
     }

@@ -93,7 +93,7 @@ public final class LiveCapture {
         s.pOmega = powerAmount(AbstractDungeon.player, "Omega");
         s.blockLock = powerAmount(AbstractDungeon.player, "No Block") > 0 ? 1 : 0;
         for (AbstractMonster m : AbstractDungeon.getCurrRoom().monsters.monsters) {
-            if (!m.isDeadOrEscaped()) {
+            if (m != null && !m.isDeadOrEscaped()) {
                 s.mobs.add(simMob(m));
             }
         }

@@ -85,8 +85,17 @@ public final class BattleArtifacts {
     }
 
     static synchronized boolean appendAction(String action) {
+        return appendAction(action, "");
+    }
+
+    static synchronized boolean appendAction(String action, String metadata) {
         if (active == null || active.closed) return true;
         try (Writer writer = new OutputStreamWriter(new FileOutputStream(active.journal, true), StandardCharsets.UTF_8)) {
+            if (metadata != null && !metadata.isEmpty()) {
+                if (!metadata.startsWith("#")) throw new IOException("Action metadata must be a comment line.");
+                writer.write(metadata);
+                writer.write('\n');
+            }
             writer.write(action);
             writer.write('\n');
             active.actionCount++;
@@ -108,7 +117,8 @@ public final class BattleArtifacts {
             for (String action : actions) {
                 writer.write(action);
                 writer.write('\n');
-                count++;
+                String trimmed = action == null ? "" : action.trim();
+                if (!trimmed.isEmpty() && !trimmed.startsWith("#")) count++;
             }
             move(temp, active.journal);
             active.actionCount = count;

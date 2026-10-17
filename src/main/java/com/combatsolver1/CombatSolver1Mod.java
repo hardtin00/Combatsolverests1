@@ -9,14 +9,15 @@ import basemod.interfaces.PostDrawSubscriber;
 import basemod.interfaces.PostInitializeSubscriber;
 import basemod.interfaces.PostRenderSubscriber;
 import basemod.interfaces.PostUpdateSubscriber;
-import basemod.interfaces.OnCardUseSubscriber;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.evacipated.cardcrawl.modthespire.lib.SpireInitializer;
 import com.megacrit.cardcrawl.cards.AbstractCard;
-import com.megacrit.cardcrawl.core.AbstractCreature;
+import com.megacrit.cardcrawl.monsters.AbstractMonster;
 import com.megacrit.cardcrawl.rooms.AbstractRoom;
 
 import com.combatsolver1.runtime.CombatController;
+import com.combatsolver1.runtime.CardTargetRef;
+import com.combatsolver1.runtime.CombatRecorder;
 
 /**
  * Mod 入口。ModTheSpire 通过 @SpireInitializer 注解发现本类并调用 initialize()。
@@ -30,7 +31,6 @@ public class CombatSolver1Mod implements
         OnPlayerTurnStartSubscriber,
         PostDrawSubscriber,
         PostUpdateSubscriber,
-        OnCardUseSubscriber,
         PostRenderSubscriber {
 
     public static final String MOD_ID = "combatsolver1";
@@ -117,14 +117,14 @@ public class CombatSolver1Mod implements
         CombatController.instance().onBattleEnd();
     }
 
-    @Override
-    public void receiveCardUsed(AbstractCard card) {
+    /** Called from AbstractPlayer.useCard after native target resolution, before card effects run. */
+    public static void recordCardUse(AbstractCard card, AbstractMonster target) {
         // 只有攻击牌才有意义的伤害值：技能/能力牌的 card.damage 是游戏内部的占位值（0 或 1），
         // 照抄进记录会让差分去找一个不存在的“同名牌”，把数据问题误报成差异。
         int recordedDamage = card.type == AbstractCard.CardType.ATTACK ? card.damage : 0;
-        com.combatsolver1.runtime.CombatRecorder.onCardUsed(card.cardID, card.costForTurn,
-                recordedDamage, card.block, CombatController.instance().recordingTarget());
-        CombatController.instance().onCardUsed(card);
+        CardTargetRef targetRef = CardTargetRef.capture(card, target);
+        CombatRecorder.onCardUsed(card.cardID, card.costForTurn, recordedDamage, card.block, targetRef);
+        CombatController.instance().onCardUsed(card, targetRef);
     }
 
     @Override

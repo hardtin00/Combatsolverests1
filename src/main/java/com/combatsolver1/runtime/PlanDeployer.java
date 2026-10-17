@@ -233,6 +233,12 @@ public class PlanDeployer {
                 finish(false, "没有可选目标：" + card.name);
                 return;
             }
+            CardTargetRef targetRef = CardTargetRef.capture(card, target);
+            if (!targetRef.trusted) {
+                if (journal != null) journal.markDirty("planned card target is untrusted: " + targetRef.error);
+                finish(false, "无法确认出牌目标：" + card.name + "（" + targetRef.error + "）");
+                return;
+            }
             if (!card.canUse(AbstractDungeon.player, target)) {
                 finish(false, "当前不能打出：" + card.name);
                 return;
@@ -240,9 +246,8 @@ public class PlanDeployer {
 
             energy -= cost;
             int engineIdx = resolved.index;
-            int engineTarget = action.targetIndex >= 0 ? action.targetIndex : 0;
             if (journal != null) {
-                journal.recordCard(engineIdx, engineTarget);
+                journal.recordCard(engineIdx, card.cardID, targetRef);
             }
             AbstractDungeon.actionManager.addToBottom(new NewQueueCardAction(card, target));
             played++;
@@ -416,6 +421,6 @@ public class PlanDeployer {
 
     private boolean needsEnemy(AbstractCard card) {
         return card.target == AbstractCard.CardTarget.ENEMY
-                || card.target == AbstractCard.CardTarget.ALL_ENEMY;
+                || card.target == AbstractCard.CardTarget.SELF_AND_ENEMY;
     }
 }

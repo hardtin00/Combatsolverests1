@@ -90,7 +90,6 @@ public class CombatController {
 
     private List<AbstractCard> lastIdleHand = new ArrayList<>();
     private List<AbstractPotion> lastIdlePotions = new ArrayList<>();
-    private int hoveredMonsterIndex = 0;
 
     public static CombatController instance() {
         if (instance == null) {
@@ -146,12 +145,8 @@ public class CombatController {
     }
 
     /** 玩家（或模组）打出一张牌。用于把“手动出牌”也记录进动作日志。 */
-    /** 记录器用的当前目标下标（鼠标悬停的敌人）。 */
-    public int recordingTarget() {
-        return hoveredMonsterIndex;
-    }
-
-    public void onCardUsed(AbstractCard card) {
+    /** Records the same queue-selected target reference used by the card recorder. */
+    public void onCardUsed(AbstractCard card, CardTargetRef target) {
         if (!inCombat) {
             return;
         }
@@ -167,12 +162,11 @@ public class CombatController {
             journal.markDirty("读不出出牌位置：" + card.name);
             return;
         }
-        int target = 0;
-        if (card.target == AbstractCard.CardTarget.ENEMY) {
-            target = hoveredMonsterIndex;
-        }
-        journal.recordCard(index, target);
-        CombatLog.info("journal: manual play " + card.name + " idx=" + index + " target=" + target);
+        CardTargetRef ref = target == null ? CardTargetRef.missing() : target;
+        journal.recordCard(index, card.cardID, ref);
+        CombatLog.info("journal: manual play " + card.name + " idx=" + index
+                + " targetMode=" + ref.mode + " target=" + ref.engineIndex
+                + " trusted=" + ref.trusted);
     }
 
     public void update() {
@@ -237,8 +231,6 @@ public class CombatController {
             }
 
             adoptEngineFetchIfReady();
-            trackHoveredMonster();
-
             int turn = AbstractDungeon.actionManager.turn;
             if (turn != lastTurn) {
                 if (lastTurn > 0 && journal.isUsable() && journal.size() > 0
@@ -689,7 +681,7 @@ public class CombatController {
         replayRequestedForSize = journal.size();
         final int id = battleId;
         final int journalSize = journal.size();
-        final String journalPath = EngineBridge.writeJournal(journal.snapshot());
+        final String journalPath = EngineBridge.writeJournal(journal.snapshotWithMetadata());
         if (journalPath == null) {
             return;
         }
@@ -1132,21 +1124,6 @@ public class CombatController {
             }
         }
         return -1;
-    }
-
-    private void trackHoveredMonster() {
-        AbstractRoom room = currentRoom();
-        if (room == null || room.monsters == null) {
-            return;
-        }
-        List<AbstractMonster> monsters = room.monsters.monsters;
-        for (int i = 0; i < monsters.size(); i++) {
-            AbstractMonster m = monsters.get(i);
-            if (!m.isDeadOrEscaped() && m.hb != null && m.hb.hovered) {
-                hoveredMonsterIndex = i;
-                return;
-            }
-        }
     }
 
     // ------------------------------------------------------------------ 按键

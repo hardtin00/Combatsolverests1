@@ -39,7 +39,7 @@ public final class CombatRecorder {
     private static int pendingCost;
     private static int pendingDamage;
     private static int pendingBlock;
-    private static int pendingTarget = -1;
+    private static CardTargetRef pendingTarget;
 
     private static SimState lastState;
     private static int lastTurn = Integer.MIN_VALUE;
@@ -69,6 +69,7 @@ public final class CombatRecorder {
         }
         rootPending = true;
         pendingCardId = null;
+        pendingTarget = null;
         pre = null;
         lastState = null;
         lastTurn = Integer.MIN_VALUE;
@@ -86,7 +87,7 @@ public final class CombatRecorder {
     public static String artifactFailure() { return artifactFailure; }
 
     /** 出牌瞬间：记下出牌前的稳定状态。 */
-    public static void onCardUsed(String cardId, int cost, int damage, int block, int targetIndex) {
+    public static void onCardUsed(String cardId, int cost, int damage, int block, CardTargetRef target) {
         if (!enabled) {
             return;
         }
@@ -117,7 +118,7 @@ public final class CombatRecorder {
         pendingCost = cost;
         pendingDamage = damage;
         pendingBlock = block;
-        pendingTarget = targetIndex;
+        pendingTarget = target == null ? CardTargetRef.missing() : target;
     }
 
     /** Called before GameActionManager runs native end-of-turn triggers and queues their actions. */
@@ -192,6 +193,7 @@ public final class CombatRecorder {
         battleKey = "";
         rootPending = true;
         pendingCardId = null;
+        pendingTarget = null;
         pre = null;
         lastState = null;
         turnTracker.reset();
@@ -202,9 +204,12 @@ public final class CombatRecorder {
                 + (reason.isEmpty() ? "" : ",\"reason\":\"" + esc(reason) + "\"")
                 + ",\"card\":{\"id\":\"" + esc(pendingCardId)
                 + "\",\"cost\":" + pendingCost + ",\"damage\":" + pendingDamage
-                + ",\"block\":" + pendingBlock + "},\"target\":" + pendingTarget
+                + ",\"block\":" + pendingBlock + "}," + (pendingTarget == null
+                ? CardTargetRef.missing().jsonFields()
+                : pendingTarget.jsonFields())
                 + ",\"pre\":" + stateJson(pre) + ",\"post\":" + stateJson(post) + "}");
         pendingCardId = null;
+        pendingTarget = null;
         pre = null;
     }
 

@@ -190,6 +190,11 @@ public class CombatController {
                 clearKeys();
                 return;
             }
+            // turnHasEnded flips before the end-of-turn queue finishes. Capture that boundary
+            // before the next turn can absorb the last pending card into its post state.
+            if (AbstractDungeon.actionManager.turnHasEnded) {
+                CombatRecorder.onTurnEnding();
+            }
 
             if (edge(Input.Keys.G)) {
                 executeRequested = true;

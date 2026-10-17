@@ -25,9 +25,12 @@ public final class RecordIntegrityCheck {
             if(!"card".equals(type)&&!"endTurn".equals(type)) continue; actions++;
             Map<String,Object> pre=Json.obj(x,"pre");
             if(pre.isEmpty() || Json.obj(x,"post").isEmpty()) { broken++; System.out.println(f.getName()+":"+line+" missing pre/post"); }
+            Map<String,Object> post=Json.obj(x,"post");
             if("card".equals(type) && (!Json.bool(x,"paired",true) || Json.obj(x,"card").isEmpty())) { broken++; System.out.println(f.getName()+":"+line+" invalid card action"); }
+            if("card".equals(type) && Json.num(pre,"turn",-1) != Json.num(post,"turn",-2)) { broken++; System.out.println(f.getName()+":"+line+" card crosses turn boundary"); }
+            if("endTurn".equals(type) && Json.num(post,"turn",-1) <= Json.num(pre,"turn",-1)) { broken++; System.out.println(f.getName()+":"+line+" invalid endTurn order"); }
             if(previous!=null&&!previous.equals(pre)){broken++; System.out.println(f.getName()+":"+line+" pre!=previousPost/root");}
-            previous=Json.obj(x,"post");
+            previous=post;
         }
         r.close();
         String cls=roots==0?"damaged-or-unknown":(broken>0?"single-step-only-or-damaged":"continuous-candidate");

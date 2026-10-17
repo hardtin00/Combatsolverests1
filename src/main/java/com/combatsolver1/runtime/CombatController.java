@@ -57,7 +57,6 @@ public class CombatController {
     private int engineFetchJournalSize = -1;
     private int replayRequestedForSize = -1;
     private int battleId;
-    private final RecorderTurnGate recorderTurnGate = new RecorderTurnGate();
     private String engineNote = "";
     private String engineDriftReason = "";
     private String battleStartSave;
@@ -103,7 +102,6 @@ public class CombatController {
     public void onBattleStart(AbstractRoom room) {
         inCombat = true;
         battleId++;
-        recorderTurnGate.reset();
         EnemyModel.reset();
         journal.clear();
         CombatLog.info(LiveCapture.deckCoverageText());
@@ -192,12 +190,6 @@ public class CombatController {
                 clearKeys();
                 return;
             }
-            // turnHasEnded flips before the end-of-turn queue finishes. Capture that boundary
-            // before the next turn can absorb the last pending card into its post state.
-            if (recorderTurnGate.consumeTurnEnding(AbstractDungeon.actionManager.turnHasEnded)) {
-                CombatRecorder.onTurnEnding();
-            }
-
             if (edge(Input.Keys.G)) {
                 executeRequested = true;
                 suppressed = false; // 玩家明确要求执行：再试一次
@@ -317,7 +309,6 @@ public class CombatController {
                     && !AbstractDungeon.actionManager.usingCard
                     && !AbstractDungeon.isScreenUp;
             CombatRecorder.onIdle(stable, canAct);
-            recorderTurnGate.observePlayerReady(canAct);
             recordPassiveChanges();
 
             if (!canAct || paused) {
@@ -1273,7 +1264,6 @@ public class CombatController {
 
     private void reset() {
         inCombat = false;
-        recorderTurnGate.reset();
         plan = null;
         enginePlan = null;
         pendingEngineFetch = null;

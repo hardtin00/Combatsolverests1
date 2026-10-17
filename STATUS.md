@@ -660,3 +660,11 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 
 打包后把 jar 与 `ModTheSpire.json` 一起放进游戏 `mods/` 目录即可。
 离线自检入口见 `work/solvertest/`（IroncladCheck / PatternCheck / SearchCheck）。
+
+## 2026-10-18：修复真实 bundle 的结束回合边界
+
+- 配对样本 `battle-20261018-054109-273-e6990591-c40b-4854-a3e6-4d0822290532` 的第 7、13、18 行断链均只涉及 `hand` 与 `discardPile`：上一动作 post 保留 4、3、1 张手牌，而旧 endTurn.pre 已将其移入弃牌堆；endTurn.post 则包含新回合抽牌及结算状态。原始 bundle 未改写，哈希保持原值。
+- 游戏字节码确认玩家按钮通过动作队列发起结束回合；`AbstractRoom.endTurn()` 先触发回合结束效果，再排入清牌/弃牌动作。记录器现在由该方法入口的前缀补丁捕获旧回合 pre；既有双稳定帧追踪继续把原生弃牌、消耗及新回合开始完整放进 endTurn.post。移除基于 `turnHasEnded` 空闲帧检测的延迟采样。
+- 离线回归覆盖最后一张牌后立即结束、多张保留牌与普通牌/虚灵清理、跨回合抽弃牌、连续回合和 root → card → endTurn → card 顺序。
+- 验证：`CombatRecorderTransitionCheck` 编译并运行退出 0；`tools/build/build-release.ps1` 完整 Mod Java 8 构建退出 0，字节码 major=52、85 个 JAR 条目有效，SHA-256 `15B0F6DC0DA0FEDB5A5FBB0663D587A989509BA8D950313D33F7AC867D464173`。原真实样本严格检查仍按预期在第 7、13、18 行失败，证明历史证据保留；未运行游戏，尚无新实机记录，证据等级 L2，不宣称 L4。
+- 用户已授权本轮源码提交并推送；待提交。用户尚未验收。

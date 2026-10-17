@@ -1,5 +1,14 @@
 # 项目现状与后续工作
 
+## 2026-10-18：CombatRecorder 生命周期与记录完整性
+
+- 修复记录器按怪物阵容切分战斗的问题：召唤、死亡或阵容变化不再隐式开启新记录；战斗身份改由 `onBattleStart` / `onBattleEnd` 生命周期控制，并写入 `battleKey`。
+- `receiveOnBattleStart` 现在先建立记录会话，首个稳定状态写出的 root 位于第一条动作之前；战斗结束仍关闭文件并清理待配对动作。
+- 新增 `tools/solvertest/RecordIntegrityCheck.java`：检查 root 数量、动作连续性及相邻 `post → pre` 一致性，不判断模拟规则正确性。
+- 运行结果：旧 corpus 分类为 `011651` 多 root（3 个，来源混合/仅单步），`011810` 与 `011821` 结构连续候选，`011854` 第 12 行出现 `pre!=previousPost`，属损坏或跨段记录。旧 corpus 未删除、未改预期值。
+- 验证：记录完整性检查编译并运行退出 0；`tools/solvertest/run.ps1 -Command all` 退出 0（70 动作，668/793，48 个差异）；完整 Java 8 Mod 编译退出 0。均为 L2，未进行 L3/L4。
+- 当前结论：新记录器具备采集单场连续记录的代码条件，但尚无新生成实机 JSONL 通过完整性检查，不能称真实战斗验证完成。
+
 ## 2026-10-18：采用开发规约并同步当前工作快照
 
 - 用户明确授权：原样复制 Downloads/AGENTS.md 到仓库根目录，并提交、推送当前本地项目。该文件成为后续开发流程与验收规则；复制前后 SHA-256 均为 `3F480F8A6FF7DA3EB0B3E3F63F98B66160FCD580FB7EB2E75F408B349E5ED656`。

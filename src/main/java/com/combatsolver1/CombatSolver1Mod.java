@@ -99,6 +99,7 @@ public class CombatSolver1Mod implements
 
     @Override
     public void receiveOnBattleStart(AbstractRoom battleRoom) {
+        com.combatsolver1.runtime.CombatRecorder.onBattleStart();
         CombatController.instance().onBattleStart(battleRoom);
     }
 

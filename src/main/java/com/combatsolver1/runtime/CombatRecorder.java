@@ -43,9 +43,23 @@ public final class CombatRecorder {
     private static int lastTurn = Integer.MIN_VALUE;
     private static String battleKey = "";
     private static boolean rootPending = true;
+    private static long battleSequence;
 
     public static void setEnabled(boolean value) {
         enabled = value;
+    }
+
+    /** 生命周期钩子：战斗开始即建立新身份，root 等首个稳定状态再写出。 */
+    public static void onBattleStart() {
+        if (!enabled) return;
+        closeWriter();
+        battleSequence++;
+        battleKey = "battle-" + battleSequence;
+        rootPending = true;
+        pendingCardId = null;
+        pre = null;
+        lastState = null;
+        lastTurn = Integer.MIN_VALUE;
     }
 
     /** 当前记录文件路径（供面板 / 日志显示）。 */
@@ -97,15 +111,9 @@ public final class CombatRecorder {
             return;
         }
         try {
-            String key = battleKeyOf(now);
-            if (!key.equals(battleKey)) {
-                battleKey = key;
-                lastTurn = Integer.MIN_VALUE;
-                rootPending = true;
-                pendingCardId = null;
-            }
             if (rootPending) {
-                writeLine("{\"type\":\"root\",\"engine\":\"" + esc(EngineBridge.describe())
+                writeLine("{\"type\":\"root\",\"battleKey\":\"" + esc(battleKey)
+                        + "\",\"engine\":\"" + esc(EngineBridge.describe())
                         + "\",\"state\":" + stateJson(now) + "}");
                 rootPending = false;
                 lastState = now;
@@ -137,14 +145,6 @@ public final class CombatRecorder {
         pre = null;
         lastState = null;
         closeWriter();
-    }
-
-    private static String battleKeyOf(SimState s) {
-        StringBuilder sb = new StringBuilder();
-        for (SimState.Mob m : s.mobs) {
-            sb.append(m.id).append('+').append(m.maxHp).append(';');
-        }
-        return sb.toString();
     }
 
     private static void writeLine(String line) throws Exception {

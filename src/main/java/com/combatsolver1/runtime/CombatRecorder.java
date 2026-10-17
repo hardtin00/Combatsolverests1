@@ -122,6 +122,8 @@ public final class CombatRecorder {
     /** Called as soon as the game marks the player turn ended, before its action queue settles. */
     public static void onTurnEnding() {
         if (!enabled) return;
+        // Ignore the startup transition. A root is captured only once the player can act.
+        if (rootPending) return;
         SimState snap = LiveCapture.captureRoot();
         if (snap == null) return;
         try {
@@ -139,6 +141,10 @@ public final class CombatRecorder {
 
     /** 动作结算完毕、回到稳定状态时：写出一条记录。 */
     public static void onIdle(boolean stable) {
+        onIdle(stable, false);
+    }
+
+    public static void onIdle(boolean stable, boolean playerCanAct) {
         if (!enabled) {
             return;
         }
@@ -151,8 +157,9 @@ public final class CombatRecorder {
         }
         try {
             if (rootPending) {
-                // The first idle frame can precede start-of-combat relic and draw settlement.
-                // Root is written at the first actual player action boundary instead.
+                if (playerCanAct) {
+                    ensureRoot(now);
+                }
                 return;
             }
             if (pendingCardId != null && pre != null) {
@@ -193,7 +200,7 @@ public final class CombatRecorder {
 
     private static void ensureRoot(SimState state) throws Exception {
         if (!rootPending) return;
-        BattleArtifacts.rootCaptured("first-player-action-boundary-before-action-resolution");
+        BattleArtifacts.rootCaptured("first-stable-player-ready-state-before-action");
         writeLine("{\"type\":\"root\",\"battleKey\":\"" + esc(battleKey)
                 + "\",\"engine\":\"" + esc(EngineBridge.describe())
                 + "\",\"state\":" + stateJson(state) + "}");

@@ -15,12 +15,15 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 /** Durable, per-battle evidence files. Raw saves are copied and never edited here. */
 public final class BattleArtifacts {
     private static Session active;
+    private static final Map<String, Session> sessions = new HashMap<String, Session>();
 
     private BattleArtifacts() { }
 
@@ -30,25 +33,46 @@ public final class BattleArtifacts {
         String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.ROOT).format(new Date());
         String id = "battle-" + stamp + "-" + UUID.randomUUID().toString();
         active = new Session(root, id);
+        sessions.put(id, active);
         return id;
     }
 
     static synchronized Session beginForTest(File root, String id) throws IOException {
         finish();
         active = new Session(root, id);
+        sessions.put(id, active);
         return active;
+    }
+
+    static synchronized boolean initialCaptureStarted(String expectedId) {
+        if (active == null || active.closed || !active.id.equals(expectedId)) return false;
+        active.capturePending = true;
+        return true;
+    }
+
+    static synchronized void initialCaptureFinished(String expectedId) {
+        Session session = sessions.get(expectedId);
+        if (session == null) return;
+        session.capturePending = false;
+        if (session.closeRequested) closeSession(session);
     }
 
     static synchronized boolean isActive(String id) {
         return active != null && active.id.equals(id) && !active.closed;
     }
 
+    static synchronized boolean canCapture(String id) {
+        Session session = sessions.get(id);
+        return session != null && session.capturePending && !session.closed;
+    }
+
     static synchronized String currentId() { return active == null ? "" : active.id; }
     static synchronized File jsonlFile() { return active == null ? null : active.jsonl; }
     static synchronized File sessionDirectory() { return active == null ? null : active.directory; }
     static synchronized File engineDirectory(String expectedId) {
-        if (active == null || !active.id.equals(expectedId) || active.closed) return null;
-        File dir = new File(active.directory, "engine");
+        Session session = sessions.get(expectedId);
+        if (session == null || session.closed) return null;
+        File dir = new File(session.directory, "engine");
         return dir.mkdirs() || dir.isDirectory() ? dir : null;
     }
 
@@ -106,23 +130,24 @@ public final class BattleArtifacts {
     }
 
     static synchronized File captureAutosave(String expectedId, File source, long notOlderThanMillis) {
-        if (active == null || active.closed || !active.id.equals(expectedId)) return null;
+        Session session = sessions.get(expectedId);
+        if (session == null || session.closed) return null;
         if (source == null || !source.isFile()) {
-            active.saveStatus = "failed_missing_source";
-            active.saveError = "No autosave file was available for this battle.";
-            active.writeManifestQuietly();
+            session.saveStatus = "failed_missing_source";
+            session.saveError = "No autosave file was available for this battle.";
+            session.writeManifestQuietly();
             return null;
         }
         long modifiedBefore = source.lastModified();
         if (modifiedBefore < notOlderThanMillis) {
-            active.saveStatus = "rejected_stale";
-            active.saveSourcePath = source.getAbsolutePath();
-            active.saveModifiedAt = modifiedBefore;
-            active.saveError = "Autosave is older than the battle capture threshold.";
-            active.writeManifestQuietly();
+            session.saveStatus = "rejected_stale";
+            session.saveSourcePath = source.getAbsolutePath();
+            session.saveModifiedAt = modifiedBefore;
+            session.saveError = "Autosave is older than the battle capture threshold.";
+            session.writeManifestQuietly();
             return null;
         }
-        File temp = new File(active.directory, "raw-autosave.save.tmp");
+        File temp = new File(session.directory, "raw-autosave.save.tmp");
         try {
             String sourceHashBefore = sha256(source);
             Files.copy(source.toPath(), temp.toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -131,61 +156,81 @@ public final class BattleArtifacts {
                 throw new IOException("Autosave changed while it was being copied.");
             }
             if (temp.length() == 0) throw new IOException("Autosave copy is empty.");
-            move(temp, active.rawSave);
-            active.saveSourcePath = source.getAbsolutePath();
-            active.saveModifiedAt = modifiedBefore;
-            active.saveCapturedAt = System.currentTimeMillis();
-            active.saveSha256 = sha256(active.rawSave);
-            active.saveStatus = "captured";
-            active.savePhase = active.rootCapturedAt == 0
+            move(temp, session.rawSave);
+            session.saveSourcePath = source.getAbsolutePath();
+            session.saveModifiedAt = modifiedBefore;
+            session.saveCapturedAt = System.currentTimeMillis();
+            session.saveSha256 = sha256(session.rawSave);
+            session.saveStatus = "captured";
+            session.savePhase = session.rootCapturedAt == 0
                     ? "source-captured-before-root; source stage is not assumed to equal root"
-                    : (modifiedBefore >= active.rootCapturedAt
+                    : (modifiedBefore >= session.rootCapturedAt
                         ? "source-modified-at-or-after-root-capture"
                         : "source-modified-before-root-capture");
-            active.saveError = "";
-            active.writeManifest();
-            return active.rawSave;
+            session.saveError = "";
+            session.writeManifest();
+            return session.rawSave;
         } catch (IOException e) {
             temp.delete();
-            active.saveStatus = "failed_copy";
-            active.saveError = e.toString();
-            active.writeManifestQuietly();
+            session.saveStatus = "failed_copy";
+            session.saveError = e.toString();
+            session.writeManifestQuietly();
             return null;
         }
     }
 
     static synchronized void recordEnginePreparation(String expectedId, File stagedSave, String description, File executable) {
-        if (active == null || active.closed || !active.id.equals(expectedId)) return;
-        active.engineDescription = description == null ? "" : description;
+        Session session = sessions.get(expectedId);
+        if (session == null || session.closed) return;
+        session.engineDescription = description == null ? "" : description;
         try {
-            if (executable != null && executable.isFile()) active.engineSha256 = sha256(executable);
+            if (executable != null && executable.isFile()) session.engineSha256 = sha256(executable);
             if (stagedSave != null && stagedSave.isFile()) {
-                active.engineSavePath = relative(active.directory, stagedSave);
-                active.engineSaveSha256 = sha256(stagedSave);
-                active.engineSaveStatus = "prepared";
+                session.engineSavePath = relative(session.directory, stagedSave);
+                session.engineSaveSha256 = sha256(stagedSave);
+                session.engineSaveStatus = "prepared";
             } else {
-                active.engineSaveStatus = "failed";
+                session.engineSaveStatus = "failed";
             }
         } catch (IOException e) {
-            active.engineSaveStatus = "failed_hash";
-            active.engineError = e.toString();
+            session.engineSaveStatus = "failed_hash";
+            session.engineError = e.toString();
         }
-        active.writeManifestQuietly();
+        session.writeManifestQuietly();
     }
 
     static synchronized void enginePreparationFailed(String expectedId, String reason) {
-        if (active == null || active.closed || !active.id.equals(expectedId)) return;
-        active.engineSaveStatus = "failed";
-        active.engineError = reason == null ? "" : reason;
-        active.writeManifestQuietly();
+        Session session = sessions.get(expectedId);
+        if (session == null || session.closed) return;
+        session.engineSaveStatus = "failed";
+        session.engineError = reason == null ? "" : reason;
+        session.writeManifestQuietly();
+    }
+
+    static synchronized void engineNotConfigured(String expectedId) {
+        Session session = sessions.get(expectedId);
+        if (session == null || session.closed) return;
+        session.engineSaveStatus = "not_configured";
+        session.engineError = "sts_lightspeed is not configured; raw autosave archived without engine conversion.";
+        session.writeManifestQuietly();
     }
 
     static synchronized void finish() {
         if (active == null) return;
-        active.closed = true;
-        active.status = "closed";
-        active.writeManifestQuietly();
+        Session session = active;
         active = null;
+        if (session.capturePending) {
+            session.closeRequested = true;
+            session.status = "closing";
+            session.writeManifestQuietly();
+        } else closeSession(session);
+    }
+
+    private static void closeSession(Session session) {
+        session.closed = true;
+        session.status = "closed";
+        session.writeManifestQuietly();
+        sessions.remove(session.id);
     }
 
     /** Check that all supplied evidence belongs to one manifest and has not been substituted. */
@@ -214,23 +259,40 @@ public final class BattleArtifacts {
                     return Validation.fail("engine combat save SHA-256 mismatch");
                 }
             } else return Validation.fail("engine combat save was not prepared");
+            if (text.contains("\"journalDirty\":true")) {
+                return Validation.fail("action journal is dirty: " + field(text, "journalDirtyReason"));
+            }
             if (!jsonl.isFile()) return Validation.fail("combat JSONL is missing");
             String recordingHash = field(text, "recordingSha256");
             if (recordingHash.isEmpty() || !recordingHash.equals(sha256(jsonl))) return Validation.fail("combat JSONL SHA-256 mismatch");
             boolean rootMatches = false;
             int rootCount = 0;
+            String rootState = null;
+            String firstActionType = "";
+            String firstActionPre = null;
+            boolean firstLine = true;
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(jsonl), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     if (line.contains("\"type\":\"root\"")) {
                         rootCount++;
+                        if (!firstLine) return Validation.fail("JSONL root is not the first record");
                         if (line.contains("\"battleKey\":\"" + id + "\"")) rootMatches = true;
                         else return Validation.fail("JSONL contains a root from a different battle");
+                        rootState = jsonObject(line, "state");
+                    } else if (rootCount == 1 && firstActionType.isEmpty()) {
+                        firstActionType = field(line, "type");
+                        firstActionPre = jsonObject(line, "pre");
                     }
+                    firstLine = false;
                 }
             }
             if (rootCount != 1) return Validation.fail("JSONL must contain exactly one root");
             if (!rootMatches) return Validation.fail("JSONL root battleId does not match manifest");
+            if ("card".equals(firstActionType) && rootState != null && firstActionPre != null
+                    && !rootState.equals(firstActionPre)) {
+                return Validation.fail("root state does not match the first card pre-state");
+            }
             if (!journal.isFile()) return Validation.fail("action journal is missing");
             String journalHash = field(text, "actionJournalSha256");
             if (journalHash.isEmpty() || !journalHash.equals(sha256(journal))) return Validation.fail("action journal SHA-256 mismatch");
@@ -260,6 +322,8 @@ public final class BattleArtifacts {
         final File journal;
         final File rawSave;
         boolean closed;
+        boolean capturePending;
+        boolean closeRequested;
         String status = "open";
         String rootPhase = "";
         long rootCapturedAt;
@@ -377,6 +441,28 @@ public final class BattleArtifacts {
         int start = at + token.length();
         int end = json.indexOf('"', start);
         return end < 0 ? "" : json.substring(start, end);
+    }
+
+    private static String jsonObject(String json, String key) {
+        String token = "\"" + key + "\":";
+        int at = json.indexOf(token);
+        if (at < 0) return null;
+        int start = json.indexOf('{', at + token.length());
+        if (start < 0) return null;
+        int depth = 0;
+        boolean quoted = false;
+        boolean escaped = false;
+        for (int i = start; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (quoted) {
+                if (escaped) escaped = false;
+                else if (c == '\\') escaped = true;
+                else if (c == '"') quoted = false;
+            } else if (c == '"') quoted = true;
+            else if (c == '{') depth++;
+            else if (c == '}' && --depth == 0) return json.substring(start, i + 1);
+        }
+        return null;
     }
 
     private static String esc(String value) {

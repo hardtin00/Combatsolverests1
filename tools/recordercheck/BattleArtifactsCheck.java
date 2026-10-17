@@ -12,8 +12,23 @@ public final class BattleArtifactsCheck {
     }
 
     private static void root(File directory, String id) throws Exception {
-        Files.write(new File(directory, "combat.jsonl").toPath(),
-                ("{\"type\":\"root\",\"battleKey\":\"" + id + "\",\"state\":{}}\n").getBytes(StandardCharsets.UTF_8));
+        root(directory, id, true);
+    }
+
+    private static void root(File directory, String id, boolean consistent) throws Exception {
+        String rootState = "{\"turn\":1,\"energy\":0,\"hand\":[]}";
+        String actionPre = consistent ? rootState : "{\"turn\":1,\"energy\":3,\"hand\":[{\"id\":\"Flex\"}]}";
+        String content = "{\"type\":\"root\",\"battleKey\":\"" + id + "\",\"state\":" + rootState + "}\n"
+                + "{\"type\":\"card\",\"pre\":" + actionPre + ",\"post\":" + actionPre + "}\n";
+        Files.write(new File(directory, "combat.jsonl").toPath(), content.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static void prepareEngine(BattleArtifacts.Session session, File temp) throws Exception {
+        File engineDir = BattleArtifacts.engineDirectory(session.id);
+        File prepared = new File(engineDir, "engine-in.save");
+        Files.write(prepared.toPath(), new byte[]{4, 5, 6});
+        File executable = source(temp, "engine-" + session.id + ".exe", System.currentTimeMillis());
+        BattleArtifacts.recordEnginePreparation(session.id, prepared, "test-engine", executable);
     }
 
     private static File source(File root, String name, long modifiedAt) throws Exception {
@@ -33,13 +48,79 @@ public final class BattleArtifactsCheck {
             File currentSave = source(temp, "current.autosave", now);
             check(BattleArtifacts.captureAutosave(first.id, currentSave, now - 5000L) != null,
                     "fresh save was not archived");
-            File engineDir = BattleArtifacts.engineDirectory(first.id);
-            File prepared = new File(engineDir, "engine-in.save");
-            Files.write(prepared.toPath(), new byte[]{4, 5, 6});
-            File executable = source(temp, "engine.exe", System.currentTimeMillis());
-            BattleArtifacts.recordEnginePreparation(first.id, prepared, "test-engine", executable);
+            prepareEngine(first, temp);
+            check(!BattleArtifacts.validate(first.directory).valid
+                            && BattleArtifacts.validate(first.directory).reason.contains("not closed"),
+                    "open bundle was not rejected with a specific reason");
             BattleArtifacts.finish();
             check(BattleArtifacts.validate(first.directory).valid, "valid bundle rejected");
+            byte[] validJsonl = Files.readAllBytes(new File(first.directory, "combat.jsonl").toPath());
+            Files.write(new File(first.directory, "combat.jsonl").toPath(), new byte[]{'{', '}'});
+            check(BattleArtifacts.validate(first.directory).reason.contains("combat JSONL SHA-256 mismatch"),
+                    "changed JSONL hash was not rejected specifically: " + BattleArtifacts.validate(first.directory).reason);
+            Files.write(new File(first.directory, "combat.jsonl").toPath(), validJsonl);
+            File validRaw = new File(first.directory, "raw-autosave.save");
+            byte[] rawBytes = Files.readAllBytes(validRaw.toPath());
+            Files.delete(validRaw.toPath());
+            check(BattleArtifacts.validate(first.directory).reason.contains("raw autosave is missing"),
+                    "missing raw autosave was not rejected specifically");
+            Files.write(validRaw.toPath(), rawBytes);
+            check(BattleArtifacts.validate(first.directory).valid, "restored valid bundle rejected");
+
+            BattleArtifacts.Session inconsistent = BattleArtifacts.beginForTest(temp, "battle-test-root-mismatch");
+            root(inconsistent.directory, inconsistent.id, false);
+            File inconsistentSave = source(temp, "root-mismatch.autosave", System.currentTimeMillis());
+            check(BattleArtifacts.captureAutosave(inconsistent.id, inconsistentSave,
+                    System.currentTimeMillis() - 5000L) != null, "root-mismatch save was not archived");
+            prepareEngine(inconsistent, temp);
+            BattleArtifacts.finish();
+            check(BattleArtifacts.validate(inconsistent.directory).reason.contains("root state does not match"),
+                    "self-contradictory root was not rejected specifically");
+
+            BattleArtifacts.Session dirty = BattleArtifacts.beginForTest(temp, "battle-test-dirty-journal");
+            root(dirty.directory, dirty.id);
+            File dirtySave = source(temp, "dirty.autosave", System.currentTimeMillis());
+            check(BattleArtifacts.captureAutosave(dirty.id, dirtySave,
+                    System.currentTimeMillis() - 5000L) != null, "dirty-journal save was not archived");
+            prepareEngine(dirty, temp);
+            BattleArtifacts.markJournalDirty("unrecorded potion action");
+            BattleArtifacts.finish();
+            check(BattleArtifacts.validate(dirty.directory).reason.contains("action journal is dirty"),
+                    "dirty action journal was accepted for strict validation");
+
+            BattleArtifacts.Session noSave = BattleArtifacts.beginForTest(temp, "battle-test-no-save");
+            root(noSave.directory, noSave.id);
+            check(BattleArtifacts.captureAutosave(noSave.id, null, System.currentTimeMillis() - 5000L) == null,
+                    "missing autosave unexpectedly succeeded");
+            BattleArtifacts.engineNotConfigured(noSave.id);
+            String noSaveManifest = new String(Files.readAllBytes(
+                    new File(noSave.directory, "manifest.json").toPath()), StandardCharsets.UTF_8);
+            check(noSaveManifest.contains("\"rawAutosaveStatus\":\"failed_missing_source\""),
+                    "missing autosave was not reported");
+            check(noSaveManifest.contains("\"engineCombatSaveStatus\":\"not_configured\""),
+                    "unconfigured external engine was not explicitly reported");
+            BattleArtifacts.finish();
+            check(BattleArtifacts.validate(noSave.directory).reason.contains("raw autosave was not captured"),
+                    "bundle without an autosave was accepted");
+
+            BattleArtifacts.Session lateCapture = BattleArtifacts.beginForTest(temp, "battle-test-late-capture");
+            root(lateCapture.directory, lateCapture.id);
+            check(BattleArtifacts.initialCaptureStarted(lateCapture.id), "initial capture was not marked pending");
+            BattleArtifacts.finish();
+            check(BattleArtifacts.validate(lateCapture.directory).reason.contains("not closed"),
+                    "bundle closing with capture still pending was accepted");
+            File lateSave = source(temp, "late.autosave", System.currentTimeMillis());
+            check(BattleArtifacts.captureAutosave(lateCapture.id, lateSave,
+                    System.currentTimeMillis() - 5000L) != null,
+                    "battle end discarded an in-flight autosave capture");
+            BattleArtifacts.engineNotConfigured(lateCapture.id);
+            BattleArtifacts.initialCaptureFinished(lateCapture.id);
+            String lateManifest = new String(Files.readAllBytes(
+                    new File(lateCapture.directory, "manifest.json").toPath()), StandardCharsets.UTF_8);
+            check(lateManifest.contains("\"status\":\"closed\""),
+                    "deferred capture did not close its bundle after completion");
+            check(lateManifest.contains("\"rawAutosaveStatus\":\"captured\""),
+                    "deferred capture did not preserve raw autosave");
 
             BattleArtifacts.Session second = BattleArtifacts.beginForTest(temp, "battle-test-b");
             root(second.directory, second.id);
@@ -103,7 +184,7 @@ public final class BattleArtifactsCheck {
                     Files.readAllBytes(new File(second.directory, "raw-autosave.save").toPath()));
             check(!BattleArtifacts.validate(first.directory).valid,
                     "a substituted raw save passed the manifest SHA-256 check");
-            System.out.println("BattleArtifacts regression passed: unique identity, cross-battle rejection, stale-save rejection, copy/conversion failure reporting, SHA-256 substitution rejection.");
+            System.out.println("BattleArtifacts regression passed: identity/freshness/copy checks, open/incomplete/hash/root/dirty-journal rejection, conversion failure reporting.");
         } finally {
             deleteTree(temp);
         }

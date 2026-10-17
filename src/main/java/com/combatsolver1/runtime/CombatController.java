@@ -57,6 +57,7 @@ public class CombatController {
     private int engineFetchJournalSize = -1;
     private int replayRequestedForSize = -1;
     private int battleId;
+    private final RecorderTurnGate recorderTurnGate = new RecorderTurnGate();
     private String engineNote = "";
     private String engineDriftReason = "";
     private String battleStartSave;
@@ -102,6 +103,7 @@ public class CombatController {
     public void onBattleStart(AbstractRoom room) {
         inCombat = true;
         battleId++;
+        recorderTurnGate.reset();
         EnemyModel.reset();
         journal.clear();
         CombatLog.info(LiveCapture.deckCoverageText());
@@ -192,7 +194,7 @@ public class CombatController {
             }
             // turnHasEnded flips before the end-of-turn queue finishes. Capture that boundary
             // before the next turn can absorb the last pending card into its post state.
-            if (AbstractDungeon.actionManager.turnHasEnded) {
+            if (recorderTurnGate.consumeTurnEnding(AbstractDungeon.actionManager.turnHasEnded)) {
                 CombatRecorder.onTurnEnding();
             }
 
@@ -305,17 +307,19 @@ public class CombatController {
             if (!AbstractDungeon.actionManager.isEmpty()) {
                 return;
             }
-            // 每帧都问一次，但只有“动作队列彻底安静”的稳定帧才会被记录（避免抓到动画中间态）
-            CombatRecorder.onIdle(AbstractDungeon.actionManager.isEmpty()
-                    && AbstractDungeon.actionManager.currentAction == null
-                    && AbstractDungeon.actionManager.cardQueue.isEmpty()
-                    && !AbstractDungeon.actionManager.usingCard
-                    && !AbstractDungeon.isScreenUp); // 选牌界面上的手牌/牌堆不是稳定态，不能当 post
-            recordPassiveChanges();
-
             boolean canAct = AbstractDungeon.actionManager.phase == GameActionManager.Phase.WAITING_ON_USER
                     && !AbstractDungeon.actionManager.turnHasEnded
                     && !AbstractDungeon.isScreenUp;
+            // Root and action snapshots are eligible only after setup has settled and the player can act.
+            boolean stable = AbstractDungeon.actionManager.isEmpty()
+                    && AbstractDungeon.actionManager.currentAction == null
+                    && AbstractDungeon.actionManager.cardQueue.isEmpty()
+                    && !AbstractDungeon.actionManager.usingCard
+                    && !AbstractDungeon.isScreenUp;
+            CombatRecorder.onIdle(stable, canAct);
+            recorderTurnGate.observePlayerReady(canAct);
+            recordPassiveChanges();
+
             if (!canAct || paused) {
                 if (executeRequested) {
                     executeRequested = false;
@@ -579,18 +583,22 @@ public class CombatController {
     }
 
     private void requestInitialEnginePlan(final int id) {
-        if (!EngineBridge.isConfigured() || engineFetching) {
-            return;
-        }
-        engineFetching = true;
+        final boolean engineConfigured = EngineBridge.isConfigured();
+        if (engineConfigured && engineFetching) return;
+        if (engineConfigured) engineFetching = true;
         final long since = System.currentTimeMillis() - 3000L;
         final String roomClassName = battleRoomClassName;
         final String artifactId = CombatRecorder.currentBattleId();
+        if (!BattleArtifacts.initialCaptureStarted(artifactId)) {
+            engineNote = "本场证据归档不可用，未启动存档采集";
+            if (engineConfigured) engineFetching = false;
+            return;
+        }
         Thread worker = new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    if (!BattleArtifacts.isActive(artifactId)) {
+                    if (!BattleArtifacts.canCapture(artifactId)) {
                         engineNote = "本场证据归档不可用，拒绝使用未配对存档";
                         return;
                     }
@@ -605,6 +613,10 @@ public class CombatController {
                     if (archivedSave == null) {
                         BattleArtifacts.enginePreparationFailed(artifactId, "Could not archive the current battle autosave.");
                         engineNote = "本场原始存档归档失败，已停止外部引擎调用";
+                        return;
+                    }
+                    if (!engineConfigured) {
+                        BattleArtifacts.engineNotConfigured(artifactId);
                         return;
                     }
                     File engineDir = BattleArtifacts.engineDirectory(artifactId);
@@ -623,6 +635,7 @@ public class CombatController {
                     }
                     BattleArtifacts.recordEnginePreparation(artifactId, new File(staged), EngineBridge.describe(),
                             EngineBridge.engineExecutable());
+                    BattleArtifacts.initialCaptureFinished(artifactId);
                     if (!BattleArtifacts.isActive(artifactId) || id != battleId) return;
                     EngineBridge.Fetch fetch = EngineBridge.fetchPlan(staged,
                             settings.engineSimulations());
@@ -652,12 +665,20 @@ public class CombatController {
                     }
                     CombatLog.error("battle artifact or engine preparation failed", t);
                 } finally {
-                    engineFetching = false;
+                    BattleArtifacts.initialCaptureFinished(artifactId);
+                    if (engineConfigured) engineFetching = false;
                 }
             }
         }, "CombatSolver1-EngineInit");
         worker.setDaemon(true);
-        worker.start();
+        try {
+            worker.start();
+        } catch (Throwable t) {
+            BattleArtifacts.enginePreparationFailed(artifactId, "Could not start battle artifact capture: " + t);
+            BattleArtifacts.initialCaptureFinished(artifactId);
+            if (engineConfigured) engineFetching = false;
+            CombatLog.error("battle artifact capture thread could not start", t);
+        }
     }
 
     /** 日志干净且引擎空闲时，用动作日志回放到当前状态再重算。 */
@@ -1252,6 +1273,7 @@ public class CombatController {
 
     private void reset() {
         inCombat = false;
+        recorderTurnGate.reset();
         plan = null;
         enginePlan = null;
         pendingEngineFetch = null;

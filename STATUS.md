@@ -1,5 +1,13 @@
 # 项目现状与后续工作
 
+## 2026-10-18：结束回合记录与 JSONL 编码
+
+- 实机证据中的 endTurn 断点来自记录器在首个 action queue 变空帧捕获状态；回合结算仍可能继续清手牌、入弃牌堆或更新怪物。
+- `CombatRecorder` 现在等待同一新回合连续两个稳定帧才写 endTurn，并标注 `phase=turn-transition`；不丢弃手牌/弃牌堆变化。
+- 新记录改用 UTF-8 `OutputStreamWriter`；`RecordIntegrityCheck` 自动识别 UTF-8/旧 GBK，严格报告 root、动作和相邻状态链问题。
+- 离线验证：`tools/solvertest/run.ps1 -Command all` 退出 0；现有 recording fixtures 完整性检查退出 0；旧真实 GBK corpus 仅保留诊断，禁止作为严格连续样本。
+- 完整 Mod JAR 已重新构建并部署，Java 8 major=52，JAR SHA-256 记录在本轮交付中；未启动游戏，不宣称 L4。
+
 ## 2026-10-18：CombatRecorder 生命周期与记录完整性
 
 - 修复记录器按怪物阵容切分战斗的问题：召唤、死亡或阵容变化不再隐式开启新记录；战斗身份改由 `onBattleStart` / `onBattleEnd` 生命周期控制，并写入 `battleKey`。

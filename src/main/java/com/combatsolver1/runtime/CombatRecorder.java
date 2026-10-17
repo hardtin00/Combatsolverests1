@@ -4,11 +4,13 @@ import com.combatsolver1.CombatLog;
 import com.combatsolver1.engine.SimState;
 
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 差分验证语料记录器（实机一侧）。
@@ -44,6 +46,8 @@ public final class CombatRecorder {
     private static String battleKey = "";
     private static boolean rootPending = true;
     private static long battleSequence;
+    private static int transitionTurn = Integer.MIN_VALUE;
+    private static int transitionStableFrames;
 
     public static void setEnabled(boolean value) {
         enabled = value;
@@ -60,6 +64,8 @@ public final class CombatRecorder {
         pre = null;
         lastState = null;
         lastTurn = Integer.MIN_VALUE;
+        transitionTurn = Integer.MIN_VALUE;
+        transitionStableFrames = 0;
     }
 
     /** 当前记录文件路径（供面板 / 日志显示）。 */
@@ -127,8 +133,18 @@ public final class CombatRecorder {
                         + stateJson(pre) + ",\"post\":" + stateJson(now) + "}");
                 pendingCardId = null;
             } else if (lastState != null && now.turn > lastTurn) {
-                writeLine("{\"type\":\"endTurn\",\"pre\":" + stateJson(lastState)
-                        + ",\"post\":" + stateJson(now) + "}");
+                if (transitionTurn != now.turn) {
+                    transitionTurn = now.turn;
+                    transitionStableFrames = 1;
+                } else {
+                    transitionStableFrames++;
+                }
+                if (transitionStableFrames >= 2) {
+                    writeLine("{\"type\":\"endTurn\",\"phase\":\"turn-transition\",\"pre\":" + stateJson(lastState)
+                            + ",\"post\":" + stateJson(now) + "}");
+                    transitionTurn = Integer.MIN_VALUE;
+                    transitionStableFrames = 0;
+                }
             }
             lastState = now;
             lastTurn = now.turn;
@@ -155,7 +171,7 @@ public final class CombatRecorder {
             }
             String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(new Date());
             file = new File(dir, "combat-" + stamp + ".jsonl");
-            writer = new FileWriter(file, true);
+            writer = new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8);
         }
         writer.write(line);
         writer.write('\n');

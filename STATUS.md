@@ -1,3 +1,13 @@
+## 2026-10-18：首份真实 bundle 复盘与归档/root 修复
+
+- 实样本 `battle-20261018-051005-474-f7972e19-b4b3-4f16-9cc0-24b7a1620b09` 未入库。manifest 为 `open`，raw autosave 与引擎输入均 `pending`，root 的 engine 字段为 `local`。控制器原先只在 `sts_lightspeed` 已配置时启动初始工作线程，所以此样本没有执行 autosave 查找；pending 不能据此说明游戏存档本身不存在，也不能归因于转换失败。
+- manifest 最后更新时间为 05:10:09，JSONL 最后写入为 05:10:33，且状态仍 open。SHA 不匹配是未封存期间文件继续追加的结果；该证据支持在 onBattleEnd 前打包，但没有 RAR 时间戳/游戏日志，无法排除战斗结束回调未触发。严格 bundle 校验拒绝 open 状态。
+- 既有 RecordIntegrityCheck 对原文件报告 14 行、1 root、11 card、2 endTurn，断链 4 处：第 2 行 root 与首牌 pre、第 5 行攻击药水、第 7 行启动期误判 endTurn、第 10 行结束回合手牌自动移入弃牌堆。`handSize` 来自 `player.gameHandSize`，表示每回合抽牌目标，不代表当前手牌数量。
+- 第 5 行的 AttackPotion 从药水槽消失，同时其结果 `Wild Strike` 加入手牌；控制器的被动检测将 ActionJournal 标为 dirty，原因保留为未记录药水。该 journal 不能用于外部引擎连续动作验收。
+- 第 7 行的错误 endTurn.pre 回退到开战牌堆/药水/怪物意图状态，根因是启动期 `turnHasEnded` 在玩家尚不可操作时被记录器当成回合结束。现在只在观察到玩家可操作帧后接受结束回合；root 改在首个稳定且玩家可操作状态捕获。第 10 行手牌移入弃牌堆属于结束回合自动结算阶段。
+- 初始 autosave 归档现独立于 sts_lightspeed 配置；未配置时写明 `not_configured`，只归档原始存档，不生成或冒充引擎输入。归档线程在战斗结束后仍可完成，manifest 直到采集结束才封存。校验器拒绝 dirty journal、哈希错误、缺原始存档及 root 与首张牌 pre 不同的 bundle。
+- 回归命令：`java -cp build\artifactcheck com.combatsolver1.runtime.RecorderTurnGateCheck` 退出 0；`java -cp build\artifactcheck com.combatsolver1.runtime.BattleArtifactsCheck` 退出 0；`java -cp "build\artifactcheck;build\classes" com.combatsolver1.runtime.FreshAutosaveCheck` 退出 0。实际样本的 `RecordIntegrityCheck <sample-dir> --strict` 退出 1，为预期诊断结果并打印上述 4 行。
+- 完整构建/部署命令 `powershell -ExecutionPolicy Bypass -File tools/build/build-release.ps1 -Deploy` 退出 0，Java 8 major 52、85 个 JAR 条目通过；部署 JAR SHA-256：`CEB1B7B1ADD3647B5E49B764CAF2AE79C582DA8CE99C195FD831F19D7ACED482`。源码提交 `62eb833276e137c7edec438393bef657367bc4e3`；状态记录提交随后补入。仅 L2 离线/构建验证，未做 L4，也未修改搜索算法或 sts_lightspeed 规则；用户尚未验收。
 # 项目现状与后续工作
 
 ## 2026-10-18：真实战斗样本配对归档

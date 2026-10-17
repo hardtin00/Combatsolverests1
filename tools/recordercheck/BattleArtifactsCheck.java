@@ -103,6 +103,16 @@ public final class BattleArtifactsCheck {
             check(BattleArtifacts.validate(noSave.directory).reason.contains("raw autosave was not captured"),
                     "bundle without an autosave was accepted");
 
+            BattleArtifacts.Session localOnly = BattleArtifacts.beginForTest(temp, "battle-test-local-only");
+            root(localOnly.directory, localOnly.id);
+            File localSave = source(temp, "local-only.autosave", System.currentTimeMillis());
+            check(BattleArtifacts.captureAutosave(localOnly.id, localSave,
+                    System.currentTimeMillis() - 5000L) != null, "local-only save was not archived");
+            BattleArtifacts.engineNotConfigured(localOnly.id);
+            BattleArtifacts.finish();
+            check(BattleArtifacts.validate(localOnly.directory).reason.contains("engine combat save was not prepared"),
+                    "local fallback bundle was accepted as an external-engine bundle");
+
             BattleArtifacts.Session lateCapture = BattleArtifacts.beginForTest(temp, "battle-test-late-capture");
             root(lateCapture.directory, lateCapture.id);
             check(BattleArtifacts.initialCaptureStarted(lateCapture.id), "initial capture was not marked pending");

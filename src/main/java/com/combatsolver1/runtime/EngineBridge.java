@@ -75,6 +75,8 @@ public final class EngineBridge {
         return enginePath != null && !enginePath.isEmpty();
     }
 
+    static File engineExecutable() { return isConfigured() ? new File(enginePath) : null; }
+
     /** 当前实际使用的引擎描述：写进日志与战斗记录，避免测试结果对不上来源。 */
     public static String describe() {
         return isConfigured() ? "sts_lightspeed(" + enginePath + ")" : "local";
@@ -119,8 +121,8 @@ public final class EngineBridge {
     }
 
     /**
-     * 战斗开始时存档是异步写盘的：如果拿到的是旧文件，等它更新。
-     * 最多等 2.5 秒，之后仍返回当前能找到的文件。
+     * 战斗开始时存档是异步写盘的：等待最多 2.5 秒，只返回达到新鲜度门槛的文件。
+     * 超时或线程中断时拒绝旧存档，不再把上一次战斗的存档当成本场输入。
      */
     public static java.io.File freshAutosave(long notOlderThanMillis) {
         long deadline = System.currentTimeMillis() + 2500L;
@@ -134,10 +136,12 @@ public final class EngineBridge {
                 Thread.sleep(120L);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return best;
+                return best != null && best.lastModified() >= notOlderThanMillis ? best : null;
             }
         }
-        return best;
+        if (best != null && best.lastModified() >= notOlderThanMillis) return best;
+        CombatLog.info("no fresh autosave for this battle; stale save rejected");
+        return null;
     }
 
     /** 复制存档到临时路径，供引擎读取（避免与游戏写入冲突）。 */
@@ -168,7 +172,7 @@ public final class EngineBridge {
      * 引擎就会用同一套 RNG 重新生成这一场遭遇（已验证能对上实机）。
      *
      * @param roomClassName 实机房间类名，例如 com.megacrit.cardcrawl.rooms.MonsterRoom
-     * @return 战斗起点存档路径；失败时退回原始存档路径
+     * @return 转换后的战斗起点存档路径；转换失败返回 null，调用方不得静默使用其他存档
      */
     public static String prepareCombatSave(java.io.File autosave, String roomClassName,
                                            java.io.File tempDir) {
@@ -181,17 +185,17 @@ public final class EngineBridge {
         }
         try {
             if (tempDir != null && !tempDir.isDirectory() && !tempDir.mkdirs()) {
-                return staged;
+                return null;
             }
             File rawJson = new File(tempDir, "save-dump.json");
             if (!runSimple("json", staged, rawJson.getAbsolutePath())) {
-                return staged;
+                return null;
             }
             String text = new String(java.nio.file.Files.readAllBytes(rawJson.toPath()),
                     java.nio.charset.StandardCharsets.UTF_8);
             String patched = patchRoomType(text, roomClassName);
             if (patched == null) {
-                return staged;
+                return null;
             }
             File patchedJson = new File(tempDir, "save-patched.json");
             java.nio.file.Files.write(patchedJson.toPath(),
@@ -199,13 +203,13 @@ public final class EngineBridge {
             File combatSave = new File(tempDir, "engine-in.save");
             if (!runSimple("json_to_save", patchedJson.getAbsolutePath(),
                     combatSave.getAbsolutePath())) {
-                return staged;
+                return null;
             }
             CombatLog.info("engine combat save prepared for " + roomClassName);
             return combatSave.getAbsolutePath();
         } catch (Throwable t) {
             CombatLog.error("prepare combat save failed", t);
-            return staged;
+            return null;
         }
     }
 
@@ -449,6 +453,14 @@ public final class EngineBridge {
 
     /** 把动作日志写入桥目录，返回文件路径。 */
     public static String writeJournal(Iterable<String> actionHex) {
+        if (BattleArtifacts.isActive(BattleArtifacts.currentId())) {
+            if (BattleArtifacts.replaceJournal(actionHex)) {
+                File file = new File(BattleArtifacts.sessionDirectory(), "actions.journal");
+                return file.getAbsolutePath();
+            }
+            CombatLog.info("write journal failed: battle artifact journal could not be updated");
+            return null;
+        }
         try {
             java.io.File dir = workDirectory();
             if (!dir.isDirectory() && !dir.mkdirs()) {

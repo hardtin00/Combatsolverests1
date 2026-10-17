@@ -585,20 +585,49 @@ public class CombatController {
         engineFetching = true;
         final long since = System.currentTimeMillis() - 3000L;
         final String roomClassName = battleRoomClassName;
+        final String artifactId = CombatRecorder.currentBattleId();
         Thread worker = new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    File save = EngineBridge.freshAutosave(since);
-                    String staged = EngineBridge.prepareCombatSave(save, roomClassName,
-                            EngineBridge.workDirectory());
-                    if (staged == null) {
-                        engineNote = "找不到存档";
+                    if (!BattleArtifacts.isActive(artifactId)) {
+                        engineNote = "本场证据归档不可用，拒绝使用未配对存档";
                         return;
                     }
-                    battleStartSave = staged;
+                    File save = EngineBridge.freshAutosave(since);
+                    if (save == null) {
+                        BattleArtifacts.captureAutosave(artifactId, null, since);
+                        BattleArtifacts.enginePreparationFailed(artifactId, "No fresh autosave found; stale autosave was not used.");
+                        engineNote = "未找到本场新自动存档，已拒绝旧存档";
+                        return;
+                    }
+                    File archivedSave = BattleArtifacts.captureAutosave(artifactId, save, since);
+                    if (archivedSave == null) {
+                        BattleArtifacts.enginePreparationFailed(artifactId, "Could not archive the current battle autosave.");
+                        engineNote = "本场原始存档归档失败，已停止外部引擎调用";
+                        return;
+                    }
+                    File engineDir = BattleArtifacts.engineDirectory(artifactId);
+                    if (engineDir == null) {
+                        BattleArtifacts.enginePreparationFailed(artifactId, "Could not create per-battle engine directory.");
+                        engineNote = "本场引擎工作目录创建失败";
+                        return;
+                    }
+                    // Build the engine input from the archived byte-for-byte source copy so the
+                    // manifest hash always identifies the exact save used for initialization.
+                    String staged = EngineBridge.prepareCombatSave(archivedSave, roomClassName, engineDir);
+                    if (staged == null) {
+                        BattleArtifacts.enginePreparationFailed(artifactId, "Engine combat save preparation failed.");
+                        engineNote = "本场存档无法转换为引擎战斗起点";
+                        return;
+                    }
+                    BattleArtifacts.recordEnginePreparation(artifactId, new File(staged), EngineBridge.describe(),
+                            EngineBridge.engineExecutable());
+                    if (!BattleArtifacts.isActive(artifactId) || id != battleId) return;
                     EngineBridge.Fetch fetch = EngineBridge.fetchPlan(staged,
                             settings.engineSimulations());
+                    if (!BattleArtifacts.isActive(artifactId) || id != battleId) return;
+                    battleStartSave = staged;
                     if (fetch != null && fetch.plan != null) {
                         fetch.plan.source = "engine";
                         pendingEngineFetch = fetch;
@@ -611,6 +640,17 @@ public class CombatController {
                     if (id != battleId) {
                         pendingEngineFetch = null;
                     }
+                } catch (Throwable t) {
+                    String reason = "Unexpected battle artifact or engine preparation failure: " + t;
+                    try {
+                        BattleArtifacts.enginePreparationFailed(artifactId, reason);
+                    } catch (Throwable reportFailure) {
+                        t.addSuppressed(reportFailure);
+                    }
+                    if (id == battleId) {
+                        engineNote = "本场采集或引擎准备异常：" + t;
+                    }
+                    CombatLog.error("battle artifact or engine preparation failed", t);
                 } finally {
                     engineFetching = false;
                 }

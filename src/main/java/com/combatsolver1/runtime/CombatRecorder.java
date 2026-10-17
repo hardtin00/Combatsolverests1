@@ -47,6 +47,7 @@ public final class CombatRecorder {
     private static boolean rootPending = true;
     private static long battleSequence;
     private static final TurnTransitionTracker turnTracker = new TurnTransitionTracker();
+    private static String artifactFailure = "";
 
     public static void setEnabled(boolean value) {
         enabled = value;
@@ -57,7 +58,14 @@ public final class CombatRecorder {
         if (!enabled) return;
         closeWriter();
         battleSequence++;
-        battleKey = "battle-" + battleSequence;
+        try {
+            battleKey = BattleArtifacts.begin();
+            artifactFailure = "";
+        } catch (Throwable t) {
+            battleKey = "unarchived-battle-" + battleSequence;
+            artifactFailure = t.toString();
+            CombatLog.error("battle evidence directory could not be created", t);
+        }
         rootPending = true;
         pendingCardId = null;
         pre = null;
@@ -68,8 +76,13 @@ public final class CombatRecorder {
 
     /** 当前记录文件路径（供面板 / 日志显示）。 */
     public static String currentPath() {
-        return file == null ? "(未开始记录)" : file.getAbsolutePath();
+        if (file != null) return file.getAbsolutePath();
+        File pending = BattleArtifacts.jsonlFile();
+        return pending == null ? "(未开始记录)" : pending.getAbsolutePath();
     }
+
+    public static String currentBattleId() { return BattleArtifacts.currentId(); }
+    public static String artifactFailure() { return artifactFailure; }
 
     /** 出牌瞬间：记下出牌前的稳定状态。 */
     public static void onCardUsed(String cardId, int cost, int damage, int block, int targetIndex) {
@@ -164,6 +177,7 @@ public final class CombatRecorder {
         lastState = null;
         turnTracker.reset();
         closeWriter();
+        BattleArtifacts.finish();
     }
 
     private static void writeCard(SimState post, boolean paired, String reason) throws Exception {
@@ -179,6 +193,7 @@ public final class CombatRecorder {
 
     private static void ensureRoot(SimState state) throws Exception {
         if (!rootPending) return;
+        BattleArtifacts.rootCaptured("first-player-action-boundary-before-action-resolution");
         writeLine("{\"type\":\"root\",\"battleKey\":\"" + esc(battleKey)
                 + "\",\"engine\":\"" + esc(EngineBridge.describe())
                 + "\",\"state\":" + stateJson(state) + "}");
@@ -255,12 +270,13 @@ public final class CombatRecorder {
 
     private static void writeLine(String line) throws Exception {
         if (writer == null) {
-            File dir = new File(System.getProperty("user.home", "."), ".combatsolver1/recordings");
-            if (!dir.isDirectory() && !dir.mkdirs()) {
-                return;
+            file = BattleArtifacts.jsonlFile();
+            if (file == null) {
+                File dir = new File(System.getProperty("user.home", "."), ".combatsolver1/recordings");
+                if (!dir.isDirectory() && !dir.mkdirs()) throw new java.io.IOException("Cannot create recording directory: " + dir);
+                String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(new Date());
+                file = new File(dir, "combat-unarchived-" + stamp + ".jsonl");
             }
-            String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(new Date());
-            file = new File(dir, "combat-" + stamp + ".jsonl");
             writer = new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8);
         }
         writer.write(line);

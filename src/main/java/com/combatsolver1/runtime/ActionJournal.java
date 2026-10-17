@@ -49,6 +49,9 @@ public final class ActionJournal {
     private void record(String hex) {
         if (!dirty) {
             actions.add(hex);
+            if (!BattleArtifacts.appendAction(hex)) {
+                markDirty("动作日志写入本场归档失败");
+            }
         }
     }
 
@@ -57,6 +60,7 @@ public final class ActionJournal {
         if (!dirty) {
             dirty = true;
             dirtyReason = reason;
+            BattleArtifacts.markJournalDirty(reason);
             CombatLog.info("journal dirty: " + reason);
         }
     }

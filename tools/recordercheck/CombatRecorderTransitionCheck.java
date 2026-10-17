@@ -1,6 +1,9 @@
 package com.combatsolver1.runtime;
 
 import com.combatsolver1.engine.SimState;
+import com.evacipated.cardcrawl.modthespire.lib.SpirePatch;
+import com.evacipated.cardcrawl.modthespire.lib.SpirePrefixPatch;
+import com.megacrit.cardcrawl.actions.GameActionManager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,6 +45,7 @@ public final class CombatRecorderTransitionCheck {
     }
 
     public static void main(String[] args) {
+        nativeEndTurnBoundary();
         CombatRecorder.TurnTransitionTracker tracker = new CombatRecorder.TurnTransitionTracker();
         List<String> timeline = new ArrayList<String>();
 
@@ -116,7 +120,109 @@ public final class CombatRecorderTransitionCheck {
         tracker.reset();
         check(tracker.observe(state(5, 47, 3, new String[0], new String[0], new String[0])) == null,
                 "battle reset retained an old transition");
-        System.out.println("CombatRecorder transition regression passed: immediate-end, retained-hand, discard/draw, consecutive-turn, ordered-chain.");
+        System.out.println("CombatRecorder transition regression passed: native Burn/Metallicize/Juggernaut boundary, immediate-end, retained-hand, discard/draw, consecutive-turn, ordered-chain.");
+    }
+
+    private static void nativeEndTurnBoundary() {
+        SpirePatch target = GameActionManagerEndTurnRecorderPatch.class.getAnnotation(SpirePatch.class);
+        check(target != null && target.clz() == GameActionManager.class
+                        && "callEndOfTurnActions".equals(target.method()),
+                "recorder hook must run at GameActionManager.callEndOfTurnActions, before native end-turn effects");
+        boolean prefixFound = false;
+        for (java.lang.reflect.Method method : GameActionManagerEndTurnRecorderPatch.class.getDeclaredMethods()) {
+            if (method.getAnnotation(SpirePrefixPatch.class) != null
+                    && method.getParameterTypes().length == 1
+                    && method.getParameterTypes()[0] == GameActionManager.class) {
+                prefixFound = true;
+            }
+        }
+        check(prefixFound, "native queue boundary prefix signature is not registered");
+        try {
+            GameActionManager.class.getDeclaredMethod("callEndOfTurnActions");
+        } catch (NoSuchMethodException e) {
+            throw new AssertionError("game runtime has no callEndOfTurnActions hook", e);
+        }
+
+        // Reproduce the observed native order: snapshot at the null-card end-turn queue item,
+        // then Burn plays, end-turn powers trigger, room cleanup discards hand, and next turn starts.
+        CombatRecorder.TurnTransitionTracker tracker = new CombatRecorder.TurnTransitionTracker();
+        SimState cardPost = state(6, 2, 0,
+                new String[] {"Burn", "Defend_R", "Strike_R"}, new String[] {"Uppercut", "Strike_R"},
+                new String[] {"Shrug It Off", "Strike_R"});
+        cardPost.block = 8;
+        cardPost.pMetallicize = 3;
+        cardPost.pJuggernaut = 5;
+        SimState.Mob hexaghost = new SimState.Mob("Hexaghost", "六火亡魂", 141, 264, 0, 6, 2, 3, true);
+        cardPost.mobs.add(hexaghost);
+
+        // This is the state the new prefix captures before callEndOfTurnActions mutates anything.
+        tracker.turnEnding(cardPost.fork());
+        SimState nativeState = cardPost.fork();
+        nativeState.block += nativeState.pMetallicize; // Metallicize runs before end-turn cards.
+        nativeState.mobs.get(0).hp -= nativeState.pJuggernaut; // Its gained block triggers Juggernaut.
+        removeCard(nativeState.hand, "Burn");
+        nativeState.discardPile.add(card("Burn"));
+        nativeState.block = Math.max(0, nativeState.block - 2); // Burn's 2 damage is absorbed by block.
+
+        // AbstractRoom.endTurn/DiscardAtEndOfTurnAction: remaining hand is discarded and block expires.
+        for (SimState.Card c : nativeState.hand) nativeState.discardPile.add(c.copy());
+        nativeState.hand.clear();
+        nativeState.block = 0;
+        nativeState.turn = 7;
+        nativeState.energy = 3;
+        nativeState.hand.add(card("Uppercut"));
+        nativeState.hand.add(card("Strike_R"));
+        CombatRecorder.TurnTransitionTracker.EndTurn end = tracker.observe(nativeState);
+        check(end == null, "transition was emitted before two stable next-turn frames");
+        end = tracker.observe(nativeState.fork());
+        check(end != null, "native end-turn sequence did not produce a transition");
+        check(cardPost.signature().equals(end.pre.signature()),
+                "endTurn.pre does not connect to the completed final-card post");
+        check(end.post.block == 0 && end.post.turn == 7 && end.post.energy == 3,
+                "endTurn.post missed native turn-start cleanup");
+        check(end.post.mobs.get(0).hp == 136,
+                "endTurn.post missed Juggernaut damage triggered by Metallicize");
+        check(ids(end.post.discardPile).equals(Arrays.asList("Shrug It Off", "Strike_R", "Burn", "Defend_R", "Strike_R")),
+                "Burn and remaining hand were not represented in endTurn.post discard pile");
+
+        // The first observed break had Burn alone: it spent exactly two existing block before room cleanup.
+        tracker.reset();
+        SimState burnOnlyPost = state(5, 2, 0,
+                new String[] {"Strike_R", "Defend_R", "Burn"}, new String[] {"NewDraw"},
+                new String[] {"OldDiscard"});
+        burnOnlyPost.block = 13;
+        burnOnlyPost.pJuggernaut = 5;
+        burnOnlyPost.mobs.add(new SimState.Mob("Hexaghost", "六火亡魂", 158, 264, 0, 6, 1, 0, true));
+        tracker.turnEnding(burnOnlyPost.fork());
+        SimState burnOnlyNative = burnOnlyPost.fork();
+        removeCard(burnOnlyNative.hand, "Burn");
+        burnOnlyNative.discardPile.add(card("Burn"));
+        burnOnlyNative.block -= 2;
+        check(burnOnlyNative.block == 11 && burnOnlyNative.mobs.get(0).hp == 158,
+                "Burn-only boundary did not reproduce block 13->11 with unchanged Hexaghost HP");
+        for (SimState.Card c : burnOnlyNative.hand) burnOnlyNative.discardPile.add(c.copy());
+        burnOnlyNative.hand.clear();
+        burnOnlyNative.block = 0;
+        burnOnlyNative.turn = 6;
+        burnOnlyNative.energy = 3;
+        burnOnlyNative.hand.add(card("NewDraw"));
+        tracker.observe(burnOnlyNative);
+        CombatRecorder.TurnTransitionTracker.EndTurn burnOnly = tracker.observe(burnOnlyNative.fork());
+        check(burnOnly != null && burnOnlyPost.signature().equals(burnOnly.pre.signature()),
+                "Burn-only endTurn did not preserve the previous card post as its pre state");
+        check(burnOnly.post.mobs.get(0).hp == 158
+                        && ids(burnOnly.post.discardPile).equals(Arrays.asList("OldDiscard", "Burn", "Strike_R", "Defend_R")),
+                "Burn-only native cleanup was not included in endTurn.post");
+    }
+
+    private static void removeCard(List<SimState.Card> cards, String id) {
+        for (int i = 0; i < cards.size(); i++) {
+            if (id.equals(cards.get(i).id)) {
+                cards.remove(i);
+                return;
+            }
+        }
+        throw new AssertionError("missing native card " + id);
     }
 
     private static List<String> ids(List<SimState.Card> cards) {

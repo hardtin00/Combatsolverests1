@@ -119,7 +119,7 @@ public final class CombatRecorder {
         pendingTarget = targetIndex;
     }
 
-    /** Called as soon as the game marks the player turn ended, before its action queue settles. */
+    /** Called before GameActionManager runs native end-of-turn triggers and queues their actions. */
     public static void onTurnEnding() {
         if (!enabled) return;
         // Ignore the startup transition. A root is captured only once the player can act.

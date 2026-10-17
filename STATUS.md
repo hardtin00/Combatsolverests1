@@ -4,7 +4,8 @@
 - 原版 `AbstractPlayer.damage()` 在致死时置 `isDead` 并创建 `DeathScreen`，不会调用 `AbstractRoom.endBattle()`；后者会调用 `AbstractPlayer.onVictory()`。BaseMod `AbstractRoom.EndBattleHook` 发布 `PostBattleSubscriber`，而 `DeathScreen.PostDeathHook` 构造后发布 `PostDeathSubscriber`。Mod 之前只订阅 PostBattle，死亡遗漏封存回调。
 - 新增死亡回调并把胜利、死亡、离开 dungeon/被新战斗替换分别记为 `victory`、`death`、`interrupted`。关闭入口幂等；未稳定结算的末张牌只在 manifest 标为 `unpaired-no-stable-post`、journal 标脏并保留原文件，不生成虚构 post；封存时按最后写入内容刷新 JSONL/journal 哈希。
 - 离线回归覆盖死亡/胜利/中断、重复关闭、延迟存档关闭、保留此前配对动作、未结算末动作不造 post、哈希刷新。命令：Java 21 JBR `javac --release 8 ... BattleArtifacts.java BattleArtifactsCheck.java` 与 `java -cp build/death-archive-check com.combatsolver1.runtime.BattleArtifactsCheck` 退出 0；完整 Mod 源码加 `CombatRecorderTransitionCheck` 编译（`--release 8 -proc:none`）并运行退出 0，保留既有 endTurn 边界回归。
-- 当前证据 L2；完成完整 Mod 构建和 JAR 部署后补录指纹。没有启动游戏或新增实机样本，不宣称 L3/L4；强制结束进程时游戏不会保证执行任何 Java 回调，manifest 可能继续保持 open。
+- 完整部署命令 `powershell -ExecutionPolicy Bypass -File tools/build/build-release.ps1 -Deploy` 退出 0；Java 8 字节码 major=52、85 个 JAR 条目通过。构建与部署路径分别为 `build/libs/CombatSolver1.jar` 与 `C:/Program Files (x86)/Steam/steamapps/common/SlayTheSpire/mods/CombatSolver1.jar`，SHA-256 均为 `D08BC7590A04A4727E60D99E7A9215E89C3CA7C185336FFE9E804C7B2821BE63`。部署包确认包含 `CombatSolver1Mod`、`CombatRecorder` 和 `BattleArtifacts`，含 death/victory/interrupted 与未配对末动作标记。
+- 源码提交 `ff15154a21587d77676c4671565284e3c09ecef6` 已推送，远程 `origin/main` 同 SHA。当前证据 L2；没有启动游戏或新增实机样本，不宣称 L3/L4；强制结束进程时游戏不会保证执行任何 Java 回调，manifest 可能继续保持 open。
 
 ## 2026-10-18：AscendersBane 费用哨兵差异审计
 

@@ -41,6 +41,11 @@ public final class ActionJournal {
         record(bits(TYPE_END_TURN, 0, 0));
     }
 
+    public void recordSelection(com.combatsolver1.search.Plan.Action action) {
+        if (!action.isSelect() || action.selectBits == null) throw new IllegalArgumentException("missing selection bits");
+        record(action.selectBits);
+    }
+
     private void record(String hex) {
         if (!dirty) {
             actions.add(hex);

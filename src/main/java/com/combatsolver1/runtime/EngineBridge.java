@@ -387,15 +387,19 @@ public final class EngineBridge {
                     if (current == null) {
                         current = new Plan.Turn();
                     }
-                    Plan.Action a = new Plan.Action("SELECT", "选择卡牌", -1, 0);
-                    a.kind = Plan.Action.KIND_SELECT;
-                    a.colorIndex = 5;
-                    a.selectIndex = intField(s, "idx=", -1);
+                    Plan.Action a = com.combatsolver1.search.ChoiceProtocol.parse(s);
                     current.actions.add(a);
                     continue;
                 }
             }
-            p.waitFor();
+            int exitCode = p.waitFor();
+            // Reject partial output from a crash, timeout or invalid replay.
+            if (exitCode != 0 || !finished || fetch.replayInvalid
+                    || (journalPath != null && fetch.replayActions < 0)) {
+                CombatLog.info("engine result rejected: exit=" + exitCode
+                        + " complete=" + finished + " replayInvalid=" + fetch.replayInvalid);
+                return null;
+            }
             if (current != null) {
                 if (current.turnNumber == 0) {
                     current.turnNumber = lastTurnNumber + 1;
@@ -501,8 +505,11 @@ public final class EngineBridge {
         }
         int i = at + key.length();
         int start = i;
-        while (i < line.length() && !Character.isWhitespace(line.charAt(i))) {
-            i++;
+        if (key.endsWith("[")) {
+            while (i < line.length() && line.charAt(i) != ']') i++;
+            if (i < line.length()) i++;
+        } else {
+            while (i < line.length() && !Character.isWhitespace(line.charAt(i))) i++;
         }
         return i > start ? line.substring(start, i) : null;
     }

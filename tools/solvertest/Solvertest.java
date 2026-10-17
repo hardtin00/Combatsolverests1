@@ -26,6 +26,9 @@ public final class Solvertest {
     private static final String DEFAULT_RECORDING =
             "tools/solvertest/fixtures/recordings/sample.jsonl";
 
+    /** 真实对局语料目录：如实报告差异用于长期跟踪，但不作为“必须全绿”的门禁。 */
+    private static final String CORPUS_DIR = "tools/solvertest/fixtures/corpus";
+
     public static void main(String[] args) throws Exception {
         String command = args.length > 0 ? args[0] : "all";
 
@@ -71,6 +74,7 @@ public final class Solvertest {
 
         int code = Checks.failures() == 0 ? 0 : 1;
         if (all) {
+            RecordValidationChecks.run();
             File fixture = new File(args.length > 1 ? args[1] : DEFAULT_RECORDING);
             // 重放 fixtures 目录里的全部记录：把真实对局记录（脱敏后）直接放进去即可纳入回归
             File dir = fixture.getParentFile();
@@ -92,8 +96,50 @@ public final class Solvertest {
                     code = diffCode;
                 }
             }
+            runCorpus();
         }
         System.exit(code);
+    }
+
+    /**
+     * 真实对局语料的“体检”：逐份重放并汇总字段匹配率。
+     *
+     * 与 fixtures/recordings 的区别是**不判失败**——真实战斗里必然存在已知的精度差距
+     * （未复制游戏真实 RNG、部分近似机制），把它们当门禁只会让 CI 长期变红、失去意义。
+     * 这里要的是**可追踪的数字**：改动前后匹配率是升了还是降了。
+     */
+    private static void runCorpus() throws Exception {
+        File dir = new File(CORPUS_DIR);
+        File[] files = dir.listFiles();
+        if (files == null || files.length == 0) {
+            return;
+        }
+        System.out.println();
+        System.out.println("== 真实对局语料体检（不判失败，只看数字）==");
+        int actions = 0;
+        int matched = 0;
+        int total = 0;
+        int bad = 0;
+        int dataIssues = 0;
+        for (File file : files) {
+            if (!file.isFile() || !file.getName().endsWith(".jsonl")) {
+                continue;
+            }
+            DiffRunner.Result result = DiffRunner.run(file.getPath());
+            actions += result.actions;
+            matched += result.matchedFields;
+            total += result.totalFields;
+            bad += result.badActions;
+            dataIssues += result.dataIssues;
+            System.out.println("  " + file.getName() + "：动作 " + result.actions
+                    + "，字段 " + result.matchedFields + "/" + result.totalFields
+                    + "，有差异 " + result.badActions
+                    + (result.dataIssues > 0 ? "，记录自相矛盾 " + result.dataIssues : ""));
+        }
+        int rate = total == 0 ? 0 : (int) Math.round(matched * 100.0 / total);
+        System.out.println("  合计：动作 " + actions + "，字段匹配 " + matched + "/" + total
+                + "（" + rate + "%），有差异 " + bad
+                + (dataIssues > 0 ? "，记录自相矛盾 " + dataIssues : ""));
     }
 
     private static int runDiff(String path) throws Exception {
@@ -110,11 +156,12 @@ public final class Solvertest {
         System.out.println("动作 " + result.actions + " 条，字段匹配 "
                 + result.matchedFields + "/" + result.totalFields
                 + "，存在差异的动作 " + result.badActions + " 条");
+        System.out.println("记录问题 " + result.dataIssues + "，跳过 " + result.skipped);
         if (result.actions == 0) {
             System.out.println("提示：记录里没有可重放的动作。");
             return 2;
         }
-        return result.badActions == 0 ? 0 : 1;
+        return result.badActions == 0 && result.dataIssues == 0 && result.skipped == 0 ? 0 : 1;
     }
 
     private static void printSummary() {

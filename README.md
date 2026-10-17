@@ -160,6 +160,26 @@ combatsolver1/
 
 ## 构建
 
+### 复用外部战斗引擎（2026-10-17）
+
+项目现已包含本机原有 `sts_lightspeed` 的最小源码快照，见
+[来源与修改记录](vendor/sts_lightspeed/PROVENANCE.md)。它保留既有战斗规则和搜索，
+无需重新实现 Java 规则，也不需要 Python、训练或在线下载。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/build/build-engine.ps1
+# MinGW 不在 PATH 时，传入 -Compiler <g++.exe>；可用 -CMake 和 -Ninja 指定工具。
+```
+
+默认只用 2 个编译任务，后续增量编译；生成 `build/engine/combatsolver1-engine.exe`
+及 `engine-info.txt`（协议版本、文件指纹）。脚本会打印 `engine.path` 设置值。
+此脚本不修改游戏安装或用户设置；切换前保留原来的引擎路径。
+
+该快照已修改过，不等于未经修改的上游版本；导入前文件指纹和 MIT 许可随源码保留。
+当前命令入口按铁甲读取存档，不能据此宣称其他职业支持。
+构建仍有继承源码的位移越界警告，需继续审计；通过构建和回放不代表实机精度验收。
+Java 桥现在拒绝非正常退出、缺少 PLANEND、无效回放及缺少 REPLAY_OK 的回放结果。
+
 **完整 Mod 构建（推荐）**：在装有游戏的机器上运行
 
 ```powershell

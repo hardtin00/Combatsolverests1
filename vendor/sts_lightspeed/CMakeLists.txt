@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.19)
+project(combatsolver1_engine LANGUAGES CXX)
+# Build only the existing CLI engine; no Python, training, downloads or bindings.
+file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+add_executable(combatsolver1-engine apps/test.cpp ${ENGINE_SOURCES})
+target_compile_features(combatsolver1-engine PRIVATE cxx_std_17)
+target_include_directories(combatsolver1-engine PRIVATE include json/single_include)
+if(MINGW)
+    target_link_options(combatsolver1-engine PRIVATE -static -static-libgcc -static-libstdc++)
+endif()

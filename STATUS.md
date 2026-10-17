@@ -1,5 +1,29 @@
 # 项目现状与后续工作
 
+## 2026-10-18：采用开发规约并同步当前工作快照
+
+- 用户明确授权：原样复制 Downloads/AGENTS.md 到仓库根目录，并提交、推送当前本地项目。该文件成为后续开发流程与验收规则；复制前后 SHA-256 均为 `3F480F8A6FF7DA3EB0B3E3F63F98B66160FCD580FB7EB2E75F408B349E5ED656`。
+- 当前快照包含上一批引擎复用，以及尚在开发的选择协议 v2、选择日志编码、`replay_trace` 连续回放输出。**原生选牌执行尚未接入（L0），不能称选牌功能已完成**；v2 协议及连续回放未完成专项回归，只有本次编译证据。
+- 固定守护者样本发现：实机根能量 5，引擎原先恢复为 3。游戏字节码 `AncientTeaSet.atTurnStart` 显示 counter=-2 时首回合增加 2 能量；已据此调整外部引擎恢复条件。此修复本次只编译，未完成样本重放验收（L1）。起点核对仍需取消跳过能量的旧行为。
+- 同步前实际执行：`powershell -ExecutionPolicy Bypass -File tools/solvertest/run.ps1`，退出 0；证据 `build/sync-solvertest.log`。现有三个记录 fixture 与记录问题回归通过（L2）；corpus 的 70 动作仍有 48 个差异动作，属于诊断输出，不作为通过门禁。
+- 外部引擎执行 `tools/build/build-engine.ps1`，使用本机 CMake、MinGW 与 Ninja（具体参数见下方），退出 0；证据 `build/sync-engine.log`、`build/engine/engine-info.txt`。继承源码的位移越界警告仍存在。
+- 完整 Java 源码执行 `javac --release 8 -encoding UTF-8 -proc:none -cp <desktop-1.0.jar;ModTheSpire.jar;BaseMod.jar> -d build/mod-sync-check <src/main/java 全部 .java>`，退出 0；证据 `build/sync-mod.log`。**仅编译，未启动游戏，不满足 L3**。
+- 引擎构建的实际调用：`powershell -ExecutionPolicy Bypass -File tools/build/build-engine.ps1 -CMake "C:/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe" -Compiler "C:/Users/3476/Documents/Codex/2026-10-15/jie/work/mingw64/mingw64/bin/g++.exe" -Ninja "C:/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe"`。
+- 本次未部署、未启动游戏、未做 L4/L5；未声称连续整场一致或选择自动执行通过。用户尚未验收这些开发中功能。日志/构建产物位于忽略的 build/，不随源码上传。
+- 下一项：完成固定样本的根状态与连续动作回归。继续遵守“不扩展 Java 规则表、不引入第二求解器”的约束；当前任务以规约入库与同步为止。
+
+## 2026-10-17：复用已有外部引擎的第一批落地
+
+- 已将本机既有、带 CombatSolver1 输出协议的 sts_lightspeed 最小源码快照纳入 vendor/，保留 MIT 许可及导入前文件 SHA-256。提取目录没有上游提交信息，因此明确标为本地修改快照。
+- 添加独立 CMake/PowerShell 构建入口，只构建 CLI，默认 2 路编译，支持增量编译；无 Python、训练或下载依赖。MinGW 生成静态运行库链接的 exe，并写协议与文件指纹。
+- 外部引擎异常退出、输出缺少 PLANEND、回放失败或缺少 REPLAY_OK 时，Java 桥拒绝结果，避免部署残缺路线。
+- 补上本地 corpus 测试所需的 dataIssues 分类：无法解析及动作与 pre 不一致的记录不计入模拟字段误差；严格 diff 对数据问题/跳过返回失败。新增负面输入回归。
+- 本次验证：完整 Java Mod 按 Java 8 目标编译通过；离线自检及 3 个 fixture 通过；实际新引擎完成 100 次迭代的起点搜索和 3 动作回放；Java 桥对有效输出与无效回放的集成检查通过。
+- 当前本地 corpus 为 70 动作，字段匹配 668/793（约 84%），48 个动作存在差异。仅描述该语料和现有单步比较器，不是整场准确率或外部引擎胜率。
+- 未修改用户引擎设置、未部署到游戏、未进行可见游戏内验收。既有引擎入口按铁甲读取存档；继承源码存在位移越界编译警告，后续需审计。选牌/其他职业未因本批改动自动获得支持。
+
+下一批优先：在固定实机样本下验证根状态与连续动作一致性，完成选牌协议及原生执行；在此之前不扩大内置 Java 规则表或引入第二套求解器。
+
 最后更新：2026-10-17（Void 抽牌触发效果补全）
 
 ## 当前验证状态（v0.3.0 后）

@@ -27,6 +27,8 @@ public final class DiffRunner {
         public int totalFields;
         public int badActions;
         public int skipped;
+        /** Invalid input records, excluded from simulation accuracy totals. */
+        public int dataIssues;
         public final List<String> report = new ArrayList<String>();
     }
 
@@ -49,13 +51,14 @@ public final class DiffRunner {
                     parsed = Json.parse(line);
                 } catch (RuntimeException e) {
                     result.report.add("第 " + lineNo + " 行解析失败：" + e.getMessage());
-                    result.badActions++;
+                    result.dataIssues++;
                     continue;
                 }
                 Map<String, Object> record = Json.asMap(parsed);
                 String type = Json.str(record, "type", "?");
                 if ("card".equals(type) && !Json.bool(record, "paired", true)) {
                     result.report.add("第 " + lineNo + " 行：记录器未能稳定配对，跳过比对（不影响其它条目）");
+                    result.skipped++;
                     continue;
                 }
                 if ("root".equals(type)) {
@@ -68,6 +71,11 @@ public final class DiffRunner {
                 result.actions++;
                 List<String> issues = new ArrayList<String>();
                 int matched = compareRecord(record, issues);
+                if (matched < 0) {
+                    result.dataIssues++;
+                    result.report.add("第 " + lineNo + " 行：" + issues.get(0));
+                    continue;
+                }
                 if (issues.isEmpty()) {
                     result.matchedFields += 10 + mobCount(record);
                     result.totalFields += 10 + mobCount(record);
@@ -105,7 +113,7 @@ public final class DiffRunner {
                 issues.add("记录自相矛盾：出牌记录 " + Json.str(cardJson, "id", "?")
                         + " damage=" + Json.num(cardJson, "damage", -1)
                         + "，而 pre 快照里同名牌是 " + handSummary(preJson, Json.str(cardJson, "id", "?")));
-                return 0;
+                return -1;
             }
         } else {
             CombatEngine.endTurn(sim);

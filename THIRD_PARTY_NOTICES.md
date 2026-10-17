@@ -44,3 +44,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+# Vendored combat engine
+
+`vendor/sts_lightspeed` contains a locally modified snapshot of
+[gamerpuppy/sts_lightspeed](https://github.com/gamerpuppy/sts_lightspeed),
+Copyright (c) 2021 gamerpuppy, under the MIT License. Full license:
+`vendor/sts_lightspeed/LICENSE.md`. Import provenance and file fingerprints:
+`vendor/sts_lightspeed/PROVENANCE.md` and `IMPORT_SHA256.txt`.
+
+The bundled nlohmann/json headers are Copyright (c) 2013-2026 Niels Lohmann,
+MIT licensed; see `vendor/sts_lightspeed/json/LICENSE.MIT` and header notices.

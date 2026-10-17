@@ -92,6 +92,107 @@ static void printStateLine(std::ostream &os, const BattleContext &bc, const char
     os << '\n';
 }
 
+// Detailed read-only root diagnostics for pairing a real combat root with the
+// save-derived engine initialization state. Kept separate from STATE0 so Java
+// protocol consumers continue to parse the compact line unchanged.
+template <typename Pile>
+static void printCardIds(std::ostream &os, const Pile &pile) {
+    os << '[';
+    for (int i = 0; i < static_cast<int>(pile.size()); ++i) {
+        if (i) os << ',';
+        os << cardIdJson(pile[i].id);
+    }
+    os << ']';
+}
+
+static void printRootDetails(std::ostream &os, const GameContext &gc, const BattleContext &bc) {
+    os << "TRACE0_DETAIL piles.draw=";
+    printCardIds(os, bc.cards.drawPile);
+    os << " piles.discard=";
+    printCardIds(os, bc.cards.discardPile);
+    os << " piles.exhaust=";
+    printCardIds(os, bc.cards.exhaustPile);
+    os << " relics=[";
+    for (int i = 0; i < gc.relics.size(); ++i) {
+        if (i) os << ',';
+        os << relicNames[static_cast<int>(gc.relics.relics[i].id)];
+    }
+    os << "] potions=[";
+    for (int i = 0; i < bc.potionCount; ++i) {
+        if (i) os << ',';
+        os << potionToJsonString(bc.potions[i]);
+    }
+    os << "] handDamage=[";
+    for (int i = 0; i < bc.cards.cardsInHand; ++i) {
+        if (i) os << ',';
+        const auto &instance = bc.cards.hand[i];
+        Card card(instance.id, instance.upgraded);
+        const int damage = card.getType() == CardType::ATTACK
+                ? bc.calculateCardDamage(instance, 0, card.getBaseDamage()) : 0;
+        os << cardIdJson(instance.id) << ':' << damage << ':'
+           << static_cast<int>(instance.costForTurn);
+    }
+    os << "] energyPerTurn=" << static_cast<int>(bc.player.energyPerTurn)
+       << " cardDrawPerTurn=" << static_cast<int>(bc.player.cardDrawPerTurn)
+       << " cardsInHand=" << bc.cards.cardsInHand
+       << " playerStatus={vuln:" << bc.player.getStatus<PS::VULNERABLE>()
+       << ",weak:" << bc.player.getStatus<PS::WEAK>()
+       << ",frail:" << bc.player.getStatus<PS::FRAIL>()
+       << ",entangled:" << bc.player.getStatus<PS::ENTANGLED>()
+       << ",intangible:" << bc.player.getStatus<PS::INTANGIBLE>()
+       << ",artifact:" << bc.player.getStatus<PS::ARTIFACT>()
+       << ",constricted:" << bc.player.getStatus<PS::CONSTRICTED>()
+       << ",platedArmor:" << bc.player.getStatus<PS::PLATED_ARMOR>()
+       << ",noBlock:" << bc.player.getStatus<PS::NO_BLOCK>()
+       << ",vigor:" << bc.player.getStatus<PS::VIGOR>()
+       << ",metallicize:" << bc.player.getStatus<PS::METALLICIZE>()
+       << ",feelNoPain:" << bc.player.getStatus<PS::FEEL_NO_PAIN>()
+       << ",darkEmbrace:" << bc.player.getStatus<PS::DARK_EMBRACE>()
+       << ",demonForm:" << bc.player.getStatus<PS::DEMON_FORM>()
+       << ",juggernaut:" << bc.player.getStatus<PS::JUGGERNAUT>()
+       << ",combust:" << bc.player.getStatus<PS::COMBUST>()
+       << ",rupture:" << bc.player.getStatus<PS::RUPTURE>()
+       << ",thorns:" << bc.player.getStatus<PS::THORNS>()
+       << ",doubleTap:" << bc.player.getStatus<PS::DOUBLE_TAP>()
+       << ",rage:" << bc.player.getStatus<PS::RAGE>()
+       << ",brutality:" << bc.player.getStatus<PS::BRUTALITY>()
+       << ",barricade:" << bc.player.hasStatus<PS::BARRICADE>()
+       << ",corruption:" << bc.player.hasStatus<PS::CORRUPTION>()
+       << ",panache:" << bc.player.getStatus<PS::PANACHE>()
+       << ",sadistic:" << bc.player.getStatus<PS::SADISTIC>()
+       << ",magnetism:" << bc.player.getStatus<PS::MAGNETISM>()
+       << ",mayhem:" << bc.player.getStatus<PS::MAYHEM>()
+       << ",omega:" << bc.player.getStatus<PS::OMEGA>() << "}"
+       << '\n';
+
+    for (int i = 0; i < bc.monsters.monsterCount; ++i) {
+        const auto &m = bc.monsters.arr[i];
+        const auto move = static_cast<int>(m.moveHistory[0]);
+        const auto damage = m.getMoveBaseDamage(bc);
+        os << "TRACE0_MONSTER idx=" << i
+           << " id=" << monsterIdStrings[static_cast<int>(m.id)]
+           << " hp=" << m.curHp << " max=" << m.maxHp << " block=" << m.block
+           << " str=" << m.strength << " vuln=" << m.vulnerable << " weak=" << m.weak
+           << " dmg=" << (m.isAttacking() ? damage.damage : 0)
+           << " hits=" << (m.isAttacking() ? damage.attackCount : 1)
+           << " artifact=" << static_cast<int>(m.artifact)
+           << " malleable=" << m.getStatus<MS::MALLEABLE>()
+           << " platedArmor=" << static_cast<int>(m.platedArmor)
+           << " intangible=" << m.getStatus<MS::INTANGIBLE>()
+           << " invincible=" << m.getStatus<MS::INVINCIBLE>()
+           << " beatOfDeath=" << m.getStatus<MS::BEAT_OF_DEATH>()
+           << " timeWarp=" << m.getStatus<MS::TIME_WARP>()
+           << " move=" << monsterMoveStrings[move]
+           << " alive=" << m.isAlive() << '\n';
+    }
+
+    os << "TRACE0_RNG seed=" << gc.seed << " floor=" << gc.floorNum
+       << " ai=" << bc.aiRng.counter << " card=" << bc.cardRandomRng.counter
+       << " misc=" << bc.miscRng.counter << " hp=" << bc.monsterHpRng.counter
+       << " potion=" << bc.potionRng.counter << " shuffle=" << bc.shuffleRng.counter
+       << '\n';
+}
+
 static void printStructuredAction(std::ostream &os, const BattleContext &bc, const search::Action &a) {
     switch (a.getActionType()) {
         case search::ActionType::CARD: {
@@ -403,7 +504,10 @@ int replaySearch(int argc, const char *argv[]) {
 
     std::ifstream ifs(actionFilePath);
     if (!ifs) { std::cerr << "Cannot open journal\n"; return 2; }
-    if (trace) printStateLine(std::cout, bc, "TRACE0");
+    if (trace) {
+        printStateLine(std::cout, bc, "TRACE0");
+        printRootDetails(std::cout, gc, bc);
+    }
     std::string line;
     int actionIndex = 0;
     while (std::getline(ifs, line)) {

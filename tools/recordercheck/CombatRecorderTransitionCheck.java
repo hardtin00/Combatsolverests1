@@ -1,5 +1,8 @@
 package com.combatsolver1.runtime;
 
+import basemod.interfaces.PostBattleSubscriber;
+import basemod.interfaces.PostDeathSubscriber;
+import com.combatsolver1.CombatSolver1Mod;
 import com.combatsolver1.engine.SimState;
 import com.evacipated.cardcrawl.modthespire.lib.SpirePatch;
 import com.evacipated.cardcrawl.modthespire.lib.SpirePrefixPatch;
@@ -45,6 +48,7 @@ public final class CombatRecorderTransitionCheck {
     }
 
     public static void main(String[] args) {
+        battleTerminationSubscribers();
         nativeEndTurnBoundary();
         CombatRecorder.TurnTransitionTracker tracker = new CombatRecorder.TurnTransitionTracker();
         List<String> timeline = new ArrayList<String>();
@@ -121,6 +125,21 @@ public final class CombatRecorderTransitionCheck {
         check(tracker.observe(state(5, 47, 3, new String[0], new String[0], new String[0])) == null,
                 "battle reset retained an old transition");
         System.out.println("CombatRecorder transition regression passed: native Burn/Metallicize/Juggernaut boundary, immediate-end, retained-hand, discard/draw, consecutive-turn, ordered-chain.");
+    }
+
+    private static void battleTerminationSubscribers() {
+        Class<?>[] interfaces = CombatSolver1Mod.class.getInterfaces();
+        check(Arrays.asList(interfaces).contains(PostBattleSubscriber.class),
+                "normal room-end callback is not registered");
+        check(Arrays.asList(interfaces).contains(PostDeathSubscriber.class),
+                "native death-screen callback is not registered");
+        try {
+            CombatSolver1Mod.class.getMethod("receivePostBattle",
+                    com.megacrit.cardcrawl.rooms.AbstractRoom.class);
+            CombatSolver1Mod.class.getMethod("receivePostDeath");
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("termination callback is missing", e);
+        }
     }
 
     private static void nativeEndTurnBoundary() {

@@ -56,7 +56,8 @@ public final class CombatRecorder {
     /** 生命周期钩子：战斗开始即建立新身份，root 等首个稳定状态再写出。 */
     public static void onBattleStart() {
         if (!enabled) return;
-        closeWriter();
+        if (!battleKey.isEmpty()) onBattleEnd("interrupted");
+        else closeWriter();
         battleSequence++;
         try {
             battleKey = BattleArtifacts.begin();
@@ -177,14 +178,23 @@ public final class CombatRecorder {
 
     /** 战斗结束：换文件，避免把不同战斗混在一起。 */
     public static void onBattleEnd() {
+        onBattleEnd("unknown");
+    }
+
+    public static void onBattleEnd(String outcome) {
+        if (pendingCardId != null && pre != null) {
+            // A terminal screen can arrive before a stable post-state exists. Keep existing files,
+            // flag the final action as unpaired, and never synthesize post.
+            BattleArtifacts.incompleteFinalAction(pendingCardId, "battle ended before a stable post-state was captured");
+        }
+        closeWriter();
+        BattleArtifacts.finish(outcome);
         battleKey = "";
         rootPending = true;
         pendingCardId = null;
         pre = null;
         lastState = null;
         turnTracker.reset();
-        closeWriter();
-        BattleArtifacts.finish();
     }
 
     private static void writeCard(SimState post, boolean paired, String reason) throws Exception {

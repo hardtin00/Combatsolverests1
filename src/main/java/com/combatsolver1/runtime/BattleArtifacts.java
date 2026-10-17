@@ -28,7 +28,7 @@ public final class BattleArtifacts {
     private BattleArtifacts() { }
 
     static synchronized String begin() throws IOException {
-        finish();
+        finish("interrupted");
         File root = new File(System.getProperty("user.home", "."), ".combatsolver1/recordings");
         String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.ROOT).format(new Date());
         String id = "battle-" + stamp + "-" + UUID.randomUUID().toString();
@@ -38,7 +38,7 @@ public final class BattleArtifacts {
     }
 
     static synchronized Session beginForTest(File root, String id) throws IOException {
-        finish();
+        finish("interrupted");
         active = new Session(root, id);
         sessions.put(id, active);
         return active;
@@ -129,6 +129,17 @@ public final class BattleArtifacts {
         active.writeManifestQuietly();
     }
 
+    /** Preserve an action attempt without inventing a post-state when battle termination interrupts settlement. */
+    static synchronized void incompleteFinalAction(String actionId, String reason) {
+        if (active == null || active.closed) return;
+        active.finalActionStatus = "unpaired-no-stable-post";
+        active.finalActionId = actionId == null ? "" : actionId;
+        active.finalActionReason = reason == null ? "" : reason;
+        active.journalDirty = true;
+        active.journalDirtyReason = "battle ended before the final action had a stable post-state";
+        active.writeManifestQuietly();
+    }
+
     static synchronized File captureAutosave(String expectedId, File source, long notOlderThanMillis) {
         Session session = sessions.get(expectedId);
         if (session == null || session.closed) return null;
@@ -216,9 +227,14 @@ public final class BattleArtifacts {
     }
 
     static synchronized void finish() {
+        finish("unknown");
+    }
+
+    static synchronized void finish(String outcome) {
         if (active == null) return;
         Session session = active;
         active = null;
+        session.outcome = outcome == null || outcome.isEmpty() ? "unknown" : outcome;
         if (session.capturePending) {
             session.closeRequested = true;
             session.status = "closing";
@@ -325,6 +341,10 @@ public final class BattleArtifacts {
         boolean capturePending;
         boolean closeRequested;
         String status = "open";
+        String outcome = "in_progress";
+        String finalActionStatus = "none";
+        String finalActionId = "";
+        String finalActionReason = "";
         String rootPhase = "";
         long rootCapturedAt;
         String saveStatus = "pending";
@@ -371,6 +391,7 @@ public final class BattleArtifacts {
                     + "  \"schemaVersion\":1,\n"
                     + "  \"battleId\":\"" + esc(id) + "\",\n"
                     + "  \"status\":\"" + esc(status) + "\",\n"
+                    + "  \"outcome\":\"" + esc(outcome) + "\",\n"
                     + "  \"startedAtEpochMs\":" + startedAt + ",\n"
                     + "  \"recordingFile\":\"combat.jsonl\",\n"
                     + "  \"recordingSha256\":\"" + recordingHash + "\",\n"
@@ -397,7 +418,10 @@ public final class BattleArtifacts {
                     + "  \"actionCount\":" + actionCount + ",\n"
                     + "  \"journalDirty\":" + journalDirty + ",\n"
                     + "  \"journalDirtyReason\":\"" + esc(journalDirtyReason) + "\",\n"
-                    + "  \"journalError\":\"" + esc(journalError) + "\"\n"
+                    + "  \"journalError\":\"" + esc(journalError) + "\",\n"
+                    + "  \"finalActionStatus\":\"" + esc(finalActionStatus) + "\",\n"
+                    + "  \"finalActionId\":\"" + esc(finalActionId) + "\",\n"
+                    + "  \"finalActionReason\":\"" + esc(finalActionReason) + "\"\n"
                     + "}\n";
             try (Writer writer = new OutputStreamWriter(new FileOutputStream(temp), StandardCharsets.UTF_8)) {
                 writer.write(value);

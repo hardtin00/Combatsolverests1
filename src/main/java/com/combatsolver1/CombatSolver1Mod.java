@@ -4,6 +4,7 @@ import basemod.BaseMod;
 import basemod.interfaces.OnPlayerTurnStartSubscriber;
 import basemod.interfaces.OnStartBattleSubscriber;
 import basemod.interfaces.PostBattleSubscriber;
+import basemod.interfaces.PostDeathSubscriber;
 import basemod.interfaces.PostDrawSubscriber;
 import basemod.interfaces.PostInitializeSubscriber;
 import basemod.interfaces.PostRenderSubscriber;
@@ -25,6 +26,7 @@ public class CombatSolver1Mod implements
         PostInitializeSubscriber,
         OnStartBattleSubscriber,
         PostBattleSubscriber,
+        PostDeathSubscriber,
         OnPlayerTurnStartSubscriber,
         PostDrawSubscriber,
         PostUpdateSubscriber,
@@ -105,7 +107,13 @@ public class CombatSolver1Mod implements
 
     @Override
     public void receivePostBattle(AbstractRoom battleRoom) {
-        com.combatsolver1.runtime.CombatRecorder.onBattleEnd();
+        com.combatsolver1.runtime.CombatRecorder.onBattleEnd("victory");
+        CombatController.instance().onBattleEnd();
+    }
+
+    @Override
+    public void receivePostDeath() {
+        com.combatsolver1.runtime.CombatRecorder.onBattleEnd("death");
         CombatController.instance().onBattleEnd();
     }
 
@@ -131,6 +139,12 @@ public class CombatSolver1Mod implements
 
     @Override
     public void receivePostUpdate() {
+        // Returning to the main menu can leave a combat without either native completion callback.
+        if (!com.combatsolver1.runtime.CombatRecorder.currentBattleId().isEmpty()
+                && !com.megacrit.cardcrawl.dungeons.AbstractDungeon.isPlayerInDungeon()) {
+            com.combatsolver1.runtime.CombatRecorder.onBattleEnd("interrupted");
+            CombatController.instance().onBattleEnd();
+        }
         CombatController.instance().update();
     }
 

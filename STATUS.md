@@ -1,3 +1,11 @@
+## 2026-10-18：死亡战斗 bundle 封存
+
+- 死亡样本 `battle-20261018-064132-559-5a8d8a85-52cc-4408-871a-65043f363253` 的 manifest 仍为 `open`；`BattleBundleCheck <sample-dir>` 退出 1，原因 `battle bundle is not closed`。现场 JSONL 与 journal 文件哈希也与该 open manifest 中的值不同；未改动样本文件。
+- 原版 `AbstractPlayer.damage()` 在致死时置 `isDead` 并创建 `DeathScreen`，不会调用 `AbstractRoom.endBattle()`；后者会调用 `AbstractPlayer.onVictory()`。BaseMod `AbstractRoom.EndBattleHook` 发布 `PostBattleSubscriber`，而 `DeathScreen.PostDeathHook` 构造后发布 `PostDeathSubscriber`。Mod 之前只订阅 PostBattle，死亡遗漏封存回调。
+- 新增死亡回调并把胜利、死亡、离开 dungeon/被新战斗替换分别记为 `victory`、`death`、`interrupted`。关闭入口幂等；未稳定结算的末张牌只在 manifest 标为 `unpaired-no-stable-post`、journal 标脏并保留原文件，不生成虚构 post；封存时按最后写入内容刷新 JSONL/journal 哈希。
+- 离线回归覆盖死亡/胜利/中断、重复关闭、延迟存档关闭、保留此前配对动作、未结算末动作不造 post、哈希刷新。命令：Java 21 JBR `javac --release 8 ... BattleArtifacts.java BattleArtifactsCheck.java` 与 `java -cp build/death-archive-check com.combatsolver1.runtime.BattleArtifactsCheck` 退出 0；完整 Mod 源码加 `CombatRecorderTransitionCheck` 编译（`--release 8 -proc:none`）并运行退出 0，保留既有 endTurn 边界回归。
+- 当前证据 L2；完成完整 Mod 构建和 JAR 部署后补录指纹。没有启动游戏或新增实机样本，不宣称 L3/L4；强制结束进程时游戏不会保证执行任何 Java 回调，manifest 可能继续保持 open。
+
 ## 2026-10-18：AscendersBane 费用哨兵差异审计
 
 - 既有同场 root 对照中 62 个可比字段有 61 个相同；唯一差异为 AscendersBane 费用：实机 JSONL 为 -2，sts_lightspeed `CardInstance` 初始化为 -3。本轮没有改卡牌规则或真实预期值。

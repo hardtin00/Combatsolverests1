@@ -42,6 +42,60 @@ public final class BattleArtifactsCheck {
         File temp = Files.createTempDirectory("combat-artifacts-check").toFile();
         try {
             long now = System.currentTimeMillis();
+
+            BattleArtifacts.Session death = BattleArtifacts.beginForTest(temp, "battle-test-death");
+            Files.write(new File(death.directory, "combat.jsonl").toPath(),
+                    ("{\"type\":\"root\",\"battleKey\":\"" + death.id + "\",\"state\":{}}\n"
+                            + "{\"type\":\"card\",\"paired\":true,\"pre\":{},\"post\":{}}\n")
+                            .getBytes(StandardCharsets.UTF_8));
+            check(BattleArtifacts.appendAction("0"), "death action journal append failed");
+            check(BattleArtifacts.appendAction("1"), "pending death action journal append failed");
+            BattleArtifacts.incompleteFinalAction("Bash", "battle ended before stable post");
+            byte[] deathJournal = Files.readAllBytes(death.journal.toPath());
+            BattleArtifacts.finish("death");
+            String deathManifest = new String(Files.readAllBytes(
+                    new File(death.directory, "manifest.json").toPath()), StandardCharsets.UTF_8);
+            check(deathManifest.contains("\"status\":\"closed\"")
+                            && deathManifest.contains("\"outcome\":\"death\""),
+                    "death outcome did not close and classify the bundle");
+            check(deathManifest.contains("\"finalActionStatus\":\"unpaired-no-stable-post\"")
+                            && deathManifest.contains("\"journalDirty\":true"),
+                    "interrupted final action was not explicitly preserved as unpaired");
+            check(java.util.Arrays.equals(deathJournal, Files.readAllBytes(death.journal.toPath())),
+                    "death closure changed the recorded action journal");
+            check(deathManifest.contains(BattleArtifacts.sha256(death.jsonl))
+                            && deathManifest.contains(BattleArtifacts.sha256(death.journal)),
+                    "death closure did not refresh JSONL and journal hashes");
+            String deathJsonl = new String(Files.readAllBytes(death.jsonl.toPath()), StandardCharsets.UTF_8);
+            check(deathJsonl.indexOf("\"type\":\"card\"")
+                            == deathJsonl.lastIndexOf("\"type\":\"card\""),
+                    "death closure fabricated an additional card post-state");
+            BattleArtifacts.finish("victory");
+            deathManifest = new String(Files.readAllBytes(
+                    new File(death.directory, "manifest.json").toPath()), StandardCharsets.UTF_8);
+            check(deathManifest.contains("\"outcome\":\"death\""),
+                    "repeated closure overwrote the original death outcome");
+
+            BattleArtifacts.Session victory = BattleArtifacts.beginForTest(temp, "battle-test-victory");
+            Files.write(new File(victory.directory, "combat.jsonl").toPath(),
+                    ("{\"type\":\"root\",\"battleKey\":\"" + victory.id + "\",\"state\":{}}\n")
+                            .getBytes(StandardCharsets.UTF_8));
+            BattleArtifacts.finish("victory");
+            String victoryManifest = new String(Files.readAllBytes(
+                    new File(victory.directory, "manifest.json").toPath()), StandardCharsets.UTF_8);
+            check(victoryManifest.contains("\"status\":\"closed\"")
+                            && victoryManifest.contains("\"outcome\":\"victory\""),
+                    "victory outcome did not close and classify the bundle");
+
+            BattleArtifacts.Session interrupted = BattleArtifacts.beginForTest(temp, "battle-test-interrupted");
+            BattleArtifacts.Session replacement = BattleArtifacts.beginForTest(temp, "battle-test-replacement");
+            String interruptedManifest = new String(Files.readAllBytes(
+                    new File(interrupted.directory, "manifest.json").toPath()), StandardCharsets.UTF_8);
+            check(interruptedManifest.contains("\"status\":\"closed\"")
+                            && interruptedManifest.contains("\"outcome\":\"interrupted\""),
+                    "replaced active battle was not closed as interrupted");
+            BattleArtifacts.finish("unknown");
+
             BattleArtifacts.Session first = BattleArtifacts.beginForTest(temp, "battle-test-a");
             root(first.directory, first.id);
             check(BattleArtifacts.appendAction("0"), "first action journal append failed");
@@ -52,7 +106,7 @@ public final class BattleArtifactsCheck {
             check(!BattleArtifacts.validate(first.directory).valid
                             && BattleArtifacts.validate(first.directory).reason.contains("not closed"),
                     "open bundle was not rejected with a specific reason");
-            BattleArtifacts.finish();
+            BattleArtifacts.finish("victory");
             check(BattleArtifacts.validate(first.directory).valid, "valid bundle rejected");
             byte[] validJsonl = Files.readAllBytes(new File(first.directory, "combat.jsonl").toPath());
             Files.write(new File(first.directory, "combat.jsonl").toPath(), new byte[]{'{', '}'});
@@ -73,7 +127,7 @@ public final class BattleArtifactsCheck {
             check(BattleArtifacts.captureAutosave(inconsistent.id, inconsistentSave,
                     System.currentTimeMillis() - 5000L) != null, "root-mismatch save was not archived");
             prepareEngine(inconsistent, temp);
-            BattleArtifacts.finish();
+            BattleArtifacts.finish("victory");
             check(BattleArtifacts.validate(inconsistent.directory).reason.contains("root state does not match"),
                     "self-contradictory root was not rejected specifically");
 
@@ -116,7 +170,7 @@ public final class BattleArtifactsCheck {
             BattleArtifacts.Session lateCapture = BattleArtifacts.beginForTest(temp, "battle-test-late-capture");
             root(lateCapture.directory, lateCapture.id);
             check(BattleArtifacts.initialCaptureStarted(lateCapture.id), "initial capture was not marked pending");
-            BattleArtifacts.finish();
+            BattleArtifacts.finish("death");
             check(BattleArtifacts.validate(lateCapture.directory).reason.contains("not closed"),
                     "bundle closing with capture still pending was accepted");
             File lateSave = source(temp, "late.autosave", System.currentTimeMillis());
@@ -131,6 +185,8 @@ public final class BattleArtifactsCheck {
                     "deferred capture did not close its bundle after completion");
             check(lateManifest.contains("\"rawAutosaveStatus\":\"captured\""),
                     "deferred capture did not preserve raw autosave");
+            check(lateManifest.contains("\"outcome\":\"death\""),
+                    "deferred death closure lost its outcome");
 
             BattleArtifacts.Session second = BattleArtifacts.beginForTest(temp, "battle-test-b");
             root(second.directory, second.id);
@@ -194,7 +250,7 @@ public final class BattleArtifactsCheck {
                     Files.readAllBytes(new File(second.directory, "raw-autosave.save").toPath()));
             check(!BattleArtifacts.validate(first.directory).valid,
                     "a substituted raw save passed the manifest SHA-256 check");
-            System.out.println("BattleArtifacts regression passed: identity/freshness/copy checks, open/incomplete/hash/root/dirty-journal rejection, conversion failure reporting.");
+            System.out.println("BattleArtifacts regression passed: closure outcomes, idempotency, interrupted final action without synthetic post, hashes, identity/freshness/copy checks.");
         } finally {
             deleteTree(temp);
         }

@@ -1,5 +1,12 @@
 # 项目现状与后续工作
 
+## 2026-10-18：修复回合过渡状态机
+
+- 修复 `CombatRecorder` 中 `lastTurn` 在第一新回合帧立即覆盖、导致双稳定帧计数无法达到的问题。
+- `TurnTransitionTracker` 独立保存过渡前快照、目标回合和稳定帧数；第二个同回合稳定帧写一条 endTurn，后续帧不重复；过渡中出牌和战斗重置会取消未完成过渡。
+- 新增 `tools/recordercheck/CombatRecorderTransitionCheck.java`，覆盖旧回合稳定、新回合第一/第二/后续稳定帧、过渡中出牌和战斗结束重置。
+- 实际验证：回归命令退出 0；完整 Java 8 Mod 构建、JAR 条目校验和部署退出 0；`tools/solvertest/run.ps1 -Command all` 退出 0。未启动游戏，未宣称 L4。
+
 ## 2026-10-18：结束回合记录与 JSONL 编码
 
 - 实机证据中的 endTurn 断点来自记录器在首个 action queue 变空帧捕获状态；回合结算仍可能继续清手牌、入弃牌堆或更新怪物。

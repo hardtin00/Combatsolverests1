@@ -48,6 +48,7 @@ public final class CombatRecorder {
     private static long battleSequence;
     private static int transitionTurn = Integer.MIN_VALUE;
     private static int transitionStableFrames;
+    private static final TurnTransitionTracker turnTracker = new TurnTransitionTracker();
 
     public static void setEnabled(boolean value) {
         enabled = value;
@@ -66,6 +67,7 @@ public final class CombatRecorder {
         lastTurn = Integer.MIN_VALUE;
         transitionTurn = Integer.MIN_VALUE;
         transitionStableFrames = 0;
+        turnTracker.reset();
     }
 
     /** 当前记录文件路径（供面板 / 日志显示）。 */
@@ -82,6 +84,7 @@ public final class CombatRecorder {
         if (snap == null) {
             return;
         }
+        turnTracker.actionStarted(snap);
         // 上一张牌还没被稳定帧收尾就又出了牌。
         // 关键点：游戏只有在上一张**完全结算**之后才允许打出下一张，
         // 所以此刻抓到的状态就是上一张牌可靠的“出牌后”状态——用它收尾，配对成功。
@@ -124,6 +127,8 @@ public final class CombatRecorder {
                 rootPending = false;
                 lastState = now;
                 lastTurn = now.turn;
+                turnTracker.reset();
+                turnTracker.observe(now);
                 return;
             }
             if (pendingCardId != null && pre != null) {
@@ -132,18 +137,11 @@ public final class CombatRecorder {
                         + ",\"block\":" + pendingBlock + "},\"target\":" + pendingTarget + ",\"pre\":"
                         + stateJson(pre) + ",\"post\":" + stateJson(now) + "}");
                 pendingCardId = null;
-            } else if (lastState != null && now.turn > lastTurn) {
-                if (transitionTurn != now.turn) {
-                    transitionTurn = now.turn;
-                    transitionStableFrames = 1;
-                } else {
-                    transitionStableFrames++;
-                }
-                if (transitionStableFrames >= 2) {
-                    writeLine("{\"type\":\"endTurn\",\"phase\":\"turn-transition\",\"pre\":" + stateJson(lastState)
-                            + ",\"post\":" + stateJson(now) + "}");
-                    transitionTurn = Integer.MIN_VALUE;
-                    transitionStableFrames = 0;
+            } else {
+                TurnTransitionTracker.EndTurn end = turnTracker.observe(now);
+                if (end != null) {
+                    writeLine("{\"type\":\"endTurn\",\"phase\":\"turn-transition\",\"pre\":" + stateJson(end.pre)
+                            + ",\"post\":" + stateJson(end.post) + "}");
                 }
             }
             lastState = now;
@@ -160,7 +158,52 @@ public final class CombatRecorder {
         pendingCardId = null;
         pre = null;
         lastState = null;
+        transitionTurn = Integer.MIN_VALUE;
+        transitionStableFrames = 0;
+        turnTracker.reset();
         closeWriter();
+    }
+
+    /** Small state machine kept separate so the multi-frame transition is regression-testable. */
+    static final class TurnTransitionTracker {
+        private SimState last;
+        private int activeTurn = Integer.MIN_VALUE;
+        private int stableFrames;
+        private int writtenTurn = Integer.MIN_VALUE;
+
+        void reset() { last = null; activeTurn = Integer.MIN_VALUE; stableFrames = 0; writtenTurn = Integer.MIN_VALUE; }
+        void actionStarted(SimState now) {
+            if (now == null) return;
+            last = now;
+            activeTurn = Integer.MIN_VALUE;
+            stableFrames = 0;
+        }
+        EndTurn observe(SimState now) {
+            if (now == null) return null;
+            if (last == null) { last = now; return null; }
+            if (activeTurn == Integer.MIN_VALUE) {
+                if (now.turn > last.turn) { activeTurn = now.turn; stableFrames = 1; return null; }
+                last = now;
+                return null;
+            }
+            if (now.turn != activeTurn) {
+                activeTurn = Integer.MIN_VALUE; stableFrames = 0; last = now; return null;
+            }
+            stableFrames++;
+            EndTurn result = null;
+            if (stableFrames >= 2 && writtenTurn != activeTurn) {
+                result = new EndTurn(last, now);
+                writtenTurn = activeTurn;
+                activeTurn = Integer.MIN_VALUE;
+                stableFrames = 0;
+            }
+            last = now;
+            return result;
+        }
+        static final class EndTurn {
+            final SimState pre, post;
+            EndTurn(SimState pre, SimState post) { this.pre = pre; this.post = post; }
+        }
     }
 
     private static void writeLine(String line) throws Exception {

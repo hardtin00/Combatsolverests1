@@ -18,8 +18,12 @@ final class ExhumeChoiceSafety {
     }
 
     /** Exhume must not be played unless its next route step can safely resolve the native choice. */
-    static boolean canPlayExhume(Plan.Action selection, String planSource) {
-        return supports(selection, planSource);
+    static boolean canPlayExhume(Plan.Turn turn, int cardActionIndex, String planSource) {
+        if (turn == null || cardActionIndex < 0 || cardActionIndex >= turn.actions.size()) return false;
+        Plan.Action card = turn.actions.get(cardActionIndex);
+        if (card == null || card.isSelect() || card.isPotion() || !"Exhume".equals(card.cardId)) return false;
+        int selectionIndex = cardActionIndex + 1;
+        return selectionIndex < turn.actions.size() && supports(turn.actions.get(selectionIndex), planSource);
     }
 
     static Plan.ChoiceCard descriptor(String id, int upgrades, int cost) {

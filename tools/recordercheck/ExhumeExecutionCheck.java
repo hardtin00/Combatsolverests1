@@ -12,13 +12,15 @@ public final class ExhumeExecutionCheck {
         require(action.isSelect() && action.selectCandidates.size() == 2, "v3 choice identity was not parsed");
         require(ExhumeChoiceSafety.supports(action, "engine"), "engine Exhume selection was rejected");
         require(!ExhumeChoiceSafety.supports(action, "local"), "local/unknown choice was accepted");
-        require(ExhumeChoiceSafety.canPlayExhume(action, "engine"), "verified engine choice was not allowed before play");
-        require(!ExhumeChoiceSafety.canPlayExhume(action, "local"), "local route could play Exhume before an unsupported choice");
-        require(!ExhumeChoiceSafety.canPlayExhume(null, "engine"), "Exhume without a following choice was allowed");
+        Plan.Turn exhumeTurn = turnWithExhume(action);
+        require(ExhumeChoiceSafety.canPlayExhume(exhumeTurn, 0, "engine"), "verified engine choice was not allowed before play");
+        require(!ExhumeChoiceSafety.canPlayExhume(exhumeTurn, 0, "local"), "local route could play Exhume before an unsupported choice");
+        require(!ExhumeChoiceSafety.canPlayExhume(turnWithExhume(null), 0, "engine"), "Exhume without a following choice was allowed");
         Plan.Action incomplete = parse("1", "537472696b655f52:0:1", "0:42617368:0:2|1:537472696b655f52:0:1");
         incomplete.selectCandidates.clear();
-        require(!ExhumeChoiceSafety.canPlayExhume(incomplete, "engine"),
+        require(!ExhumeChoiceSafety.canPlayExhume(turnWithExhume(incomplete), 0, "engine"),
                 "incomplete choice was allowed before Exhume");
+        require(!ExhumeChoiceSafety.canPlayExhume(exhumeTurn, 1, "engine"), "choice action was treated as an Exhume card");
 
         // A: unique candidate; B: multiple IDs; C: same ID with different upgrades.
         ExhumeChoiceSafety.Match unique = ExhumeChoiceSafety.match(action,
@@ -107,6 +109,12 @@ public final class ExhumeExecutionCheck {
             result.add(new Plan.ChoiceCard(parts[0], Integer.parseInt(parts[1]), Integer.parseInt(parts[2])));
         }
         return result;
+    }
+    private static Plan.Turn turnWithExhume(Plan.Action selection) {
+        Plan.Turn turn = new Plan.Turn();
+        turn.actions.add(new Plan.Action("Exhume", "Exhume", -1, 1));
+        if (selection != null) turn.actions.add(selection);
+        return turn;
     }
     private static void expectRejected(String line) {
         try { ChoiceProtocol.parse(line); throw new AssertionError("unsafe protocol accepted"); }

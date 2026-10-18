@@ -2828,7 +2828,7 @@ void BattleContext::triggerAndMoveToExhaustPile(CardInstance c) {
         addToBot(Actions::MakeTempCardInHand(id));
     }
 
-    if (player.hasStatus<PS::DARK_EMBRACE>()) {
+    if (player.hasStatus<PS::DARK_EMBRACE>() && !monsters.areMonstersBasicallyDead()) {
         addToBot(Actions::DrawCards(player.getStatus<PS::DARK_EMBRACE>()));
     }
 

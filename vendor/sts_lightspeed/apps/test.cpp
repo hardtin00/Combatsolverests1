@@ -215,6 +215,58 @@ static int blockModifierCheck() {
     return 0;
 }
 
+static int exhaustTriggerCheck() {
+    auto runExhaust = [](bool monstersAlive, int exhaustCount) {
+        BattleContext bc;
+        bc.outcome = Outcome::PLAYER_VICTORY;
+        bc.inputState = InputState::EXECUTING_ACTIONS;
+        bc.player.setStatusValueNoChecks<PS::DARK_EMBRACE>(1);
+        bc.player.setStatusValueNoChecks<PS::FEEL_NO_PAIN>(4);
+        bc.player.setHasStatus<PS::DARK_EMBRACE>(true);
+        bc.player.setHasStatus<PS::FEEL_NO_PAIN>(true);
+        bc.cards.drawPile.push_back(CardInstance(CardId::STRIKE_RED));
+        bc.cards.drawPile.push_back(CardInstance(CardId::DEFEND_RED));
+        bc.cards.cardsInHand = 0;
+        bc.monsters.monsterCount = 1;
+        bc.monsters.monstersAlive = monstersAlive ? 1 : 0;
+        bc.monsters.arr[0].id = MonsterId::JAW_WORM;
+        bc.monsters.arr[0].idx = 0;
+        bc.monsters.arr[0].curHp = monstersAlive ? 50 : 0;
+        bc.monsters.arr[0].maxHp = 50;
+
+        for (int i = 0; i < exhaustCount; ++i) {
+            CardInstance card(i == 0 ? CardId::PUMMEL : CardId::SENTINEL);
+            card.setUniqueId(static_cast<std::int16_t>(i + 1));
+            bc.triggerAndMoveToExhaustPile(card);
+        }
+        bc.executeActions();
+        return bc;
+    };
+
+    const auto active = runExhaust(true, 2);
+    if (active.player.block != 8 || active.cards.cardsInHand != 2
+            || active.cards.drawPile.size() != 0 || active.cards.exhaustPile.size() != 2) {
+        std::cerr << "EXHAUST_TRIGGER_CHECK_FAIL reason=active_enemy_triggers block="
+                  << active.player.block << " hand=" << active.cards.cardsInHand
+                  << " draw=" << active.cards.drawPile.size()
+                  << " exhaust=" << active.cards.exhaustPile.size() << '\n';
+        return 1;
+    }
+
+    const auto terminal = runExhaust(false, 1);
+    if (terminal.player.block != 4 || terminal.cards.cardsInHand != 0
+            || terminal.cards.drawPile.size() != 2 || terminal.cards.exhaustPile.size() != 1) {
+        std::cerr << "EXHAUST_TRIGGER_CHECK_FAIL reason=dark_embrace_draw_after_terminal block="
+                  << terminal.player.block << " hand=" << terminal.cards.cardsInHand
+                  << " draw=" << terminal.cards.drawPile.size()
+                  << " exhaust=" << terminal.cards.exhaustPile.size() << '\n';
+        return 1;
+    }
+
+    std::cout << "EXHAUST_TRIGGER_CHECK_OK active=2x(FNP4+DE1) terminal=FNP4_only piles=verified\n";
+    return 0;
+}
+
 // ---------------------------------------------------------------------------
 // 结构化输出：给 CombatSolver1 的 Java 侧解析用（避免解析人类可读文本）。
 //   PLANCARD idx=<手牌下标> id=<游戏内卡牌ID> cost=<费用> upg=<0/1> tgt=<目标下标>
@@ -756,6 +808,10 @@ int main(int argc, const char* argv[]) {
 
     if (command == "block_modifier_check") {
         return blockModifierCheck();
+    }
+
+    if (command == "exhaust_trigger_check") {
+        return exhaustTriggerCheck();
     }
 
     if (command == "protocol") {

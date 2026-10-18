@@ -717,3 +717,9 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - 回归先在旧目标上失败（断言钩子必须位于 `GameActionManager.callEndOfTurnActions`），迁移后通过。测试反射确认游戏方法和 ModTheSpire prefix 注解，并按原生顺序执行 Burn-only（block 13→11）和 Metallicize/Juggernaut/Burn（block 8→9、怪物 HP 141→136）状态边界，另覆盖立即结束、保留手牌、弃牌/抽牌及连续回合。命令：Java 8 `javac --release 8 ... CombatRecorderTransitionCheck.java`，然后 `java -cp <test-classes;desktop-1.0.jar;ModTheSpire.jar;BaseMod.jar> com.combatsolver1.runtime.CombatRecorderTransitionCheck`，退出 0。
 - 真实旧 bundle 严格完整性检查仍只报第 19、23 行，退出 1（预期保留诊断失败）；文件及 manifest 未改写。最后记录时 boss 仍存活，manifest 为 open、JSONL/journal 哈希陈旧，表示 bundle 在未封存时被检查；缺少游戏日志，无法判断稍后是否执行 `receivePostBattle`，不归因于结束回调异常。
 - 源码提交 `2859cbaba0cacfa6b89660faaf8ee5a858d09e8a` 已推送 `main`。状态记录随后更新。完整 Mod Java 8 构建尚待源码状态记录完成后最终复跑。当前证据为 L2，不宣称新实机连续性或外部引擎 L4。用户尚未验收。
+
+## 2026-10-18：本地计划目标索引与原生槽位对齐
+
+- 问题：`LiveCapture` 只保留存活怪物，本地 `Plan.Action.targetIndex` 因而是压缩索引；旧 `PlanDeployer` 把它直接用于原生完整槽位。`[活 A、死 B、活 C]` 的本地目标 1 会指向死 B，修复前 `ExecutionSafetyCheck` 对该案例退出 1。
+- 修改：部署时按明确的计划来源保存目标映射。本地路线在验证根状态后捕获存活怪物对象顺序，以对象身份解析后续出牌和药水目标；外部引擎仍按固定槽位解析。目标死亡、逃跑、移除、来源不明或根状态无法配对时拒绝执行，沿用 `FailureLatch` 阻断。药水 journal 写入实际原生固定槽位，路线显示使用同一来源语义；本地未来回合的无法确认目标名不猜测。
+- 验证：`ExecutionSafetyCheck` 修复后 10 组通过、退出 0，覆盖死怪压缩、多怪、移除、逃跑、同名、药水固定槽位和引擎原语义；`tools/solvertest/run.ps1 -Command all` 退出 0；`tools/build/build-release.ps1 -Deploy` Java 8 构建与部署退出 0。证据 L2；未启动游戏验证 G/H 原生队列目标，未达到 L3/L4。提交及最终 JAR 哈希见本轮交付。用户尚未验收。

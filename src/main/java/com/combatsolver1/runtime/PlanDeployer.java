@@ -56,6 +56,7 @@ public class PlanDeployer {
 
     private Plan.Turn pending;
     private ActionJournal journal;
+    private ExecutionSafety.TargetSlots<AbstractMonster> targetSlots;
     private int cursor;
     private boolean endTurnAfter;
     private boolean endRequested;
@@ -86,6 +87,7 @@ public class PlanDeployer {
             finish(false, "deploy cancelled");
         }
         pending = null;
+        targetSlots = null;
         virtualHand.clear();
         usedPotions.clear();
         deferrals = 0;
@@ -114,11 +116,13 @@ public class PlanDeployer {
         return true;
     }
 
-    public void execute(Plan.Turn turn, boolean endTurnAfter, ActionJournal actionJournal) {
+    public void execute(Plan.Turn turn, boolean endTurnAfter, ActionJournal actionJournal,
+                        ExecutionSafety.TargetSlots<AbstractMonster> targets) {
         if (turn == null) {
             return;
         }
         pending = turn;
+        targetSlots = targets;
         journal = actionJournal;
         cursor = 0;
         played = 0;
@@ -129,6 +133,10 @@ public class PlanDeployer {
         usedPotions.clear();
         deferrals = 0;
         this.endTurnAfter = endTurnAfter;
+        if (targets == null) {
+            finish(false, "计划目标索引来源或根状态无法确认");
+            return;
+        }
         CombatLog.info("deploy turn " + turn.turnNumber + ": " + turn.actions.size()
                 + " action(s), endTurn=" + endTurnAfter);
     }
@@ -188,6 +196,7 @@ public class PlanDeployer {
                 r.endEnergy = EnergyPanel.getCurrentEnergy();
                 result = r;
                 pending = null;
+                targetSlots = null;
                 virtualHand.clear();
                 usedPotions.clear();
                 clearQueuedTracking();
@@ -366,12 +375,14 @@ public class PlanDeployer {
                 CombatLog.info("deploy potion target is missing or stale: " + potionId);
                 return false;
             }
+            int nativeTargetSlot = target == null ? 0
+                    : ExecutionSafety.TargetSlots.fixedIndex(nativeMonsters(), target);
+            if (target != null && nativeTargetSlot < 0) return false;
             potion.use(target);
             AbstractDungeon.player.removePotion(potion);
             usedPotions.add(potion);
             if (journal != null) {
-                journal.recordPotion(Math.max(0, slot),
-                        action.targetIndex >= 0 ? action.targetIndex : 0);
+                journal.recordPotion(Math.max(0, slot), nativeTargetSlot);
             }
             CombatLog.info("deploy potion: " + potionId
                     + (target != null ? " -> " + target.name : ""));
@@ -386,7 +397,7 @@ public class PlanDeployer {
         if (!potion.targetRequired) return null;
         if (action.targetIndex < 0) return null;
         AbstractMonster target = monsterAt(action.targetIndex);
-        if (!isUsableTarget(action.targetIndex, target)) return null;
+        if (target == null) return null;
         if (action.targetName != null && !action.targetName.isEmpty()
                 && !action.targetName.equals(target.name)) return null;
         return target;
@@ -418,6 +429,7 @@ public class PlanDeployer {
                     + "（已打出 " + played + "/" + r.planned + "）");
         }
         pending = null;
+        targetSlots = null;
         virtualHand.clear();
         usedPotions.clear();
     }
@@ -431,13 +443,14 @@ public class PlanDeployer {
         return null;
     }
 
-    /** 引擎的目标下标是“怪物列表下标”（含已死怪物），与实机 monsters 列表一致。 */
+    private List<AbstractMonster> nativeMonsters() {
+        return AbstractDungeon.getCurrRoom().monsters.monsters;
+    }
+
+    /** 本地路线按根状态存活顺序映射对象；引擎路线按原生固定槽位。 */
     private AbstractMonster monsterAt(int index) {
-        List<AbstractMonster> monsters = AbstractDungeon.getCurrRoom().monsters.monsters;
-        if (index >= 0 && index < monsters.size()) {
-            return monsters.get(index);
-        }
-        return null;
+        return targetSlots == null ? null
+                : targetSlots.resolve(nativeMonsters(), index, m -> !m.isDeadOrEscaped());
     }
 
     private AbstractMonster targetFor(Plan.Action action, AbstractCard card) {
@@ -445,16 +458,10 @@ public class PlanDeployer {
             return null;
         }
         AbstractMonster target = monsterAt(action.targetIndex);
-        if (!isUsableTarget(action.targetIndex, target)) return null;
+        if (target == null) return null;
         if (action.targetName != null && !action.targetName.isEmpty()
                 && !action.targetName.equals(target.name)) return null;
         return target;
-    }
-
-    private boolean isUsableTarget(int index, AbstractMonster target) {
-        List<AbstractMonster> monsters = AbstractDungeon.getCurrRoom().monsters.monsters;
-        return ExecutionSafety.targetSlotUsable(index, monsters.size(),
-                target != null && !target.isDeadOrEscaped());
     }
 
     private void cancelQueuedOperations() {

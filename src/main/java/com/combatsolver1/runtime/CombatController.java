@@ -410,6 +410,7 @@ public class CombatController {
                 executeRequested = false;
                 activeExecutionSignature = executionStateKey(root, turn);
                 Plan.Turn firstTurn = active.turns.get(0);
+                ExecutionSafety.TargetSlots<AbstractMonster> targets = targetSlotsFor(active, root);
                 if (active == enginePlan) {
                     // 引擎路线是整场推演：一回合用掉一节，下一回合继续核对。
                     active.turns.remove(0);
@@ -425,7 +426,8 @@ public class CombatController {
                     validatedSignature = null;
                 }
                 lastIdlePotions = null;
-                deployer.execute(firstTurn, autoTurn, journal);
+                deployer.execute(firstTurn, autoTurn, journal, targets);
+                onDeployFinished(deployer.consumeResult());
             } else if (active != null && active == enginePlan && (executeRequested || fullAuto)
                     && active.turns.size() > 0 && !engineTurnUsable(active)) {
                 executeRequested = false;
@@ -1001,6 +1003,8 @@ public class CombatController {
         List<AbstractMonster> monsters = room != null && room.monsters != null
                 ? room.monsters.monsters
                 : new ArrayList<AbstractMonster>();
+        ExecutionSafety.TargetSlots<AbstractMonster> targets = ExecutionSafety.TargetSlots.capture(
+                p.source, monsters, m -> !m.isDeadOrEscaped());
         for (int ti = 0; ti < p.turns.size(); ti++) {
             Plan.Turn t = p.turns.get(ti);
             boolean last = ti == p.turns.size() - 1;
@@ -1012,9 +1016,9 @@ public class CombatController {
                 if (a.isPotion()) {
                     a.cardName = "用药水：" + CardNames.zhPotion(a.potionId());
                     a.colorIndex = 4;
-                    if (a.targetIndex >= 0 && a.targetIndex < monsters.size()) {
-                        a.targetName = monsters.get(a.targetIndex).name;
-                    }
+                    AbstractMonster target = targets == null || ("local".equals(p.source) && ti > 0)
+                            ? null : targets.resolve(monsters, a.targetIndex, m -> !m.isDeadOrEscaped());
+                    a.targetName = target == null ? null : target.name;
                     continue;
                 }
                 if (a.isSelect()) {
@@ -1022,9 +1026,10 @@ public class CombatController {
                     continue;
                 }
                 // 只有需要指定目标的牌才显示“→某怪物”；防御这类牌引擎也会带 0 号下标。
-                if (a.kind == Plan.Action.KIND_CARD && needsTarget(a.cardId) && a.targetIndex >= 0
-                        && a.targetIndex < monsters.size()) {
-                    a.targetName = monsters.get(a.targetIndex).name;
+                if (a.kind == Plan.Action.KIND_CARD && needsTarget(a.cardId)) {
+                    AbstractMonster target = targets == null || ("local".equals(p.source) && ti > 0)
+                            ? null : targets.resolve(monsters, a.targetIndex, m -> !m.isDeadOrEscaped());
+                    a.targetName = target == null ? null : target.name;
                 }
             }
             // 内置求解器：每一回合都以结束回合收尾；击杀信息只在最后一回合可判定。
@@ -1033,6 +1038,27 @@ public class CombatController {
                 t.killsAll = last && p.predictedWin;
             }
         }
+    }
+
+    private ExecutionSafety.TargetSlots<AbstractMonster> targetSlotsFor(Plan p, SimState root) {
+        AbstractRoom room = currentRoom();
+        if (room == null || room.monsters == null) return null;
+        List<AbstractMonster> roster = room.monsters.monsters;
+        ExecutionSafety.TargetSlots<AbstractMonster> targets = ExecutionSafety.TargetSlots.capture(
+                p.source, roster, m -> !m.isDeadOrEscaped());
+        if (targets == null || !"local".equals(p.source)) return targets;
+        if (root == null || targets.initialLiving().size() != root.mobs.size()) return null;
+        for (int i = 0; i < root.mobs.size(); i++) {
+            AbstractMonster live = targets.initialLiving().get(i);
+            SimState.Mob planned = root.mobs.get(i);
+            if (!sameId(live.id, planned.id) || live.currentHealth != planned.hp
+                    || live.maxHealth != planned.maxHp || live.currentBlock != planned.block) return null;
+        }
+        return targets;
+    }
+
+    private static boolean sameId(String a, String b) {
+        return a == null ? b == null : a.equals(b);
     }
 
     /** 牌的类型 → 胶囊颜色：0 攻击、1 技能、2 能力、3 状态/诅咒。 */

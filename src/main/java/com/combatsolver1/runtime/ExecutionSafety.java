@@ -1,6 +1,8 @@
 package com.combatsolver1.runtime;
 
 import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -24,6 +26,47 @@ final class ExecutionSafety {
 
     static boolean targetSlotUsable(int index, int rosterSize, boolean alive) {
         return index >= 0 && index < rosterSize && alive;
+    }
+
+    /** A plan's target numbers belong to its source, never to an inferred current roster. */
+    static final class TargetSlots<T> {
+        private final boolean localCompact;
+        private final List<T> initialLiving;
+
+        private TargetSlots(boolean localCompact, List<T> initialLiving) {
+            this.localCompact = localCompact;
+            this.initialLiving = Collections.unmodifiableList(new ArrayList<>(initialLiving));
+        }
+
+        static <T> TargetSlots<T> capture(String source, List<T> roster, Predicate<T> alive) {
+            if ("engine".equals(source)) return new TargetSlots<>(false, Collections.<T>emptyList());
+            if (!"local".equals(source) || roster == null || alive == null) return null;
+            List<T> living = new ArrayList<>();
+            for (T item : roster) if (item != null && alive.test(item)) living.add(item);
+            return new TargetSlots<>(true, living);
+        }
+
+        List<T> initialLiving() { return initialLiving; }
+
+        T resolve(List<T> roster, int targetIndex, Predicate<T> alive) {
+            if (roster == null || alive == null || targetIndex < 0) return null;
+            T chosen;
+            if (localCompact) {
+                if (targetIndex >= initialLiving.size()) return null;
+                chosen = initialLiving.get(targetIndex);
+                if (fixedIndex(roster, chosen) < 0) return null;
+            } else {
+                if (targetIndex >= roster.size()) return null;
+                chosen = roster.get(targetIndex);
+            }
+            return chosen != null && alive.test(chosen) ? chosen : null;
+        }
+
+        static <T> int fixedIndex(List<T> roster, T chosen) {
+            if (roster == null || chosen == null) return -1;
+            for (int i = 0; i < roster.size(); i++) if (roster.get(i) == chosen) return i;
+            return -1;
+        }
     }
 
     static boolean turnMatches(int plannedTurn, int liveTurn) {

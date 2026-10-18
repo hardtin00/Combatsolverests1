@@ -805,5 +805,5 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 ### 首次 Exhume L3 现场日志复核（2026-10-18/19）
 
 - H 的 Slime Boss 外部路线在出牌 3/4 后报告 `deploy potion not found: Dexterity`；同场 bundle 的 potion 快照显示 `Dexterity Potion`，名字/ID 的匹配根因尚未确认。路线随后失效并改用 local route。Turn 4 local route 在未携带 `PLANSELECT v=3` 的情况下打出 Exhume，随后出现原生选牌界面并按现有安全策略中止。没有 `Exhume pre-choice identity matched`、原生输入、选择验证或后续动作证据；这是安全中止，不是选牌成功。该场 `battle-20261018-235230-235-1f912c14-9996-468a-84ca-043ed56938d6` 当时仍 open/in_progress，combat.jsonl 被运行中的游戏占用，不能做封存完整性验收。
-- 修复：`PlanDeployer` 现在在打出 Exhume 前要求紧随其后的路线动作是来源为 sts_lightspeed 的完整 v3 Exhume 选择；local、缺失/不完整选择会在耗能和打开界面前停止。已排入的前序动作先结算，Exhume 本身不执行。
+- 修复：`PlanDeployer` 现在在打出 Exhume 前要求紧随其后的路线动作是来源为 sts_lightspeed 的完整 v3 Exhume 选择；local、缺失/不完整选择会在耗能和打开界面前停止。已排入的前序动作先结算，Exhume 本身不执行。若 Exhume 已打出但选择中断，即使 pendingChoice 尚未建立，失败也会将 journal 标脏。
 - 验证：Exhume 执行检查、solvertest all、RootReplayDiff SelfTest（30 项）、Java 8 完整构建（major 52）及 MTS 3.30.3 补丁发现/注入均通过。测试为 L2，不能代替本修复版本的实机验证。游戏进程仍在运行时未覆盖 mods JAR；需要关闭游戏后部署并重新测试。G Exhume、H 多候选点击仍未验证；此前 H 单候选成功只覆盖旧部署版本。

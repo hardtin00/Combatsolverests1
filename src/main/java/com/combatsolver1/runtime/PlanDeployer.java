@@ -680,7 +680,8 @@ public class PlanDeployer {
     }
 
     private void finish(boolean completed, String reason) {
-        if (!completed && pendingChoice != null && journal != null) {
+        if (!completed && ExhumeChoiceSafety.requiresDirtyJournalOnFailure(
+                pendingChoice != null, plannedExhumeCard != null) && journal != null) {
             journal.markDirty("Exhume 选牌未能忠实完成：" + (reason == null ? "未知原因" : reason));
         }
         if (!completed) cancelQueuedOperations();

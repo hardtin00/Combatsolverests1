@@ -21,6 +21,12 @@ public final class ExhumeExecutionCheck {
         require(!ExhumeChoiceSafety.canPlayExhume(turnWithExhume(incomplete), 0, "engine"),
                 "incomplete choice was allowed before Exhume");
         require(!ExhumeChoiceSafety.canPlayExhume(exhumeTurn, 1, "engine"), "choice action was treated as an Exhume card");
+        require(ExhumeChoiceSafety.requiresDirtyJournalOnFailure(false, true),
+                "failure after Exhume use did not require a dirty journal");
+        require(ExhumeChoiceSafety.requiresDirtyJournalOnFailure(true, false),
+                "failure during a pending Exhume choice did not require a dirty journal");
+        require(!ExhumeChoiceSafety.requiresDirtyJournalOnFailure(false, false),
+                "unrelated failure dirtied the journal as an Exhume failure");
 
         // A: unique candidate; B: multiple IDs; C: same ID with different upgrades.
         ExhumeChoiceSafety.Match unique = ExhumeChoiceSafety.match(action,

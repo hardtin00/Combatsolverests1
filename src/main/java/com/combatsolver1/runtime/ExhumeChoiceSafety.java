@@ -26,6 +26,10 @@ final class ExhumeChoiceSafety {
         return selectionIndex < turn.actions.size() && supports(turn.actions.get(selectionIndex), planSource);
     }
 
+    static boolean requiresDirtyJournalOnFailure(boolean choicePending, boolean exhumePlayed) {
+        return choicePending || exhumePlayed;
+    }
+
     static Plan.ChoiceCard descriptor(String id, int upgrades, int cost) {
         return new Plan.ChoiceCard(id, upgrades, cost);
     }

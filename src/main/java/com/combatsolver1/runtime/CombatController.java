@@ -151,7 +151,10 @@ public class CombatController {
             return;
         }
         if (deployer.isActive()) {
-            // 部署器自己记录，避免重复
+            // At native useCard time, reject any unexpected player action/target and cancel the queued remainder.
+            if (!deployer.acceptCardUsed(card, target)) {
+                onDeployFinished(deployer.consumeResult());
+            }
             return;
         }
         if (!journal.isUsable()) {
@@ -251,14 +254,6 @@ public class CombatController {
             }
             checkPendingDrift();
 
-            if (plan != null && !planStale && validatedSignature != null
-                    && !validatedSignature.equals(liveSignature())) {
-                planStale = true;
-                planValidated = false;
-                suppressed = false;
-                CombatLog.info("live state changed; plan invalidated");
-            }
-
             if (searching) {
                 if (paused) {
                     search.abort();
@@ -315,6 +310,20 @@ public class CombatController {
                 root = LiveCapture.captureRoot();
             }
 
+            // Compare signatures from the same full-state representation. The old lightweight string
+            // omitted hand/card fields and could never equal SimState.signature().
+            if (root != null && currentPlan() != null && !planStale && validatedSignature != null
+                    && !validatedSignature.equals(root.signature())) {
+                planStale = true;
+                planValidated = false;
+                suppressed = false;
+                plan = null;
+                enginePlan = null;
+                validatedSignature = null;
+                expectedEndState = null;
+                CombatLog.info("live state changed; plan invalidated");
+            }
+
             if (!searching && !planValidated) {
                 if (root != null && canReusePlan(plan, root)) {
                     planValidated = true;
@@ -324,18 +333,20 @@ public class CombatController {
                 } else if (suppressed) {
                     // 本回合已经放弃自动执行，不再反复搜索
                 } else if (plan != null && searchAttempts >= 3) {
-                    if (planActionsResolvable(plan, root)) {
-                        planValidated = true;
-                        CombatLog.info("validation kept failing; using current plan as-is");
-                    } else {
-                        // 计划里的牌和实机手牌对不上：强行执行只会打到一半就失效，本回合不再自动出牌
-                        suppressed = true;
-                        CombatLog.info("计划与实机手牌对不上，本回合停止自动执行"
-                                + "（计划 " + planActionSummary(plan) + "）");
-                    }
+                    // 重复验证失败不能因为牌名还在手里就降级为“强行执行”。
+                    planValidated = false;
+                    planStale = true;
+                    validatedSignature = null;
+                    suppressed = true;
+                    CombatLog.info("路线连续验证失败，本回合停止自动执行"
+                            + "（计划 " + planActionSummary(plan) + "）");
                 } else if (enginePlanAvailable()) {
                     // 引擎路线在手，不必再跑本地搜索。
-                    planValidated = true;
+                    if (root != null) {
+                        planValidated = true;
+                        planStale = false;
+                        validatedSignature = root.signature();
+                    }
                 } else {
                     maybeRequestReplayEnginePlan();
                     plan = null;
@@ -354,7 +365,10 @@ public class CombatController {
 
             Plan active = currentPlan();
             if (active != null && active.turns.size() > 0 && (executeRequested || fullAuto)
-                    && !suppressed && engineTurnUsable(active)) {
+                    && ExecutionSafety.mayExecute(true, planValidated, planStale, suppressed,
+                    paused, executeRequested, fullAuto, validatedSignature,
+                    root == null ? null : root.signature())
+                    && engineTurnUsable(active)) {
                 boolean autoTurn = fullAuto;
                 executeRequested = false;
                 Plan.Turn firstTurn = active.turns.get(0);
@@ -729,6 +743,14 @@ public class CombatController {
             }
             return;
         }
+        if (!ExecutionSafety.fetchMatchesJournal(pendingEngineFetchJournalSize, journal.size())) {
+            pendingEngineFetch = null;
+            replayRequestedForSize = -1;
+            engineNote = "引擎结果基于旧动作日志，已丢弃并等待重算";
+            CombatLog.info("engine fetch stale: journal " + pendingEngineFetchJournalSize
+                    + " -> " + journal.size());
+            return;
+        }
         // 只在“稳定的一帧”上核对：回合切换、动画中、看牌时手牌可能正在变化，核对会误判。
         if (!isSettled()) {
             if (System.currentTimeMillis() - pendingEngineFetchAt > 8000L) {
@@ -771,6 +793,15 @@ public class CombatController {
         }
         localizePlanNames(fetch.plan);
         enginePlan = fetch.plan;
+        SimState validatedRoot = LiveCapture.captureRoot();
+        if (validatedRoot == null) {
+            enginePlan = null;
+            engineNote = "无法在稳定帧确认引擎路线起点";
+            return;
+        }
+        validatedSignature = validatedRoot.signature();
+        planValidated = true;
+        planStale = false;
         engineDriftReason = "";
         engineNote = "";
         CombatLog.info("engine plan ready: turns=" + fetch.plan.turns.size()
@@ -882,10 +913,12 @@ public class CombatController {
         }
         Plan.Turn first = active.turns.get(0);
         int liveTurn = AbstractDungeon.actionManager.turn;
-        if (first.liveTurnNumber > 0 && first.liveTurnNumber > liveTurn) {
+        if (!ExecutionSafety.turnMatches(first.liveTurnNumber, liveTurn)
+                && first.liveTurnNumber > liveTurn) {
             return false;
         }
-        if (first.liveTurnNumber > 0 && first.liveTurnNumber < liveTurn) {
+        if (!ExecutionSafety.turnMatches(first.liveTurnNumber, liveTurn)
+                && first.liveTurnNumber < liveTurn) {
             // 计划落后于实机：这段路线已经过期，直接丢弃重新规划。
             engineDriftReason = "引擎路线落后于实机回合，已重新规划";
             CombatLog.info("engine plan turn " + first.liveTurnNumber
@@ -1055,27 +1088,6 @@ public class CombatController {
         return true;
     }
 
-    /** 轻量实机状态签名，格式与 SimState.signature() 一致（本地路线复用判定用）。 */
-    private String liveSignature() {
-        if (AbstractDungeon.player == null) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append(AbstractDungeon.player.currentHealth).append('|')
-                .append(AbstractDungeon.player.currentBlock).append('|')
-                .append(EnergyPanel.getCurrentEnergy()).append('|');
-        AbstractRoom room = currentRoom();
-        if (room != null && room.monsters != null) {
-            for (AbstractMonster m : room.monsters.monsters) {
-                if (m.isDeadOrEscaped()) {
-                    continue;
-                }
-                sb.append(m.currentHealth).append(',').append(m.currentBlock).append(';');
-            }
-        }
-        return sb.toString();
-    }
-
     private String handSummary(SimState root) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < root.hand.size(); i++) {
@@ -1186,9 +1198,15 @@ public class CombatController {
 
     private void stopAndPause() {
         paused = true;
+        executeRequested = false;
+        fullAuto = false;
         if (searching) {
             search.abort();
             searching = false;
+        }
+        if (deployer.isActive()) {
+            deployer.cancel();
+            onDeployFinished(deployer.consumeResult());
         }
         CombatLog.info("paused: auto search & execution disabled until recalculation");
     }
@@ -1229,7 +1247,7 @@ public class CombatController {
             prev = rKeyDown;
             rKeyDown = down;
         }
-        return down && !prev;
+        return ExecutionSafety.risingEdge(prev, down);
     }
 
     private void clearKeys() {

@@ -1,5 +1,12 @@
 ## 2026-10-18：终局胜负离线验收命令
 
+## 2026-10-18：G/H 执行安全审计
+
+- 代码审计发现并修复三项 fail-closed 缺口：旧动作日志上的异步引擎 fetch 可能被当作起点计划采用；计划签名和轻量 live 签名格式不一致，导致过期路线防护无效；连续验证失败达到上限时可能降级强行使用旧路线。现在异步结果先按 journal 长度拒绝过期输入，执行前比较完整 `SimState.signature()`，多次验证失败则抑制执行。
+- 部署器不再为已死亡/错位的计划目标回退攻击其他存活怪；药水要求目标时也拒绝缺失/过期目标。原生 useCard 边界校验牌实例及目标签名，发现手动插入/目标改变即取消剩余路线。J 现在清除 G 请求、关闭 H、停止搜索并取消尚未执行的本部署队列（当前正在结算的卡牌无法回滚）。
+- 离线故障注入：`ExecutionSafetyCheck` 8 组通过（过期 fetch、回合新旧、未验证/过期/被抑制签名、J 暂停、G/H 授权、重复按键、死亡/错位目标、队列仅撤销本执行器所有权的动作）。命令为 Java 8 `javac --release 8 ... ExecutionSafety.java ExecutionSafetyCheck.java` 和 `java -cp build/executesafety com.combatsolver1.runtime.ExecutionSafetyCheck`，退出 0。
+- 本轮不触碰 CombatRecorder、BattleArtifacts、真实 bundle、战斗规则、搜索算法或 UI。当前结论为 L2（针对纯策略门控与队列撤销策略的离线回归 + 完整 Mod 构建）；没有启动游戏或进行 L3/L4。剩余风险：出牌动作以批次入队，已开始结算的卡效果不能撤销；药水执行中的玩家干预还没有与 card-use 一样的原生边界确认；引擎跨回合状态核对仅使用既有摘要字段；重复同 ID 卡牌仍按计划下标/ID恢复，不核对升级后实例签名。
+
 - 新增 `tools/recordercheck/run-terminal-replay-check.ps1` 与 `TerminalReplayCheck.java`，复用 JSONL/journal、`replay_trace` 与 `replay_search`。报告归档哈希、非终局连续性、动作编码/目标可信度、终局胜负及终局全字段比较五项；最后致胜动作可只验收胜负类别，保留 `journalDirty` 与缺失 post，不判完整严格 L4。
 - 回归使用胜利 bundle `battle-20261018-150839-671-747a4a3c-cf7b-436e-b792-2b68254a6e20`，原始文件未修改。离线协议测试 12 项通过，覆盖封存状态/哈希错误、可信终局动作、拒绝不可信目标、手牌/目标/endTurn 编码错误、非终局断链、胜负不符，以及唯一已确认的目标伤害重算边界。
 - 实际命令：`powershell -ExecutionPolicy Bypass -File tools/recordercheck/run-terminal-replay-check.ps1 -BundlePath <bundle>`。该样本封存和五份 SHA-256 一致；8 个已配对动作全部按连续 `replay_trace` 对比，90 个摘要字段（root 10 + 8 个 post × 10）匹配。第 7 行仅有 Strike_R 伤害 4→6，按已有证据分类为同目标状态下原生伤害重算。journal 9/9 动作编码及目标可信度通过。`replay_search` 返回 `PLANEND outcome=1`，匹配 manifest victory；终局全字段未比较，`journalDirty=true`，严格验收仍未通过。死亡终局未覆盖。

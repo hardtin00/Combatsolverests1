@@ -12,7 +12,9 @@ import com.megacrit.cardcrawl.potions.AbstractPotion;
 import com.megacrit.cardcrawl.ui.panels.EnergyPanel;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 
@@ -63,6 +65,9 @@ public class PlanDeployer {
     private final List<AbstractCard> virtualHand = new ArrayList<>();
     private Result result;
     private final Set<AbstractPotion> usedPotions = new HashSet<>();
+    private final Set<NewQueueCardAction> queuedActions = Collections.newSetFromMap(new IdentityHashMap<NewQueueCardAction, Boolean>());
+    private final Set<AbstractCard> queuedCards = Collections.newSetFromMap(new IdentityHashMap<AbstractCard, Boolean>());
+    private final List<ExpectedUse> expectedUses = new ArrayList<>();
     /** 计划里的牌暂时不在手里（多半是本回合内刚抽到的）时，允许等待的帧数。 */
     private int deferrals;
 
@@ -86,6 +91,21 @@ public class PlanDeployer {
         deferrals = 0;
         idleFrames = 0;
         readyFrames = 0;
+    }
+
+    /** Called at the native useCard boundary to distinguish a planned use from player intervention. */
+    public boolean acceptCardUsed(AbstractCard card, CardTargetRef target) {
+        ExpectedUse expected = null;
+        for (ExpectedUse use : expectedUses) {
+            if (use.card == card) { expected = use; break; }
+        }
+        if (expected == null || target == null || !target.trusted
+                || !expected.targetSignature.equals(targetSignature(target))) {
+            finish(false, "执行期间检测到未计划的出牌或目标变化，已取消剩余路线");
+            return false;
+        }
+        expectedUses.remove(expected);
+        return true;
     }
 
     public void execute(Plan.Turn turn, boolean endTurnAfter, ActionJournal actionJournal) {
@@ -143,6 +163,11 @@ public class PlanDeployer {
                 return;
             }
 
+            if (!expectedUses.isEmpty()) {
+                finish(false, "排队的牌未在原生 useCard 边界确认，已停止后续动作");
+                return;
+            }
+
             if (endTurnAfter && !endRequested) {
                 endRequested = true;
                 CombatLog.info("deploy: ending turn");
@@ -159,6 +184,7 @@ public class PlanDeployer {
                 pending = null;
                 virtualHand.clear();
                 usedPotions.clear();
+                clearQueuedTracking();
                 AbstractDungeon.getCurrRoom().endTurn();
                 return;
             }
@@ -249,7 +275,11 @@ public class PlanDeployer {
             if (journal != null) {
                 journal.recordCard(engineIdx, card.cardID, targetRef);
             }
-            AbstractDungeon.actionManager.addToBottom(new NewQueueCardAction(card, target));
+            NewQueueCardAction queued = new NewQueueCardAction(card, target);
+            queuedActions.add(queued);
+            queuedCards.add(card);
+            expectedUses.add(new ExpectedUse(card, targetSignature(targetRef)));
+            AbstractDungeon.actionManager.addToBottom(queued);
             played++;
             queuedThisSegment++;
             cursor++;
@@ -325,7 +355,11 @@ public class PlanDeployer {
                 CombatLog.info("deploy discard potion: " + potionId);
                 return true;
             }
-            AbstractMonster target = potionTarget(action);
+            AbstractMonster target = potionTarget(action, potion);
+            if (potion.targetRequired && target == null) {
+                CombatLog.info("deploy potion target is missing or stale: " + potionId);
+                return false;
+            }
             potion.use(target);
             AbstractDungeon.player.removePotion(potion);
             usedPotions.add(potion);
@@ -342,19 +376,14 @@ public class PlanDeployer {
         }
     }
 
-    private AbstractMonster potionTarget(Plan.Action action) {
-        if (action.targetIndex >= 0) {
-            AbstractMonster m = monsterAt(action.targetIndex);
-            if (m != null && !m.isDeadOrEscaped()) {
-                return m;
-            }
-        }
-        for (AbstractMonster m : AbstractDungeon.getCurrRoom().monsters.monsters) {
-            if (!m.isDeadOrEscaped()) {
-                return m;
-            }
-        }
-        return null;
+    private AbstractMonster potionTarget(Plan.Action action, AbstractPotion potion) {
+        if (!potion.targetRequired) return null;
+        if (action.targetIndex < 0) return null;
+        AbstractMonster target = monsterAt(action.targetIndex);
+        if (!isUsableTarget(action.targetIndex, target)) return null;
+        if (action.targetName != null && !action.targetName.isEmpty()
+                && !action.targetName.equals(target.name)) return null;
+        return target;
     }
 
     /** 完全空闲：待执行动作为空、没有正在执行的动作、出牌队列为空、未在出牌中。 */
@@ -368,6 +397,8 @@ public class PlanDeployer {
     }
 
     private void finish(boolean completed, String reason) {
+        if (!completed) cancelQueuedOperations();
+        else clearQueuedTracking();
         Result r = new Result();
         r.completed = completed;
         r.invalidated = !completed;
@@ -408,15 +439,54 @@ public class PlanDeployer {
             return null;
         }
         AbstractMonster target = monsterAt(action.targetIndex);
-        if (target != null && !target.isDeadOrEscaped()) {
-            return target;
-        }
-        for (AbstractMonster m : AbstractDungeon.getCurrRoom().monsters.monsters) {
-            if (!m.isDeadOrEscaped()) {
-                return m;
+        if (!isUsableTarget(action.targetIndex, target)) return null;
+        if (action.targetName != null && !action.targetName.isEmpty()
+                && !action.targetName.equals(target.name)) return null;
+        return target;
+    }
+
+    private boolean isUsableTarget(int index, AbstractMonster target) {
+        List<AbstractMonster> monsters = AbstractDungeon.getCurrRoom().monsters.monsters;
+        return ExecutionSafety.targetSlotUsable(index, monsters.size(),
+                target != null && !target.isDeadOrEscaped());
+    }
+
+    private void cancelQueuedOperations() {
+        GameActionManager manager = AbstractDungeon.actionManager;
+        if (manager != null) {
+            // J can be pressed while one of our queue wrappers is already currentAction.
+            // It has left manager.actions, so cancel it explicitly before it can enqueue a card.
+            if (ExecutionSafety.isOwnedByIdentity(queuedActions, manager.currentAction)) {
+                manager.currentAction.isDone = true;
             }
+            ExecutionSafety.removeOwnedByIdentity(manager.actions, queuedActions);
+            ExecutionSafety.removeMatching(manager.cardQueue, item -> containsIdentity(queuedCards, item.card));
         }
-        return null;
+        clearQueuedTracking();
+    }
+
+    private void clearQueuedTracking() {
+        queuedActions.clear();
+        queuedCards.clear();
+        expectedUses.clear();
+    }
+
+    private static boolean containsIdentity(Set<AbstractCard> cards, AbstractCard target) {
+        for (AbstractCard card : cards) if (card == target) return true;
+        return false;
+    }
+
+    private static String targetSignature(CardTargetRef target) {
+        return target.mode + ":" + target.identity + ":" + target.engineIndex;
+    }
+
+    private static final class ExpectedUse {
+        final AbstractCard card;
+        final String targetSignature;
+        ExpectedUse(AbstractCard card, String targetSignature) {
+            this.card = card;
+            this.targetSignature = targetSignature;
+        }
     }
 
     private boolean needsEnemy(AbstractCard card) {

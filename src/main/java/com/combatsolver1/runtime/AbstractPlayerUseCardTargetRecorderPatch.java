@@ -20,6 +20,13 @@ public final class AbstractPlayerUseCardTargetRecorderPatch {
     @SpireInsertPatch(locator = BeforeCardEffects.class)
     public static void beforeCardEffects(AbstractPlayer __instance, AbstractCard c,
                                          AbstractMonster monster, int energyOnUse) {
+        // Without Blue Candle the game cannot accept a curse as a player card action.
+        // Curse effects that resolve during end-turn cleanup belong to the endTurn record.
+        if (!CardActionRecordingPolicy.shouldRecord(
+                c == null || c.type == null ? null : c.type.name(),
+                __instance != null && __instance.hasRelic("Blue Candle"))) {
+            return;
+        }
         CombatSolver1Mod.recordCardUse(c, monster);
     }
 

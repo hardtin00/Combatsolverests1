@@ -2,6 +2,14 @@
 
 ## 2026-10-18：G/H 执行安全审计
 
+## 2026-10-18：阻断 H 全自动同状态重试
+
+- 复现控制流：部署器无目标/不可执行时返回 invalidated；`onDeployFinished` 清空路线并把 `searchAttempts` 归零，但原先不抑制 H。下一稳定帧重新搜索/复用，错误路线再次部署。现在失败会关闭 H、锁住失败时的 `turn|SimState.signature` 并抑制搜索/部署；只有观察到不同稳定根状态后再收到新的 G/H 授权才释放。J 仍可随时停止。回归向同一失败状态注入 200 次“重规划并重新启 H”，必须零次部署；自然状态变化本身仍阻断，变化后新授权才允许重试。
+- 索引审计确认：本地 `LiveCapture` 仅把存活怪加入 `SimState.mobs`，本地目标索引是压缩列表位置；sts_lightspeed 使用固定 `MonsterGroup.arr[5]` 槽位。当前 `PlanDeployer` 对两种来源一律按原版完整房间列表解析，`localizePlanNames` 也使用完整列表。触发例：原生列表 `[活 A, 死 B, 活 C]`、本地模拟列表 `[A,C]`、本地目标索引 1；部署器会取到死槽位 B，报告无目标；同 ID/同名时还可能映射错怪。本轮按“定点审计、不修改其他系统”要求只报告，不改映射。
+- journal 错误调用链为 `CombatController.maybeRequestReplayEnginePlan → EngineBridge.writeJournal → BattleArtifacts.replaceJournal`，发生在临时 journal 写入、原子替换或 manifest 更新阶段。此前只输出通用错误；`BattleArtifacts` 已保存 `journalError`，本轮让运行日志输出该底层原因。离线回归用缺失父目录触发替换失败并确认异常原因保留；未改真实 bundle。
+- expected HP 43/live HP 42 暂列待诊断，没有可复现规则证据，本轮不改战斗规则。选牌界面导致中止仍是预期 fail-closed 行为。会话中提供了核心日志摘录，但工作区仅找到 2026-09-03 旧日志，未发现本场完整 ModTheSpire 日志文件，因此未作未提供行段的逐行关联。
+- 验证：`ExecutionSafetyCheck` 9 组通过（包括 200 次同状态重试故障注入）；`BattleArtifactsCheck` 通过；`tools/solvertest/run.ps1 -Command all` 退出 0。完整 Java 8 构建与部署为 L2，不等于实机修复验证。
+
 - 代码审计发现并修复三项 fail-closed 缺口：旧动作日志上的异步引擎 fetch 可能被当作起点计划采用；计划签名和轻量 live 签名格式不一致，导致过期路线防护无效；连续验证失败达到上限时可能降级强行使用旧路线。现在异步结果先按 journal 长度拒绝过期输入，执行前比较完整 `SimState.signature()`，多次验证失败则抑制执行。
 - 部署器不再为已死亡/错位的计划目标回退攻击其他存活怪；药水要求目标时也拒绝缺失/过期目标。原生 useCard 边界校验牌实例及目标签名，发现手动插入/目标改变即取消剩余路线。J 现在清除 G 请求、关闭 H、停止搜索并取消尚未执行的本部署队列（当前正在结算的卡牌无法回滚）。
 - 离线故障注入：`ExecutionSafetyCheck` 8 组通过（过期 fetch、回合新旧、未验证/过期/被抑制签名、J 暂停、G/H 授权、重复按键、死亡/错位目标、队列仅撤销本执行器所有权的动作）。命令为 Java 8 `javac --release 8 ... ExecutionSafety.java ExecutionSafetyCheck.java` 和 `java -cp build/executesafety com.combatsolver1.runtime.ExecutionSafetyCheck`，退出 0。

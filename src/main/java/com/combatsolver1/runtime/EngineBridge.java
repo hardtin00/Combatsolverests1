@@ -458,7 +458,9 @@ public final class EngineBridge {
                 File file = new File(BattleArtifacts.sessionDirectory(), "actions.journal");
                 return file.getAbsolutePath();
             }
-            CombatLog.info("write journal failed: battle artifact journal could not be updated");
+            String reason = BattleArtifacts.journalFailureReason();
+            CombatLog.info("write journal failed: battle artifact journal could not be updated; reason="
+                    + (reason == null || reason.isEmpty() ? "no underlying IOException captured" : reason));
             return null;
         }
         try {

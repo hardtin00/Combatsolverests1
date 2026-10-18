@@ -87,6 +87,9 @@ public class CombatController {
     private boolean rKeyDown;
     private boolean executeRequested;
     private boolean fullAuto;
+    private final ExecutionSafety.FailureLatch executionFailure = new ExecutionSafety.FailureLatch();
+    private String activeExecutionSignature;
+    private boolean failureStateChangeReported;
 
     private List<AbstractCard> lastIdleHand = new ArrayList<>();
     private List<AbstractPotion> lastIdlePotions = new ArrayList<>();
@@ -119,6 +122,9 @@ public class CombatController {
         engineActionsUnsupported = false;
         planValidated = false;
         planStale = false;
+        executionFailure.clear();
+        activeExecutionSignature = null;
+        failureStateChangeReported = false;
         validatedSignature = null;
         searching = false;
         paused = false;
@@ -188,13 +194,16 @@ public class CombatController {
                 return;
             }
             if (edge(Input.Keys.G)) {
-                executeRequested = true;
-                suppressed = false; // 玩家明确要求执行：再试一次
-                CombatLog.info("G requested: current turn only");
+                if (authorizeAfterFailure("G")) {
+                    executeRequested = true;
+                    suppressed = false;
+                    CombatLog.info("G requested: current turn only");
+                }
             }
             if (edge(Input.Keys.H)) {
                 fullAuto = !fullAuto;
                 CombatLog.info("full auto: " + fullAuto);
+                if (fullAuto) authorizeAfterFailure("H");
                 if (!fullAuto && deployer.isActive()) {
                     CombatLog.info("H disabled: current deployment is not cancelled; J pauses and cancels pending actions");
                 }
@@ -210,12 +219,15 @@ public class CombatController {
             if (uiAction == OverlayRenderer.ACTION_RECALCULATE) {
                 recalculate();
             } else if (uiAction == OverlayRenderer.ACTION_EXECUTE_TURN) {
-                executeRequested = true;
-                suppressed = false;
-                CombatLog.info("G requested from overlay: current turn only");
+                if (authorizeAfterFailure("G-overlay")) {
+                    executeRequested = true;
+                    suppressed = false;
+                    CombatLog.info("G requested from overlay: current turn only");
+                }
             } else if (uiAction == OverlayRenderer.ACTION_TOGGLE_AUTO) {
                 fullAuto = !fullAuto;
                 CombatLog.info("full auto: " + fullAuto);
+                if (fullAuto) authorizeAfterFailure("H-overlay");
                 if (!fullAuto && deployer.isActive()) {
                     CombatLog.info("H disabled: current deployment is not cancelled; J pauses and cancels pending actions");
                 }
@@ -251,7 +263,7 @@ public class CombatController {
                 }
                 lastTurn = turn;
                 searchAttempts = 0;
-                suppressed = false;
+                if (!executionFailure.isBlocked()) suppressed = false;
                 planValidated = false;
                 planStale = false;
                 validatedSignature = null;
@@ -337,12 +349,23 @@ public class CombatController {
                 CombatLog.info("live state changed; plan invalidated");
             }
 
+            if (root != null && executionFailure.isBlocked()) {
+                boolean wasChanged = executionFailure.hasStateChange();
+                executionFailure.observe(executionStateKey(root, turn));
+                if (!wasChanged && executionFailure.hasStateChange() && !failureStateChangeReported) {
+                    failureStateChangeReported = true;
+                    CombatLog.info("failed execution state changed; waiting for fresh G/H authorization");
+                }
+            }
+
             if (!searching && !planValidated) {
                 if (root != null && canReusePlan(plan, root)) {
                     planValidated = true;
                     planStale = false;
                     validatedSignature = root.signature();
                     CombatLog.info("local route reused for turn " + turn);
+                } else if (executionFailure.isBlocked()) {
+                    suppressed = true;
                 } else if (suppressed) {
                     // 本回合已经放弃自动执行，不再反复搜索
                 } else if (plan != null && searchAttempts >= 3) {
@@ -381,9 +404,11 @@ public class CombatController {
                     && ExecutionSafety.mayExecute(true, planValidated, planStale, suppressed,
                     paused, executeRequested, fullAuto, validatedSignature,
                     root == null ? null : root.signature())
+                    && !executionFailure.isBlocked()
                     && engineTurnUsable(active)) {
                 boolean autoTurn = fullAuto;
                 executeRequested = false;
+                activeExecutionSignature = executionStateKey(root, turn);
                 Plan.Turn firstTurn = active.turns.get(0);
                 if (active == enginePlan) {
                     // 引擎路线是整场推演：一回合用掉一节，下一回合继续核对。
@@ -915,7 +940,32 @@ public class CombatController {
             validatedSignature = null;
             searchAttempts = 0;
             expectedEndState = null;
+            executionFailure.block(activeExecutionSignature);
+            failureStateChangeReported = false;
+            suppressed = true;
+            fullAuto = false;
+            executeRequested = false;
+            CombatLog.info("automatic retry blocked until stable state changes and a fresh G/H authorization is given");
+        } else if (result.completed) {
+            activeExecutionSignature = null;
         }
+    }
+
+    private boolean authorizeAfterFailure(String source) {
+        if (!executionFailure.isBlocked()) return true;
+        executionFailure.authorize();
+        if (executionFailure.isBlocked()) {
+            CombatLog.info(source + " ignored: failed state has not changed; automatic retry remains blocked");
+            return false;
+        }
+        suppressed = false;
+        searchAttempts = 0;
+        CombatLog.info(source + " authorized after verified state change");
+        return true;
+    }
+
+    private static String executionStateKey(SimState state, int turn) {
+        return turn + "|" + state.signature();
     }
 
     /**
@@ -1274,6 +1324,9 @@ public class CombatController {
 
     private void reset() {
         inCombat = false;
+        executionFailure.clear();
+        activeExecutionSignature = null;
+        failureStateChangeReported = false;
         plan = null;
         enginePlan = null;
         pendingEngineFetch = null;

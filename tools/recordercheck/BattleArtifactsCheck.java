@@ -121,6 +121,16 @@ public final class BattleArtifactsCheck {
             Files.write(validRaw.toPath(), rawBytes);
             check(BattleArtifacts.validate(first.directory).valid, "restored valid bundle rejected");
 
+            BattleArtifacts.Session journalFailure = BattleArtifacts.beginForTest(temp, "battle-test-journal-failure");
+            java.lang.reflect.Field journalField = BattleArtifacts.Session.class.getDeclaredField("journal");
+            journalField.setAccessible(true);
+            journalField.set(journalFailure, new File(journalFailure.directory, "missing-parent/actions.journal"));
+            check(!BattleArtifacts.replaceJournal(java.util.Collections.singletonList("0")),
+                    "journal replacement unexpectedly succeeded with a missing parent directory");
+            check(!BattleArtifacts.journalFailureReason().isEmpty(),
+                    "journal replacement failure did not preserve the underlying IOException");
+            BattleArtifacts.finish();
+
             BattleArtifacts.Session inconsistent = BattleArtifacts.beginForTest(temp, "battle-test-root-mismatch");
             root(inconsistent.directory, inconsistent.id, false);
             File inconsistentSave = source(temp, "root-mismatch.autosave", System.currentTimeMillis());

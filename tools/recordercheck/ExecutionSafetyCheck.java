@@ -17,6 +17,7 @@ public final class ExecutionSafetyCheck {
         pauseAndSuppressionRejectExecution();
         repeatedKeyHoldDoesNotCreateRepeatedRequest();
         explicitGAndFullAutoHCanExecuteValidatedPlan();
+        repeatedAutomaticFailureIsLatched();
         deadAndShiftedTargetsAreRejected();
         cancellationRemovesOnlyOwnedQueuedActions();
         System.out.println("ExecutionSafetyCheck passed=" + passed + " failed=0");
@@ -55,6 +56,30 @@ public final class ExecutionSafetyCheck {
     private static void explicitGAndFullAutoHCanExecuteValidatedPlan() {
         check(may(true, true, false, false, false, true, false, "s", "s"), "valid explicit G was rejected");
         check(may(true, true, false, false, false, false, true, "s", "s"), "valid full-auto H was rejected");
+        pass();
+    }
+
+    private static void repeatedAutomaticFailureIsLatched() {
+        ExecutionSafety.FailureLatch latch = new ExecutionSafety.FailureLatch();
+        latch.block("turn4|same-root");
+        boolean fullAuto = false; // production closes H after an invalidated deployment
+        int deployments = 0;
+        for (int i = 0; i < 200; i++) {
+            latch.observe("turn4|same-root");
+            fullAuto = true; // fault injection: repeated re-plan/reuse tries to resume H
+            latch.authorize();
+            check(latch.isBlocked(), "same-state retry " + i + " escaped the failure latch");
+            if (may(true, true, false, false, false, false, fullAuto, "turn4|same-root", "turn4|same-root")
+                    && !latch.isBlocked()) deployments++;
+        }
+        check(deployments == 0, "same-state failed route was deployed " + deployments + " more times");
+        latch.observe("turn5|new-stable-root");
+        check(latch.isBlocked(), "natural state transition bypassed the fresh authorization requirement");
+        latch.authorize();
+        check(!latch.isBlocked(), "fresh authorization after verified state change did not release the latch");
+        if (may(true, true, false, false, false, false, true,
+                "turn5|new-stable-root", "turn5|new-stable-root") && !latch.isBlocked()) deployments++;
+        check(deployments == 1, "a fresh state and H authorization did not permit exactly one deployment");
         pass();
     }
 

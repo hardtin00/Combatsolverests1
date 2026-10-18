@@ -69,6 +69,9 @@ public final class BattleArtifacts {
     static synchronized String currentId() { return active == null ? "" : active.id; }
     static synchronized File jsonlFile() { return active == null ? null : active.jsonl; }
     static synchronized File sessionDirectory() { return active == null ? null : active.directory; }
+    static synchronized String journalFailureReason() {
+        return active == null ? "no active battle artifact" : active.journalError;
+    }
     static synchronized File engineDirectory(String expectedId) {
         Session session = sessions.get(expectedId);
         if (session == null || session.closed) return null;
@@ -99,6 +102,7 @@ public final class BattleArtifacts {
             writer.write(action);
             writer.write('\n');
             active.actionCount++;
+            active.journalError = "";
             active.writeManifest();
             return true;
         } catch (IOException e) {
@@ -122,6 +126,7 @@ public final class BattleArtifacts {
             }
             move(temp, active.journal);
             active.actionCount = count;
+            active.journalError = "";
             active.writeManifest();
             return true;
         } catch (IOException e) {

@@ -465,6 +465,10 @@ public class PlanDeployer {
             finish(false, "Exhume 目标卡牌当前不在可见屏幕范围，已拒绝自动点击");
             return;
         }
+        if (!isUniqueCandidateHitboxAt(grid.targetGroup.group, choiceTargetCard, InputHelper.mX, InputHelper.mY)) {
+            finish(false, "Exhume 目标位置无法唯一命中预期卡牌，已拒绝自动点击");
+            return;
+        }
         if (pulse == ExhumeChoiceSafety.Pulse.PRESS) {
             InputHelper.justClickedLeft = true;
             CombatLog.info("Exhume native input: card hitbox press");
@@ -612,6 +616,19 @@ public class PlanDeployer {
 
     private static boolean containsIdentity(List<AbstractCard> cards, AbstractCard wanted) {
         return countIdentity(cards, wanted) > 0;
+    }
+
+    private static boolean isUniqueCandidateHitboxAt(List<AbstractCard> cards, AbstractCard target, int x, int y) {
+        int hits = 0;
+        for (AbstractCard card : cards) {
+            if (card == null || card.hb == null) continue;
+            boolean contains = x >= card.hb.x && x <= card.hb.x + card.hb.width
+                    && y >= card.hb.y && y <= card.hb.y + card.hb.height;
+            if (!contains) continue;
+            if (card != target) return false;
+            hits++;
+        }
+        return hits == 1;
     }
 
     private static int countIdentity(List<AbstractCard> cards, AbstractCard wanted) {

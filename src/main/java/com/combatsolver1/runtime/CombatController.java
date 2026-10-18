@@ -12,6 +12,7 @@ import com.combatsolver1.ui.OverlayRenderer;
 import com.combatsolver1.ui.PanelModel;
 import com.megacrit.cardcrawl.actions.GameActionManager;
 import com.megacrit.cardcrawl.cards.AbstractCard;
+import com.megacrit.cardcrawl.characters.AbstractPlayer;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import com.megacrit.cardcrawl.monsters.AbstractMonster;
 import com.megacrit.cardcrawl.potions.AbstractPotion;
@@ -48,6 +49,7 @@ public class CombatController {
     private final CombatSearch.Config config = new CombatSearch.Config();
     private final SolverSettings settings = SolverSettings.load();
     private final ActionJournal journal = new ActionJournal();
+    private final Object engineFetchLock = new Object();
 
     private boolean inCombat;
     private Plan plan;
@@ -63,6 +65,7 @@ public class CombatController {
     private String engineDriftReason = "";
     private String battleStartSave;
     private String battleRoomClassName = "";
+    private NativeSaveLoadCapture.Resolution battleSaveResolution;
     private String expectedEndState;
     private int expectedEndTurn = -1;
     /** 待核对的“上一回合结束时引擎预测状态”：等到真正稳定的那一帧再比。 */
@@ -106,17 +109,22 @@ public class CombatController {
     public void onBattleStart(AbstractRoom room) {
         inCombat = true;
         battleId++;
+        battleSaveResolution = NativeSaveLoadCapture.consumeForBattle(AbstractDungeon.player, room);
         EnemyModel.reset();
         journal.clear();
         CombatLog.info(LiveCapture.deckCoverageText());
         plan = null;
         enginePlan = null;
-        engineFetching = false;
         engineFetchJournalSize = -1;
         replayRequestedForSize = -1;
         engineDriftReason = "";
         engineNote = "";
-        battleStartSave = null;
+        synchronized (engineFetchLock) {
+            pendingEngineFetch = null;
+            pendingEngineFetchJournalSize = -1;
+            engineFetching = false;
+            battleStartSave = null;
+        }
         battleRoomClassName = room == null ? "" : room.getClass().getName();
         expectedEndState = null;
         expectedEndTurn = -1;
@@ -636,9 +644,20 @@ public class CombatController {
         final long since = System.currentTimeMillis() - 3000L;
         final String roomClassName = battleRoomClassName;
         final String artifactId = CombatRecorder.currentBattleId();
+        final NativeSaveLoadCapture.Resolution saveResolution = battleSaveResolution;
         if (!BattleArtifacts.initialCaptureStarted(artifactId)) {
             engineNote = "本场证据归档不可用，未启动存档采集";
             if (engineConfigured) engineFetching = false;
+            return;
+        }
+        if (engineConfigured && (AbstractDungeon.player == null
+                || AbstractDungeon.player.chosenClass != AbstractPlayer.PlayerClass.IRONCLAD)) {
+            String reason = "sts_lightspeed currently supports IRONCLAD saves only";
+            engineNote = "当前外部引擎只支持铁甲战士，已拒绝其他角色存档";
+            BattleArtifacts.enginePreparationFailed(artifactId, reason);
+            BattleArtifacts.initialCaptureFinished(artifactId);
+            if (engineConfigured) engineFetching = false;
+            CombatLog.info("engine save rejected: " + reason);
             return;
         }
         Thread worker = new Thread(new Runnable() {
@@ -649,17 +668,36 @@ public class CombatController {
                         engineNote = "本场证据归档不可用，拒绝使用未配对存档";
                         return;
                     }
-                    File save = EngineBridge.freshAutosave(since);
-                    if (save == null) {
-                        BattleArtifacts.captureAutosave(artifactId, null, since);
-                        BattleArtifacts.enginePreparationFailed(artifactId, "No fresh autosave found; stale autosave was not used.");
-                        engineNote = "未找到本场新自动存档，已拒绝旧存档";
-                        return;
+                    File archivedSave;
+                    if (saveResolution != null && saveResolution.nativeLoadObserved) {
+                        NativeSaveLoadCapture.LoadedSource loaded = saveResolution.source;
+                        if (loaded == null) {
+                            BattleArtifacts.nativeLoadedSaveRejected(artifactId, saveResolution.reason);
+                            String reason = "Native Continue save rejected: " + saveResolution.reason;
+                            BattleArtifacts.enginePreparationFailed(artifactId, reason);
+                            engineNote = "读档存档与当前战斗未能可信绑定：" + saveResolution.reason;
+                            CombatLog.info("resume save rejected: " + saveResolution.reason);
+                            return;
+                        }
+                        archivedSave = BattleArtifacts.captureNativeLoadedSave(artifactId, loaded.bytes,
+                                loaded.sourcePath, loaded.sourceModifiedAt, loaded.evidenceId);
+                        if (archivedSave != null) {
+                            CombatLog.info("resume save bound to battle: evidence=" + loaded.evidenceId
+                                    + " sourceSha256=" + loaded.sourceSha256);
+                        }
+                    } else {
+                        File save = EngineBridge.freshAutosave(since);
+                        if (save == null) {
+                            BattleArtifacts.captureAutosave(artifactId, null, since);
+                            BattleArtifacts.enginePreparationFailed(artifactId, "No fresh autosave found; stale autosave was not used.");
+                            engineNote = "未找到本场新自动存档，已拒绝旧存档";
+                            return;
+                        }
+                        archivedSave = BattleArtifacts.captureAutosave(artifactId, save, since);
                     }
-                    File archivedSave = BattleArtifacts.captureAutosave(artifactId, save, since);
                     if (archivedSave == null) {
-                        BattleArtifacts.enginePreparationFailed(artifactId, "Could not archive the current battle autosave.");
-                        engineNote = "本场原始存档归档失败，已停止外部引擎调用";
+                        BattleArtifacts.enginePreparationFailed(artifactId, "Could not archive the verified battle save source.");
+                        engineNote = "本场已验证存档归档失败，已停止外部引擎调用";
                         return;
                     }
                     if (!engineConfigured) {
@@ -686,19 +724,18 @@ public class CombatController {
                     if (!BattleArtifacts.isActive(artifactId) || id != battleId) return;
                     EngineBridge.Fetch fetch = EngineBridge.fetchPlan(staged,
                             settings.engineSimulations());
-                    if (!BattleArtifacts.isActive(artifactId) || id != battleId) return;
-                    battleStartSave = staged;
-                    if (fetch != null && fetch.plan != null) {
-                        fetch.plan.source = "engine";
-                        pendingEngineFetch = fetch;
-                        pendingEngineFetchAt = System.currentTimeMillis();
-                        pendingEngineFetchJournalSize = 0;
-                        engineFetchJournalSize = 0;
-                    } else {
-                        engineNote = "引擎没有给出计划";
-                    }
-                    if (id != battleId) {
-                        pendingEngineFetch = null;
+                    synchronized (engineFetchLock) {
+                        if (!BattleArtifacts.isActive(artifactId) || id != battleId) return;
+                        battleStartSave = staged;
+                        if (fetch != null && fetch.plan != null) {
+                            fetch.plan.source = "engine";
+                            pendingEngineFetch = fetch;
+                            pendingEngineFetchAt = System.currentTimeMillis();
+                            pendingEngineFetchJournalSize = 0;
+                            engineFetchJournalSize = 0;
+                        } else {
+                            engineNote = "引擎没有给出计划";
+                        }
                     }
                 } catch (Throwable t) {
                     String reason = "Unexpected battle artifact or engine preparation failure: " + t;
@@ -713,7 +750,9 @@ public class CombatController {
                     CombatLog.error("battle artifact or engine preparation failed", t);
                 } finally {
                     BattleArtifacts.initialCaptureFinished(artifactId);
-                    if (engineConfigured) engineFetching = false;
+                    if (engineConfigured && id == battleId) {
+                        synchronized (engineFetchLock) { if (id == battleId) engineFetching = false; }
+                    }
                 }
             }
         }, "CombatSolver1-EngineInit");
@@ -723,7 +762,9 @@ public class CombatController {
         } catch (Throwable t) {
             BattleArtifacts.enginePreparationFailed(artifactId, "Could not start battle artifact capture: " + t);
             BattleArtifacts.initialCaptureFinished(artifactId);
-            if (engineConfigured) engineFetching = false;
+            if (engineConfigured && id == battleId) {
+                synchronized (engineFetchLock) { if (id == battleId) engineFetching = false; }
+            }
             CombatLog.error("battle artifact capture thread could not start", t);
         }
     }
@@ -745,6 +786,7 @@ public class CombatController {
         replayRequestedForSize = journal.size();
         final int id = battleId;
         final int journalSize = journal.size();
+        final String artifactId = CombatRecorder.currentBattleId();
         final String journalPath = EngineBridge.writeJournal(journal.snapshotWithMetadata());
         if (journalPath == null) {
             String reason = BattleArtifacts.journalFailureReason();
@@ -763,22 +805,24 @@ public class CombatController {
                 try {
                     EngineBridge.Fetch fetch = EngineBridge.fetchReplayPlan(save, journalPath,
                             settings.engineSimulations());
-                    if (fetch != null && fetch.plan != null && !fetch.replayInvalid) {
-                        fetch.plan.source = "engine";
-                        pendingEngineFetch = fetch;
-                        pendingEngineFetchAt = System.currentTimeMillis();
-                        pendingEngineFetchJournalSize = journalSize;
-                        engineFetchJournalSize = journalSize;
-                    } else if (fetch != null && fetch.replayInvalid) {
-                        engineNote = "引擎回放中断（日志与实机不同步）";
-                    } else {
-                        engineNote = "引擎重算失败";
-                    }
-                    if (id != battleId) {
-                        pendingEngineFetch = null;
+                    synchronized (engineFetchLock) {
+                        if (id != battleId || !BattleArtifacts.isActive(artifactId)) return;
+                        if (fetch != null && fetch.plan != null && !fetch.replayInvalid) {
+                            fetch.plan.source = "engine";
+                            pendingEngineFetch = fetch;
+                            pendingEngineFetchAt = System.currentTimeMillis();
+                            pendingEngineFetchJournalSize = journalSize;
+                            engineFetchJournalSize = journalSize;
+                        } else if (fetch != null && fetch.replayInvalid) {
+                            engineNote = "引擎回放中断（日志与实机不同步）";
+                        } else {
+                            engineNote = "引擎重算失败";
+                        }
                     }
                 } finally {
-                    engineFetching = false;
+                    if (id == battleId) {
+                        synchronized (engineFetchLock) { if (id == battleId) engineFetching = false; }
+                    }
                 }
             }
         }, "CombatSolver1-EngineReplay");
@@ -822,6 +866,7 @@ public class CombatController {
                     + " -> " + journal.size());
             return;
         }
+        final boolean initialBattleRootFetch = pendingEngineFetchJournalSize == 0 && journal.size() == 0;
         // 只在“稳定的一帧”上核对：回合切换、动画中、看牌时手牌可能正在变化，核对会误判。
         if (!isSettled()) {
             if (System.currentTimeMillis() - pendingEngineFetchAt > 8000L) {
@@ -857,10 +902,25 @@ public class CombatController {
             // 战斗起点计划：顺手核对起点是否就是这一场战斗（防止读到上一张地图的旧存档）。
             if (!startStatesMatch(fetch.state0, live)) {
                 engineNote = "起点状态与实机不一致（存档可能过期）";
+                if (initialBattleRootFetch) {
+                    BattleArtifacts.engineRootStateResult(CombatRecorder.currentBattleId(), false,
+                            "engine STATE0 differs from the stable live root");
+                }
                 CombatLog.info("engine start state mismatch: engine=[" + fetch.state0
                         + "] live=[" + live + "]");
                 return;
             }
+        }
+        if (initialBattleRootFetch && fetch.state == null) {
+            if (fetch.state0 == null) {
+                engineNote = "外部引擎未返回根状态，拒绝采用路线";
+                BattleArtifacts.engineRootStateResult(CombatRecorder.currentBattleId(), false,
+                        "engine did not provide STATE0 for initial plan");
+                CombatLog.info("engine initial plan rejected: STATE0 missing");
+                return;
+            }
+            BattleArtifacts.engineRootStateResult(CombatRecorder.currentBattleId(), true,
+                    "engine STATE0 matched live hp/block/energy/hand/monster state");
         }
         localizePlanNames(fetch.plan);
         enginePlan = fetch.plan;
@@ -1179,35 +1239,12 @@ public class CombatController {
 
     /** 只比较会决定走法是否仍然成立的字段。 */
     private boolean statesMatch(String engineState, String liveState) {
-        return statesMatch(engineState, liveState, true);
+        return EngineRootStateBinding.matches(engineState, liveState);
     }
 
-    /** 起点核对：只比生命、手牌与怪物（能量/格挡可能被开战遗物动过）。 */
+    /** 起点核对也使用相同的字段与 engine-turn + 1 映射，不因存档来源降低门槛。 */
     private boolean startStatesMatch(String engineState, String liveState) {
-        return statesMatch(engineState, liveState, false);
-    }
-
-    private boolean statesMatch(String engineState, String liveState, boolean compareTurn) {
-        String[] keys = {"hp=", "blk=", "en=", "hand=[", "mons="};
-        for (String key : keys) {
-            if (!compareTurn && ("blk=".equals(key) || "en=".equals(key))) {
-                continue;
-            }
-            String a = EngineBridge.field(engineState, key);
-            String b = EngineBridge.field(liveState, key);
-            if (a == null || b == null || !a.equals(b)) {
-                return false;
-            }
-        }
-        if (compareTurn) {
-            // 引擎的回合计数从 0 开始（STATE0 的 turn=0 对应实机第 1 回合）。
-            int engineTurn = EngineBridge.intField(engineState, "turn=", -99);
-            int liveTurn = EngineBridge.intField(liveState, "turn=", -99);
-            if (engineTurn + 1 != liveTurn) {
-                return false;
-            }
-        }
-        return true;
+        return EngineRootStateBinding.matches(engineState, liveState);
     }
 
     private String handSummary(SimState root) {
@@ -1385,8 +1422,14 @@ public class CombatController {
         failureStateChangeReported = false;
         plan = null;
         enginePlan = null;
-        pendingEngineFetch = null;
-        engineFetching = false;
+        synchronized (engineFetchLock) {
+            pendingEngineFetch = null;
+            pendingEngineFetchJournalSize = -1;
+            engineFetching = false;
+            battleStartSave = null;
+            battleSaveResolution = null;
+        }
+        battleSaveResolution = null;
         planValidated = false;
         planStale = false;
         validatedSignature = null;

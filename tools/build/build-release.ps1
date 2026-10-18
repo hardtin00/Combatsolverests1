@@ -66,7 +66,7 @@ $javac = Find-Tool 'javac'
 $sources = (Get-ChildItem (Join-Path $root 'src\main\java') -Recurse -Filter *.java).FullName
 # 必须锁定 Java 8 字节码：游戏跑在 Java 8 上，用高版本 JDK 编译出的 class（major 65）
 # 游戏根本加载不了，表现为"游戏打不开"。这里用 --release 8 并在下面校验版本号。
-& $javac --release 8 -encoding UTF-8 -proc:none -cp $classpath -d $classes $sources
+& $javac --release 8 -g:source,lines,vars -encoding UTF-8 -proc:none -cp $classpath -d $classes $sources
 if ($LASTEXITCODE -ne 0) { throw "完整 Mod 编译失败（$LASTEXITCODE）。" }
 
 $probe = Join-Path $classes 'com\combatsolver1\CombatSolver1Mod.class'

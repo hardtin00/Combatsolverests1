@@ -238,6 +238,24 @@ public final class BattleArtifactsCheck {
                     "stale-save rejection was not recorded");
             BattleArtifacts.finish();
 
+            BattleArtifacts.Session resumed = BattleArtifacts.beginForTest(temp, "battle-test-resumed-save");
+            root(resumed.directory, resumed.id);
+            byte[] loadedSaveBytes = "verified-native-loaded-save".getBytes(StandardCharsets.UTF_8);
+            File archivedLoadedSave = BattleArtifacts.captureNativeLoadedSave(resumed.id, loadedSaveBytes,
+                    "C:/game/saves/IRONCLAD.autosave", now - 120000L, "native-load-proof-1");
+            check(archivedLoadedSave != null, "verified old native-loaded save was rejected by mtime");
+            check(java.util.Arrays.equals(loadedSaveBytes, Files.readAllBytes(archivedLoadedSave.toPath())),
+                    "native-loaded source bytes were altered while archiving");
+            String resumedManifest = new String(Files.readAllBytes(
+                    new File(resumed.directory, "manifest.json").toPath()), StandardCharsets.UTF_8);
+            check(resumedManifest.contains("\"rawAutosaveStatus\":\"captured\"")
+                            && resumedManifest.contains("\"rawAutosaveSourceKind\":\"native-loaded-save\"")
+                            && resumedManifest.contains("\"rawAutosaveLoadEvidenceId\":\"native-load-proof-1\""),
+                    "native loaded-save provenance was not recorded");
+            check(resumedManifest.contains("not assumed to equal live battle root"),
+                    "native load provenance did not distinguish loaded source from battle root");
+            BattleArtifacts.finish();
+
             BattleArtifacts.Session failed = BattleArtifacts.beginForTest(temp, "battle-test-copy-fail");
             root(failed.directory, failed.id);
             File copySource = source(temp, "copy.autosave", System.currentTimeMillis());

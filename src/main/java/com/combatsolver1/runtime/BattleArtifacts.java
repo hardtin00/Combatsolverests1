@@ -171,6 +171,8 @@ public final class BattleArtifacts {
         if (modifiedBefore < notOlderThanMillis) {
             session.saveStatus = "rejected_stale";
             session.saveSourcePath = source.getAbsolutePath();
+            session.saveSourceKind = "fresh-autosave-mtime-gated";
+            session.saveLoadEvidenceId = "";
             session.saveModifiedAt = modifiedBefore;
             session.saveError = "Autosave is older than the battle capture threshold.";
             session.writeManifestQuietly();
@@ -191,6 +193,9 @@ public final class BattleArtifacts {
             session.saveCapturedAt = System.currentTimeMillis();
             session.saveSha256 = sha256(session.rawSave);
             session.saveStatus = "captured";
+            session.saveBindingStatus = "fresh-autosave-mtime-gated;engine-root-pending";
+            session.saveBindingChecks = "fresh file threshold; engine STATE0 to live root pending";
+            session.saveBindingReason = "";
             session.savePhase = session.rootCapturedAt == 0
                     ? "source-captured-before-root; source stage is not assumed to equal root"
                     : (modifiedBefore >= session.rootCapturedAt
@@ -205,6 +210,85 @@ public final class BattleArtifacts {
             session.saveError = e.toString();
             session.writeManifestQuietly();
             return null;
+        }
+    }
+
+    /** Archives byte-for-byte content verified inside STS1's successful native Continue load. */
+    static synchronized File captureNativeLoadedSave(String expectedId, byte[] sourceBytes,
+                                                      String sourcePath, long sourceModifiedAt,
+                                                      String loadEvidenceId) {
+        Session session = sessions.get(expectedId);
+        if (session == null || session.closed) return null;
+        if (sourceBytes == null || sourceBytes.length == 0 || sourcePath == null
+                || sourcePath.isEmpty() || loadEvidenceId == null || loadEvidenceId.isEmpty()) {
+            session.saveStatus = "failed_unverified_native_source";
+            session.saveError = "Native loaded-save evidence was incomplete.";
+            session.writeManifestQuietly();
+            return null;
+        }
+        File temp = new File(session.directory, "raw-autosave.save.tmp");
+        try {
+            Files.write(temp.toPath(), sourceBytes);
+            String copiedHash = sha256(temp);
+            if (!copiedHash.equals(sha256Bytes(sourceBytes))) {
+                throw new IOException("Native loaded-save bytes changed during archival.");
+            }
+            move(temp, session.rawSave);
+            session.saveSourcePath = sourcePath;
+            session.saveModifiedAt = sourceModifiedAt;
+            session.saveCapturedAt = System.currentTimeMillis();
+            session.saveSha256 = sha256(session.rawSave);
+            session.saveSourceKind = "native-loaded-save";
+            session.saveLoadEvidenceId = loadEvidenceId;
+            session.saveBindingStatus = "native-load-and-live-run-matched;engine-root-pending";
+            session.saveBindingChecks = "native source bytes; active SaveFile identity; character; floor; seed; source/current room transition; active encounter pool; HP; deck; relic counters; potions";
+            session.saveBindingReason = "";
+            session.savePhase = "native-load-verified; source may be a pre-battle room and is not assumed to equal live battle root";
+            session.saveError = "";
+            session.saveStatus = "captured";
+            session.writeManifest();
+            return session.rawSave;
+        } catch (IOException e) {
+            temp.delete();
+            session.saveStatus = "failed_copy";
+            session.saveError = e.toString();
+            session.writeManifestQuietly();
+            return null;
+        }
+    }
+
+    static synchronized void nativeLoadedSaveRejected(String expectedId, String reason) {
+        Session session = sessions.get(expectedId);
+        if (session == null || session.closed) return;
+        session.saveStatus = "rejected_unverified_native_load";
+        session.saveSourceKind = "native-load-unverified";
+        session.saveLoadEvidenceId = "";
+        session.saveError = reason == null ? "Native loaded-save binding failed." : reason;
+        session.saveBindingStatus = "rejected";
+        session.saveBindingReason = session.saveError;
+        session.writeManifestQuietly();
+    }
+
+    static synchronized void engineRootStateResult(String expectedId, boolean matched, String reason) {
+        Session session = sessions.get(expectedId);
+        if (session == null || session.closed) return;
+        session.saveBindingStatus = matched
+                ? ("native-loaded-save".equals(session.saveSourceKind)
+                    ? "native-and-engine-root-matched" : "engine-root-matched")
+                : "engine-root-mismatch";
+        session.saveBindingReason = reason == null ? "" : reason;
+        session.writeManifestQuietly();
+    }
+
+    private static String sha256Bytes(byte[] bytes) throws IOException {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(bytes);
+            StringBuilder out = new StringBuilder(64);
+            for (byte b : digest.digest()) out.append(String.format(Locale.ROOT, "%02x", b & 0xff));
+            return out.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IOException("SHA-256 unavailable", e);
         }
     }
 
@@ -368,6 +452,11 @@ public final class BattleArtifacts {
         String saveStatus = "pending";
         String savePhase = "capture-requested-at-battle-start; source stage is unverified";
         String saveSourcePath = "";
+        String saveSourceKind = "unverified";
+        String saveLoadEvidenceId = "";
+        String saveBindingStatus = "not-evaluated";
+        String saveBindingChecks = "";
+        String saveBindingReason = "";
         long saveModifiedAt;
         long saveCapturedAt;
         String saveSha256 = "";
@@ -421,6 +510,11 @@ public final class BattleArtifacts {
                     + "  \"rawAutosaveFile\":\"raw-autosave.save\",\n"
                     + "  \"rawAutosaveStatus\":\"" + esc(saveStatus) + "\",\n"
                     + "  \"rawAutosaveSourcePath\":\"" + esc(saveSourcePath) + "\",\n"
+                    + "  \"rawAutosaveSourceKind\":\"" + esc(saveSourceKind) + "\",\n"
+                    + "  \"rawAutosaveLoadEvidenceId\":\"" + esc(saveLoadEvidenceId) + "\",\n"
+                    + "  \"rawAutosaveBindingStatus\":\"" + esc(saveBindingStatus) + "\",\n"
+                    + "  \"rawAutosaveBindingChecks\":\"" + esc(saveBindingChecks) + "\",\n"
+                    + "  \"rawAutosaveBindingReason\":\"" + esc(saveBindingReason) + "\",\n"
                     + "  \"rawAutosaveSourceModifiedAtEpochMs\":" + saveModifiedAt + ",\n"
                     + "  \"rawAutosaveCapturedAtEpochMs\":" + saveCapturedAt + ",\n"
                     + "  \"rawAutosaveCapturePhase\":\"" + esc(savePhase) + "\",\n"

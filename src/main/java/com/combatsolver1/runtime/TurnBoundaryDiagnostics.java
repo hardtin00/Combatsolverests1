@@ -4,7 +4,6 @@ import com.combatsolver1.CombatLog;
 import com.megacrit.cardcrawl.actions.GameActionManager;
 import com.megacrit.cardcrawl.actions.common.DamageAction;
 import com.megacrit.cardcrawl.actions.common.LoseHPAction;
-import com.megacrit.cardcrawl.cards.DamageInfo;
 import com.megacrit.cardcrawl.core.AbstractCreature;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import com.megacrit.cardcrawl.monsters.AbstractMonster;
@@ -92,22 +91,20 @@ final class TurnBoundaryDiagnostics {
         } catch (Throwable t) { fail(t); }
     }
 
-    static void beforeDamage(DamageAction action, DamageInfo info) {
+    static void beforeDamage(DamageAction action) {
         try {
-            if (!active || action == null || info == null) return;
+            if (!active || action == null) return;
             damageBefore.put(action, new DamageBefore(targetBrief(action.target)));
         } catch (Throwable t) { fail(t); }
     }
 
-    static void afterDamage(DamageAction action, DamageInfo info) {
+    static void afterDamage(DamageAction action) {
         try {
-            if (!active || action == null || info == null || !action.isDone) return;
+            if (!active || action == null || !action.isDone) return;
             DamageBefore before = damageBefore.remove(action);
             if (before == null) return;
             AbstractCreature target = action.target;
-            emit("phase=damage-action-settled owner=[" + targetBrief(info.owner) + "]"
-                    + " name=" + clean(info.name) + " type=" + info.type
-                    + " base=" + info.base + " output=" + info.output
+            emit("phase=damage-action-settled source=DamageAction amount=" + action.amount
                     + " targetBefore=[" + before.target + "] targetAfter=[" + targetBrief(target) + "]");
         } catch (Throwable t) { fail(t); }
     }

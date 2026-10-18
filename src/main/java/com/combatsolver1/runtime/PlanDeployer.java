@@ -101,10 +101,16 @@ public class PlanDeployer {
         }
         if (expected == null || target == null || !target.trusted
                 || !expected.targetSignature.equals(targetSignature(target))) {
-            finish(false, "执行期间检测到未计划的出牌或目标变化，已取消剩余路线");
+            String actualCard = card == null ? "<null>" : card.cardID;
+            String actualTarget = target == null ? "<null>" : targetSignature(target)
+                    + " trusted=" + target.trusted;
+            finish(false, "执行期间检测到未计划的出牌或目标变化，card="
+                    + actualCard + " target=" + actualTarget + "，已取消剩余路线");
             return false;
         }
         expectedUses.remove(expected);
+        CombatLog.info("deploy useCard confirmed: card=" + card.cardID
+                + " target=" + targetSignature(target));
         return true;
     }
 
@@ -456,11 +462,15 @@ public class PlanDeployer {
         if (manager != null) {
             // J can be pressed while one of our queue wrappers is already currentAction.
             // It has left manager.actions, so cancel it explicitly before it can enqueue a card.
-            if (ExecutionSafety.isOwnedByIdentity(queuedActions, manager.currentAction)) {
+            boolean cancelledCurrent = ExecutionSafety.isOwnedByIdentity(queuedActions, manager.currentAction);
+            if (cancelledCurrent) {
                 manager.currentAction.isDone = true;
             }
-            ExecutionSafety.removeOwnedByIdentity(manager.actions, queuedActions);
-            ExecutionSafety.removeMatching(manager.cardQueue, item -> containsIdentity(queuedCards, item.card));
+            int cancelledActions = ExecutionSafety.removeOwnedByIdentity(manager.actions, queuedActions);
+            int cancelledCards = ExecutionSafety.removeMatching(manager.cardQueue,
+                    item -> containsIdentity(queuedCards, item.card));
+            CombatLog.info("deploy queue cancellation: currentAction=" + cancelledCurrent
+                    + " pendingActions=" + cancelledActions + " cardQueue=" + cancelledCards);
         }
         clearQueuedTracking();
     }

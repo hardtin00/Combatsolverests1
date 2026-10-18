@@ -190,10 +190,14 @@ public class CombatController {
             if (edge(Input.Keys.G)) {
                 executeRequested = true;
                 suppressed = false; // 玩家明确要求执行：再试一次
+                CombatLog.info("G requested: current turn only");
             }
             if (edge(Input.Keys.H)) {
                 fullAuto = !fullAuto;
                 CombatLog.info("full auto: " + fullAuto);
+                if (!fullAuto && deployer.isActive()) {
+                    CombatLog.info("H disabled: current deployment is not cancelled; J pauses and cancels pending actions");
+                }
             }
             if (edge(Input.Keys.J)) {
                 stopAndPause();
@@ -208,9 +212,13 @@ public class CombatController {
             } else if (uiAction == OverlayRenderer.ACTION_EXECUTE_TURN) {
                 executeRequested = true;
                 suppressed = false;
+                CombatLog.info("G requested from overlay: current turn only");
             } else if (uiAction == OverlayRenderer.ACTION_TOGGLE_AUTO) {
                 fullAuto = !fullAuto;
                 CombatLog.info("full auto: " + fullAuto);
+                if (!fullAuto && deployer.isActive()) {
+                    CombatLog.info("H disabled: current deployment is not cancelled; J pauses and cancels pending actions");
+                }
             } else if (uiAction == OverlayRenderer.ACTION_CYCLE_BUDGET) {
                 settings.cyclePreset();
                 settings.save();
@@ -250,6 +258,11 @@ public class CombatController {
                 searching = false;
                 search.abort();
                 CombatLog.info("new turn: " + turn);
+                if (fullAuto && enginePlan != null) {
+                    CombatLog.info("H continuation candidate: turn=" + turn
+                            + " remainingSegments=" + enginePlan.turns.size()
+                            + " pendingStabilityCheck=" + (expectedEndState != null));
+                }
                 verifyEngineRouteAtTurnStart(turn);
             }
             checkPendingDrift();
@@ -878,6 +891,8 @@ public class CombatController {
             CombatLog.info("engine drift: expected=[" + expected + "] live=[" + live + "]");
             enginePlan = null;
             expectedEndTurn = -1;
+        } else {
+            CombatLog.info("engine drift check matched: remainingSegments=" + enginePlan.turns.size());
         }
     }
 

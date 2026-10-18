@@ -723,3 +723,9 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - 问题：`LiveCapture` 只保留存活怪物，本地 `Plan.Action.targetIndex` 因而是压缩索引；旧 `PlanDeployer` 把它直接用于原生完整槽位。`[活 A、死 B、活 C]` 的本地目标 1 会指向死 B，修复前 `ExecutionSafetyCheck` 对该案例退出 1。
 - 修改：部署时按明确的计划来源保存目标映射。本地路线在验证根状态后捕获存活怪物对象顺序，以对象身份解析后续出牌和药水目标；外部引擎仍按固定槽位解析。目标死亡、逃跑、移除、来源不明或根状态无法配对时拒绝执行，沿用 `FailureLatch` 阻断。药水 journal 写入实际原生固定槽位，路线显示使用同一来源语义；本地未来回合的无法确认目标名不猜测。
 - 验证：`ExecutionSafetyCheck` 修复后 10 组通过、退出 0，覆盖死怪压缩、多怪、移除、逃跑、同名、药水固定槽位和引擎原语义；`tools/solvertest/run.ps1 -Command all` 退出 0；`tools/build/build-release.ps1 -Deploy` Java 8 构建与部署退出 0。证据 L2；未启动游戏验证 G/H 原生队列目标，未达到 L3/L4。提交及最终 JAR 哈希见本轮交付。用户尚未验收。
+
+## 2026-10-18：引擎配置保留与战斗开局药水空槽误报
+
+- 实机启动日志显示未配置引擎；实际 `~/.combatsolver1/settings.properties` 缺少 `engine.path`，而已存在的引擎 EXE 运行 `protocol` 返回 v2、退出 0。`SolverSettings.save()` 原先重建属性表，界面保存会删除引擎键；修复前 `SettingsPersistenceCheck` 失败，修复后保留引擎及其他非界面键。已备份并恢复本机配置，原有界面设置保留。
+- 真实归档 `battle-20261018-171705-652-d0d15e27-95fc-48dc-91af-dedee44d8f53` 在动作数 0 时已因“药水栏”标脏，`journalError` 为空。原因是开局未到玩家可行动阶段就建立药水快照，且把原生 `PotionSlot` 空槽对象当作药水；修复前 `PotionJournalSnapshotCheck` 失败。现在首个玩家可行动帧才建立基线，空槽变化不计作药水消耗，真实药水对象消失仍保持标脏。
+- 其他历史归档的 `journalError` 有两次 Windows 文件占用异常（`actions.journal.tmp` 替换失败）；`EngineBridge.writeJournal` 会记录底层原因，`BattleArtifacts` 也会把异常写入 manifest。未改写任何历史 bundle。离线测试与构建结果见本轮交付；游戏未重启验证本次配置及记录器变更，证据 L2，用户尚未验收。

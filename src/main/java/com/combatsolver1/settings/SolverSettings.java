@@ -151,6 +151,13 @@ public class SolverSettings {
                 dir.mkdirs();
             }
             Properties p = new Properties();
+            // EngineBridge reads engine.path from this same file. Preserve keys owned by it
+            // (and by other extensions) when the UI updates only its own settings.
+            if (f.isFile()) {
+                try (InputStream existing = new FileInputStream(f)) {
+                    p.load(existing);
+                }
+            }
             p.setProperty("preset", String.valueOf(preset));
             p.setProperty("opacityStep", String.valueOf(opacityStep));
             p.setProperty("lightTheme", String.valueOf(lightTheme));

@@ -15,6 +15,7 @@ import com.megacrit.cardcrawl.cards.AbstractCard;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import com.megacrit.cardcrawl.monsters.AbstractMonster;
 import com.megacrit.cardcrawl.potions.AbstractPotion;
+import com.megacrit.cardcrawl.potions.PotionSlot;
 import com.megacrit.cardcrawl.rooms.AbstractRoom;
 import com.megacrit.cardcrawl.ui.panels.EnergyPanel;
 
@@ -130,7 +131,7 @@ public class CombatController {
         paused = false;
         lastTurn = -1;
         lastIdleHand = new ArrayList<>();
-        lastIdlePotions = new ArrayList<>();
+        lastIdlePotions = null;
         requestInitialEnginePlan(battleId);
         CombatLog.info("battle start: " + room.getClass().getSimpleName());
     }
@@ -321,7 +322,7 @@ public class CombatController {
                     && !AbstractDungeon.actionManager.usingCard
                     && !AbstractDungeon.isScreenUp;
             CombatRecorder.onIdle(stable, canAct);
-            recordPassiveChanges();
+            recordPassiveChanges(canAct);
 
             if (!canAct || paused) {
                 if (executeRequested) {
@@ -1193,7 +1194,7 @@ public class CombatController {
     // ------------------------------------------------------------ 手动动作记录
 
     /** 每帧在空闲状态下记录手牌/药水快照，用于给手动出牌定位下标、发现未记录的药水。 */
-    private void recordPassiveChanges() {
+    private void recordPassiveChanges(boolean playerReady) {
         lastIdleHand = new ArrayList<>(AbstractDungeon.player.hand.group);
 
         if (deployer.isActive()) {
@@ -1204,14 +1205,13 @@ public class CombatController {
         for (AbstractPotion p : AbstractDungeon.player.potions) {
             potions.add(p);
         }
-        if (lastIdlePotions != null) {
-            for (AbstractPotion p : lastIdlePotions) {
-                if (!potions.contains(p)) {
-                    journal.markDirty("有未记录的用药水动作：" + (p == null ? "?" : p.name));
-                }
-            }
+        PotionJournalSnapshot.Observation<AbstractPotion> observation =
+                PotionJournalSnapshot.observe(lastIdlePotions, potions, playerReady,
+                        p -> !(p instanceof PotionSlot));
+        lastIdlePotions = observation.snapshot;
+        if (observation.missing != null) {
+            journal.markDirty("有未记录的用药水动作：" + observation.missing.name);
         }
-        lastIdlePotions = potions;
     }
 
     private int indexOfCardIdentity(AbstractCard card) {

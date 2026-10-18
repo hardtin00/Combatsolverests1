@@ -801,3 +801,9 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - Java `ExhumeExecutionCheck` 直接调用生产协议解析器、候选身份匹配和等待门控，15 项通过，含不同顺序、同 ID 不同升级、同 ID 同升级歧义拒绝、界面等待/错误界面、点击阶段、取消、超时、手动输入、单候选原生快路径、结算漂移和旧版非 Exhume v2 兼容。修复前协议解析拒绝 v3；C++ 单候选旧假设回归被改为显式枚举/执行。`exhume_check`、`exhaust_trigger_check`、`block_modifier_check`、G/H `ExecutionSafetyCheck`（11 项）、`solvertest all` 和同根差分 SelfTest（30 项）通过。
 - Java 字节码 major=52，MTS 3.30.3 对构建 JAR 的 6 个补丁完成 discovery 与 injection，含 `GridCardSelectExhumePatch`。构建后第一次直接部署遇到系统对游戏 `mods` 目录的 Access Denied，尚待以获准写权限完成最终部署及 SHA 核对。C++ Release EXE 为 `build/engine/combatsolver1-engine.exe`，SHA-256 `6D858D8A1EF87851186289C1BCED61B336E9D2CFEDEBAEFC0C22EDDBE8B9F830`；protocol v2、Exhume/消耗/格挡检查，以及现有胜利 bundle 的只读 `mcts_save`（1 次模拟）和 `replay_trace`（9 动作）启动/回放 smoke 通过。`engine.path` 已指向该绝对路径。
 - 证据为 L2：离线执行模型与真实 MTS 注入已验证；本轮未启动游戏，尚未证明 Exhume 网格屏幕中的 hitbox 输入、原生结算及后续路线可在实际游戏中完成。尚未达到 L3/L4。仅 Exhume 自动执行已启用；Java local 计划及其他选择路线继续安全拒绝。
+
+### 首次 Exhume L3 现场日志复核（2026-10-18/19）
+
+- H 的 Slime Boss 外部路线在出牌 3/4 后报告 `deploy potion not found: Dexterity`；同场 bundle 的 potion 快照显示 `Dexterity Potion`，名字/ID 的匹配根因尚未确认。路线随后失效并改用 local route。Turn 4 local route 在未携带 `PLANSELECT v=3` 的情况下打出 Exhume，随后出现原生选牌界面并按现有安全策略中止。没有 `Exhume pre-choice identity matched`、原生输入、选择验证或后续动作证据；这是安全中止，不是选牌成功。该场 `battle-20261018-235230-235-1f912c14-9996-468a-84ca-043ed56938d6` 当时仍 open/in_progress，combat.jsonl 被运行中的游戏占用，不能做封存完整性验收。
+- 修复：`PlanDeployer` 现在在打出 Exhume 前要求紧随其后的路线动作是来源为 sts_lightspeed 的完整 v3 Exhume 选择；local、缺失/不完整选择会在耗能和打开界面前停止。已排入的前序动作先结算，Exhume 本身不执行。
+- 验证：Exhume 执行检查、solvertest all、RootReplayDiff SelfTest（30 项）、Java 8 完整构建（major 52）及 MTS 3.30.3 补丁发现/注入均通过。测试为 L2，不能代替本修复版本的实机验证。游戏进程仍在运行时未覆盖 mods JAR；需要关闭游戏后部署并重新测试。G Exhume、H 多候选点击仍未验证；此前 H 单候选成功只覆盖旧部署版本。

@@ -301,6 +301,17 @@ public class PlanDeployer {
             }
             deferrals = 0;
             AbstractCard card = resolved.card;
+            if ("Exhume".equals(card.cardID)) {
+                Plan.Action selection = cursor + 1 < pending.actions.size()
+                        ? pending.actions.get(cursor + 1) : null;
+                if (!ExhumeChoiceSafety.canPlayExhume(selection, planSource)) {
+                    // Preserve already queued earlier actions, then reject Exhume before spending energy.
+                    if (queuedThisSegment > 0) return;
+                    finish(false, "Exhume 路线缺少可验证的原生消耗堆选择，已在出牌前停止");
+                    if (result != null) result.unsupported = true;
+                    return;
+                }
+            }
             int cost = card.freeToPlay() ? 0 : card.costForTurn;
             if ("Exhume".equals(card.cardID) && (card.costForTurn == -9
                     || (AbstractDungeon.player.hasPower("Corruption")

@@ -17,6 +17,11 @@ final class ExhumeChoiceSafety {
                 && action.selectCandidates.size() > 0 && action.selectCards.size() == 1;
     }
 
+    /** Exhume must not be played unless its next route step can safely resolve the native choice. */
+    static boolean canPlayExhume(Plan.Action selection, String planSource) {
+        return supports(selection, planSource);
+    }
+
     static Plan.ChoiceCard descriptor(String id, int upgrades, int cost) {
         return new Plan.ChoiceCard(id, upgrades, cost);
     }

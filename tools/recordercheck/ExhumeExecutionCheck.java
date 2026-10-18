@@ -12,6 +12,13 @@ public final class ExhumeExecutionCheck {
         require(action.isSelect() && action.selectCandidates.size() == 2, "v3 choice identity was not parsed");
         require(ExhumeChoiceSafety.supports(action, "engine"), "engine Exhume selection was rejected");
         require(!ExhumeChoiceSafety.supports(action, "local"), "local/unknown choice was accepted");
+        require(ExhumeChoiceSafety.canPlayExhume(action, "engine"), "verified engine choice was not allowed before play");
+        require(!ExhumeChoiceSafety.canPlayExhume(action, "local"), "local route could play Exhume before an unsupported choice");
+        require(!ExhumeChoiceSafety.canPlayExhume(null, "engine"), "Exhume without a following choice was allowed");
+        Plan.Action incomplete = parse("1", "537472696b655f52:0:1", "0:42617368:0:2|1:537472696b655f52:0:1");
+        incomplete.selectCandidates.clear();
+        require(!ExhumeChoiceSafety.canPlayExhume(incomplete, "engine"),
+                "incomplete choice was allowed before Exhume");
 
         // A: unique candidate; B: multiple IDs; C: same ID with different upgrades.
         ExhumeChoiceSafety.Match unique = ExhumeChoiceSafety.match(action,

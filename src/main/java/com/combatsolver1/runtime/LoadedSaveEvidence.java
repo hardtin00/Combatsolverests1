@@ -126,7 +126,13 @@ public final class LoadedSaveEvidence {
         String main = normalize(expected);
         actual = actual.toLowerCase(Locale.ROOT);
         main = main.toLowerCase(Locale.ROOT);
-        return !main.isEmpty() && (actual.equals(main) || actual.equals(main + ".backup"));
+        if (main.isEmpty()) return false;
+        if (actual.equals(main) || actual.equals(main + ".backup")) return true;
+        String equivalentPrefix = "native-equivalent:";
+        if (!actual.startsWith(equivalentPrefix)) return false;
+        String[] candidates = actual.substring(equivalentPrefix.length()).split("\\|", -1);
+        if (candidates.length != 2) return false;
+        return candidates[0].equals(main) && candidates[1].equals(main + ".backup");
     }
 
     private static String normalize(String value) {

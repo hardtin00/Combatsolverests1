@@ -130,6 +130,12 @@ public final class NativeSaveLoadCapture {
         }
         try {
             Candidate selected = main != null ? main : backup;
+            if (main != null && backup != null) {
+                selected = new Candidate(main.bytes,
+                        "native-equivalent:" + main.path + "|" + backup.path,
+                        "native-equivalent:" + attempt.expectedPath + "|" + attempt.expectedPath + ".backUp",
+                        main.modifiedAt, main.sha256);
+            }
             attempt.candidate = selected;
             attempt.failure = "";
         } catch (Throwable t) {
@@ -345,6 +351,9 @@ public final class NativeSaveLoadCapture {
     }
 
     private static String sourceKind(String sourcePath, String expectedPath) {
+        if (sourcePath != null && sourcePath.startsWith("native-equivalent:")) {
+            return "primary-and-backup-identical-payload";
+        }
         return samePath(sourcePath, expectedPath + ".backUp") ? "backup" : "primary";
     }
 

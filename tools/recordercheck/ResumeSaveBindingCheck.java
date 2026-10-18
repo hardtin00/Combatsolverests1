@@ -25,6 +25,13 @@ public final class ResumeSaveBindingCheck {
                 123456789L, "com.megacrit.cardcrawl.rooms.EventRoom", "Sentries", 54, 75,
                 "deck-v1", "relics-v1", "potions-v1");
         allow(backup, live, saveObject, "native corrupt-save backup and pre-battle room transition");
+        LoadedSaveEvidence.Facts identicalSlotPayload = facts(
+                "native-equivalent:saves/IRONCLAD.autosave|saves/IRONCLAD.autosave.backUp",
+                "saves/IRONCLAD.autosave", repeat('d', 64), true, saveObject, "IRONCLAD", 12,
+                123456789L, "com.megacrit.cardcrawl.rooms.EventRoom", "Sentries", 54, 75,
+                "deck-v1", "relics-v1", "potions-v1");
+        allow(identicalSlotPayload, live, saveObject,
+                "byte-identical primary/backup payload records source-set evidence");
 
         reject(null, live, saveObject, "no native loaded-save token", "native");
         reject(facts("saves/IRONCLAD.autosave", "saves/IRONCLAD.autosave", "", false,
@@ -66,7 +73,7 @@ public final class ResumeSaveBindingCheck {
                 "com.megacrit.cardcrawl.rooms.MonsterRoom", "", 54, 75, "deck-v1", "relics-v1", "potions-v1");
 
         System.out.println("ResumeSaveBindingCheck passed: valid stale native loads accepted; "
-                + "missing provenance and 12 wrong-source/root cases rejected.");
+                + "identical main/backup source set accepted explicitly; missing provenance and 12 wrong-source/root cases rejected.");
     }
 
     private static void allow(LoadedSaveEvidence.Facts loaded, LoadedSaveEvidence.Facts live,

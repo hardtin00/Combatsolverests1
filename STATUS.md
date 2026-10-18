@@ -1,3 +1,10 @@
+## 2026-10-18：终局胜负离线验收命令
+
+- 新增 `tools/recordercheck/run-terminal-replay-check.ps1` 与 `TerminalReplayCheck.java`，复用 JSONL/journal、`replay_trace` 与 `replay_search`。报告归档哈希、非终局连续性、动作编码/目标可信度、终局胜负及终局全字段比较五项；最后致胜动作可只验收胜负类别，保留 `journalDirty` 与缺失 post，不判完整严格 L4。
+- 回归使用胜利 bundle `battle-20261018-150839-671-747a4a3c-cf7b-436e-b792-2b68254a6e20`，原始文件未修改。离线协议测试 12 项通过，覆盖封存状态/哈希错误、可信终局动作、拒绝不可信目标、手牌/目标/endTurn 编码错误、非终局断链、胜负不符，以及唯一已确认的目标伤害重算边界。
+- 实际命令：`powershell -ExecutionPolicy Bypass -File tools/recordercheck/run-terminal-replay-check.ps1 -BundlePath <bundle>`。该样本封存和五份 SHA-256 一致；8 个已配对动作全部按连续 `replay_trace` 对比，90 个摘要字段（root 10 + 8 个 post × 10）匹配。第 7 行仅有 Strike_R 伤害 4→6，按已有证据分类为同目标状态下原生伤害重算。journal 9/9 动作编码及目标可信度通过。`replay_search` 返回 `PLANEND outcome=1`，匹配 manifest victory；终局全字段未比较，`journalDirty=true`，严格验收仍未通过。死亡终局未覆盖。
+- Java 8 目标工具编译、12 项回归和真实样本验收退出 0，证据 L2（离线诊断）。未修改运行时代码或真实 bundle，无需部署游戏 JAR；不宣称完整整场严格 L4。源码提交和远程同步状态见本轮交付。
+
 ## 2026-10-18：记录真实出牌目标
 
 - 原版游戏字节码确认：`AbstractPlayer.playCard()` 把玩家选中的 `AbstractMonster` 放进 `CardQueueItem.monster`；`GameActionManager.getNextAction()` 将该引用传给 `AbstractPlayer.useCard(card, monster, ...)`，该方法先计算伤害，再将同一引用交给 `card.use`。旧记录器读取鼠标 hover 索引，不能证明它等于队列目标。

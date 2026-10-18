@@ -37,6 +37,22 @@ public final class NativeSaveReadCaptureCheck {
         NativeReadEvidence.CapturedSave distinctResult = readAndParse(distinct, MAIN, primary, new Object(), identityDecoder());
         require(Arrays.equals(distinctResult.bytes, primary), "distinct slot payload changed during capture"); checks++;
 
+        NativeReadEvidence.Transaction callbackBound = transaction();
+        NativeReadEvidence.ReadScopes scopes = new NativeReadEvidence.ReadScopes();
+        scopes.begin(callbackBound, MAIN);
+        scopes.begin(callbackBound, "C:/sts/preferences/other-layout.json");
+        InputStream unrelatedRead = new ByteArrayInputStream("other".getBytes(Charset.defaultCharset()));
+        require(scopes.finish(unrelatedRead) == unrelatedRead, "unrelated nested read was captured"); checks++;
+        Object callbackSave = new Object();
+        InputStream exactRead = scopes.finish(new ByteArrayInputStream(primary));
+        byte[] exactBytes = drainAndClose(exactRead);
+        callbackBound.returned(new String(exactBytes, Charset.defaultCharset()), identityDecoder());
+        callbackBound.sealSuccessfulLoad(callbackSave);
+        require(callbackBound.hasParsedSave(callbackSave)
+                        && callbackBound.parsedSave().path.equals(MAIN)
+                        && Arrays.equals(callbackBound.parsedSave().bytes, primary),
+                "nested FileHandle.read context did not restore the outer source path and bytes"); checks++;
+
         NativeReadEvidence.Transaction wrongPath = transaction();
         InputStream unrelated = new ByteArrayInputStream(primary);
         require(wrongPath.wrap("C:/sts/preferences/saves/SILENT.autosave", unrelated) == unrelated,
@@ -86,7 +102,15 @@ public final class NativeSaveReadCaptureCheck {
 
         NativeReadEvidence.Transaction nullResult = transaction();
         nullResult.returned(null, identityDecoder());
-        require(nullResult.parsedSave() == null && nullResult.failure().contains("unavailable"), "null native result was accepted"); checks++;
+        require(nullResult.parsedSave() == null && nullResult.failure().contains("without an observed FileHandle.read"),
+                "missing read hook was not classified"); checks++;
+
+        NativeReadEvidence.Transaction missedReadHook = transaction();
+        missedReadHook.returned(new String(primary, Charset.defaultCharset()), identityDecoder());
+        String firstCaptureFailure = missedReadHook.failure();
+        missedReadHook.sealSuccessfulLoad(new Object());
+        require(missedReadHook.failure().equals(firstCaptureFailure),
+                "successful-load sealing erased the original read-hook failure"); checks++;
 
         System.out.println("NativeSaveReadCaptureCheck passed=" + checks + " failed=0; exact opened-stream bytes, path, decode and SaveFile identity verified.");
     }

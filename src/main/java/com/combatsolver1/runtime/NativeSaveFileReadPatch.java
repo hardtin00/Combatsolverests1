@@ -12,13 +12,13 @@ import java.io.InputStream;
 public final class NativeSaveFileReadPatch {
     private NativeSaveFileReadPatch() { }
 
-    @SpirePrefixPatch
-    public static void beforeNativeSaveRead(FileHandle __instance) {
-        NativeSaveLoadCapture.beforeNativeFileRead(__instance);
-    }
-
     @SpirePostfixPatch
     public static InputStream captureNativeSaveBytes(InputStream __result) {
         return NativeSaveLoadCapture.wrapNativeRead(__result);
+    }
+
+    @SpirePrefixPatch
+    public static void beforeNativeSaveRead(FileHandle __instance) {
+        NativeSaveLoadCapture.beforeNativeFileRead(__instance);
     }
 }

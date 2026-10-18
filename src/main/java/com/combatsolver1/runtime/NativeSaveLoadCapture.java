@@ -27,7 +27,7 @@ import java.util.UUID;
 /** Captures only bytes read by the native Continue loader and binds them once to the next battle. */
 public final class NativeSaveLoadCapture {
     private static final ThreadLocal<Attempt> CURRENT = new ThreadLocal<>();
-    private static final ThreadLocal<String> FILE_READ_PATH = new ThreadLocal<>();
+    private static final NativeReadEvidence.ReadScopes FILE_READ_SCOPES = new NativeReadEvidence.ReadScopes();
     private static volatile LoadedSource pending;
     private static volatile boolean loadObserved;
     private static volatile String loadFailure = "";
@@ -86,7 +86,7 @@ public final class NativeSaveLoadCapture {
 
     /** Called by the Prefix of CardCrawlGame.loadPlayerSave(AbstractPlayer). */
     public static synchronized void beginNativeLoad() {
-        FILE_READ_PATH.remove();
+        FILE_READ_SCOPES.clear();
         pending = null;
         loadObserved = true;
         loadFailure = "native load did not produce a verified SaveFile";
@@ -96,7 +96,8 @@ public final class NativeSaveLoadCapture {
             return;
         }
         try {
-            CURRENT.set(new Attempt(CardCrawlGame.chosenCharacter));
+            Attempt attempt = new Attempt(CardCrawlGame.chosenCharacter);
+            CURRENT.set(attempt);
         } catch (Throwable t) {
             CURRENT.remove();
             loadFailure = "native save path unavailable: " + t.getClass().getSimpleName();
@@ -112,37 +113,33 @@ public final class NativeSaveLoadCapture {
         attempt.failure = attempt.transaction.failure();
     }
 
-    /** Called by the FileHandle.read() postfix while the native Continue load transaction is active. */
+    /** Called by FileHandle.read() Prefix; Postfix pops this exact invocation's path. */
     public static void beforeNativeFileRead(com.badlogic.gdx.files.FileHandle handle) {
         Attempt attempt = CURRENT.get();
-        FILE_READ_PATH.remove();
-        if (attempt == null || handle == null) return;
-        try {
-            FILE_READ_PATH.set(handle.file().getCanonicalPath());
-        } catch (Throwable t) {
-            attempt.failure = "native source path unavailable: " + t.getClass().getSimpleName();
+        String actualPath = null;
+        if (attempt != null && handle != null) {
+            try { actualPath = handle.file().getCanonicalPath(); }
+            catch (Throwable t) { attempt.failure = "native source path unavailable: " + t.getClass().getSimpleName(); }
         }
+        FILE_READ_SCOPES.begin(attempt == null ? null : attempt.transaction, actualPath);
     }
 
+    /** Called by FileHandle.read() Postfix; each return pairs with its LIFO Prefix context. */
     public static InputStream wrapNativeRead(InputStream input) {
-        String actualPath = FILE_READ_PATH.get();
-        FILE_READ_PATH.remove();
-        Attempt attempt = CURRENT.get();
-        if (attempt == null || input == null || actualPath == null) return input;
         try {
-            InputStream wrapped = NativeReadEvidence.wrap(attempt.transaction, actualPath, input);
-            return wrapped;
+            return FILE_READ_SCOPES.finish(input);
         } catch (Throwable t) {
-            attempt.failure = "native source path unavailable: " + t.getClass().getSimpleName();
+            Attempt attempt = CURRENT.get();
+            if (attempt != null) attempt.failure = "native FileHandle.read capture failed: " + t.getClass().getSimpleName();
             return input;
         }
     }
 
     /** Called by the Postfix of CardCrawlGame.loadPlayerSave after saveFile was assigned. */
     public static synchronized void finishNativeLoad() {
-        FILE_READ_PATH.remove();
         Attempt attempt = CURRENT.get();
         CURRENT.remove();
+        FILE_READ_SCOPES.clear();
         if (attempt == null) {
             loadFailure = "native load transaction was not active";
             return;

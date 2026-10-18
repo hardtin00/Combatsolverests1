@@ -5,6 +5,8 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Locale;
 
 /** Captures bytes from the exact FileHandle stream used by STS1's Continue loader. */
@@ -13,6 +15,44 @@ public final class NativeReadEvidence {
 
     public static InputStream wrap(Transaction transaction, String actualPath, InputStream input) {
         return transaction == null ? input : transaction.wrap(actualPath, input);
+    }
+
+    /** Keeps FileHandle.read Prefix/Postfix contexts paired even if another read nests inside. */
+    public static final class ReadScopes {
+        private final ThreadLocal<Deque<ReadScope>> scopes = new ThreadLocal<>();
+
+        public void begin(Transaction transaction, String actualPath) {
+            Deque<ReadScope> stack = scopes.get();
+            if (stack == null) {
+                stack = new ArrayDeque<>();
+                scopes.set(stack);
+            }
+            stack.push(new ReadScope(transaction, actualPath));
+        }
+
+        public InputStream finish(InputStream input) {
+            Deque<ReadScope> stack = scopes.get();
+            if (stack == null || stack.isEmpty()) return input;
+            ReadScope scope = stack.pop();
+            if (stack.isEmpty()) scopes.remove();
+            if (scope.transaction == null) return input;
+            if (scope.path == null || scope.path.isEmpty()) {
+                scope.transaction.pathUnavailable();
+                return input;
+            }
+            return scope.transaction.wrap(scope.path, input);
+        }
+
+        public void clear() { scopes.remove(); }
+    }
+
+    private static final class ReadScope {
+        final Transaction transaction;
+        final String path;
+        ReadScope(Transaction transaction, String path) {
+            this.transaction = transaction;
+            this.path = path;
+        }
     }
 
     public interface Decoder {
@@ -40,7 +80,7 @@ public final class NativeReadEvidence {
         private String lastObservedPath = "";
         private Candidate returnedCandidate;
         private CapturedSave parsedSave;
-        private String failure = "native save read was not captured";
+        private String failure = "native FileHandle.read hook was not observed in active load transaction";
 
         public Transaction(String mainPath, String backupPath) {
             this.mainPath = normalize(mainPath);
@@ -51,7 +91,8 @@ public final class NativeReadEvidence {
         public synchronized InputStream wrap(String actualPath, InputStream input) {
             lastObservedPath = actualPath == null ? "" : actualPath;
             if (input == null || !isExpectedPath(actualPath)) {
-                if (!lastObservedPath.isEmpty()) failure = "native source path mismatch: actual="
+                if (input == null) failure = "native FileHandle.read returned a null stream";
+                else if (!lastObservedPath.isEmpty()) failure = "native source path mismatch: actual="
                         + actualPath + " expected=" + mainPath + " or " + backupPath;
                 return input;
             }
@@ -72,7 +113,12 @@ public final class NativeReadEvidence {
             pendingPath = "";
             if (capture == null) {
                 returnedCandidate = null;
-                failure = lastObservedPath.isEmpty() ? "native loaded bytes unavailable" : "native source path mismatch";
+                if (lastObservedPath.isEmpty()) {
+                    failure = "native loadSaveString returned without an observed FileHandle.read stream";
+                } else if (!isExpectedPath(lastObservedPath)) {
+                    failure = "native FileHandle.read source path mismatch: actual=" + lastObservedPath
+                            + " expected=" + mainPath + " or " + backupPath;
+                }
                 return;
             }
             if (nativeDecodedText == null) {
@@ -101,8 +147,14 @@ public final class NativeReadEvidence {
         public synchronized void sealSuccessfulLoad(Object saveObject) {
             Candidate candidate = returnedCandidate;
             returnedCandidate = null;
-            if (candidate == null || saveObject == null) {
-                failure = "native load transaction mismatch: successful loader has no matching captured read";
+            if (candidate == null) {
+                if (failure == null || failure.isEmpty()) {
+                    failure = "native SaveFile parse completed without a verified native read";
+                }
+                return;
+            }
+            if (saveObject == null) {
+                failure = "native FileHandle read was verified but successful loader returned no SaveFile object";
                 return;
             }
             parsedSave = new CapturedSave(candidate.path, candidate.bytes, saveObject);
@@ -115,6 +167,10 @@ public final class NativeReadEvidence {
 
         public synchronized CapturedSave parsedSave() { return parsedSave; }
         public synchronized String failure() { return failure; }
+
+        private synchronized void pathUnavailable() {
+            failure = "native FileHandle.read path could not be resolved";
+        }
 
         private boolean isExpectedPath(String path) {
             String normalized = normalize(path);

@@ -43,6 +43,19 @@ public final class BattleArtifactsCheck {
         try {
             long now = System.currentTimeMillis();
 
+            BattleArtifacts.Session journalReplace = BattleArtifacts.beginForTest(temp, "battle-test-journal-replace");
+            check(BattleArtifacts.appendAction("0"), "initial journal append failed before replace regression");
+            check(BattleArtifacts.replaceJournal(java.util.Arrays.asList("1", "80000000")),
+                    "normal journal replacement failed while replacing an existing file: "
+                            + BattleArtifacts.journalFailureReason());
+            String replacedJournal = new String(Files.readAllBytes(journalReplace.journal.toPath()),
+                    StandardCharsets.UTF_8);
+            check(replacedJournal.contains("\n1\n80000000\n"),
+                    "journal replacement did not persist the replacement actions");
+            check(BattleArtifacts.journalFailureReason().isEmpty(),
+                    "successful replacement retained a stale journal error");
+            BattleArtifacts.finish("interrupted");
+
             BattleArtifacts.Session death = BattleArtifacts.beginForTest(temp, "battle-test-death");
             Files.write(new File(death.directory, "combat.jsonl").toPath(),
                     ("{\"type\":\"root\",\"battleKey\":\"" + death.id + "\",\"state\":{}}\n"

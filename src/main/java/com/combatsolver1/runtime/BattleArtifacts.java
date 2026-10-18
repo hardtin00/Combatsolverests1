@@ -10,6 +10,7 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
@@ -116,15 +117,17 @@ public final class BattleArtifacts {
         if (active == null || active.closed) return false;
         File temp = new File(active.directory, "actions.journal.tmp");
         int count = 0;
-        try (Writer writer = new OutputStreamWriter(new FileOutputStream(temp), StandardCharsets.UTF_8)) {
-            writer.write("# battleId=" + active.id + "\n");
-            for (String action : actions) {
-                writer.write(action);
-                writer.write('\n');
-                String trimmed = action == null ? "" : action.trim();
-                if (!trimmed.isEmpty() && !trimmed.startsWith("#")) count++;
+        try {
+            try (Writer writer = new OutputStreamWriter(new FileOutputStream(temp), StandardCharsets.UTF_8)) {
+                writer.write("# battleId=" + active.id + "\n");
+                for (String action : actions) {
+                    writer.write(action);
+                    writer.write('\n');
+                    String trimmed = action == null ? "" : action.trim();
+                    if (!trimmed.isEmpty() && !trimmed.startsWith("#")) count++;
+                }
             }
-            move(temp, active.journal);
+            moveJournalWithRetry(temp, active.journal);
             active.actionCount = count;
             active.journalError = "";
             active.writeManifest();
@@ -471,6 +474,30 @@ public final class BattleArtifacts {
         } catch (AtomicMoveNotSupportedException e) {
             Files.move(from.toPath(), to.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
+    }
+
+    /** Retry brief Windows sharing violations while preserving a hard failure for persistent locks. */
+    private static void moveJournalWithRetry(File from, File to) throws IOException {
+        IOException lastFailure = null;
+        for (int attempt = 0; attempt < 12; attempt++) {
+            try {
+                move(from, to);
+                return;
+            } catch (FileSystemException e) {
+                lastFailure = e;
+                if (!from.isFile() || !to.isFile()) throw e;
+                if (attempt == 11) break;
+                try {
+                    Thread.sleep(25L);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    IOException failure = new IOException("Interrupted while retrying locked action journal replacement.", interrupted);
+                    failure.addSuppressed(e);
+                    throw failure;
+                }
+            }
+        }
+        throw lastFailure;
     }
 
     private static String field(String json, String key) {

@@ -738,6 +738,9 @@ public class CombatController {
         final int journalSize = journal.size();
         final String journalPath = EngineBridge.writeJournal(journal.snapshotWithMetadata());
         if (journalPath == null) {
+            String reason = BattleArtifacts.journalFailureReason();
+            journal.markDirty("引擎回放 journal 替换失败："
+                    + (reason == null || reason.isEmpty() ? "未捕获底层错误" : reason));
             return;
         }
         engineFetching = true;

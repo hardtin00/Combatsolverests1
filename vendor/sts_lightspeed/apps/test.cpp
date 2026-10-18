@@ -330,7 +330,9 @@ static int exhumeCheck() {
         if (selected == choices.end()) return fail("candidate_branch_missing");
         std::ostringstream selectionProtocol;
         printChoice(selectionProtocol, searchBranch, *selected);
-        if (selectionProtocol.str().find("idxs=" + std::to_string(selectedIdx) + " cards=") == std::string::npos
+        if (selectionProtocol.str().find("PLANSELECT v=3 task=EXHUME source=exhaust") == std::string::npos
+                || selectionProtocol.str().find("idxs=" + std::to_string(selectedIdx) + " cards=") == std::string::npos
+                || selectionProtocol.str().find("pool=1:537472696b655f52:0:1|2:537472696b655f52:1:1|3:537472696b655f52:0:1") == std::string::npos
                 || selectionProtocol.str().find("bits=" + [&]() {
                     std::ostringstream bits;
                     bits << std::hex << selected->bits;
@@ -375,11 +377,23 @@ static int exhumeCheck() {
     onlyCandidate.setUniqueId(51);
     singleton.cards.exhaustPile.push_back(onlyCandidate);
     Actions::ExhumeAction().actFunc(singleton);
+    const auto singletonChoices = search::Action::enumerateCardSelectActions(singleton);
+    if (singleton.inputState != InputState::CARD_SELECT || singletonChoices.size() != 1
+            || singletonChoices[0].getSelectIdx() != 1
+            || !singletonChoices[0].isValidAction(singleton)) {
+        return fail("single_candidate_selection_branch");
+    }
+    std::ostringstream singletonProtocol;
+    printChoice(singletonProtocol, singleton, singletonChoices[0]);
+    if (singletonProtocol.str().find("PLANSELECT v=3") == std::string::npos
+            || singletonProtocol.str().find("pool=1:42617368:0:2") == std::string::npos) {
+        return fail("single_candidate_protocol_identity");
+    }
+    singletonChoices[0].execute(singleton);
     if (singleton.inputState != InputState::PLAYER_NORMAL || singleton.cards.cardsInHand != 1
             || singleton.cards.hand[0].getUniqueId() != 51 || singleton.cards.hand[0].upgraded
-            || singleton.cards.exhaustPile.size() != 1 || singleton.cards.exhaustPile[0].getUniqueId() != 99) {
-        return fail("single_candidate_fast_path");
-    }
+            || singleton.cards.exhaustPile.size() != 1 || singleton.cards.exhaustPile[0].getUniqueId() != 99)
+        return fail("single_candidate_selection_execution");
 
     BattleContext empty;
     prepare(empty, false);
@@ -424,6 +438,11 @@ static int exhumeCheck() {
     skill.setUniqueId(61);
     corruption.cards.exhaustPile.push_back(skill);
     Actions::ExhumeAction().actFunc(corruption);
+    if (corruption.inputState != InputState::CARD_SELECT
+            || !search::Action(search::ActionType::SINGLE_CARD_SELECT, 1).isValidAction(corruption)) {
+        return fail("corruption_selection_not_offered");
+    }
+    search::Action(search::ActionType::SINGLE_CARD_SELECT, 1).execute(corruption);
     if (corruption.cards.cardsInHand != 1 || corruption.cards.hand[0].getUniqueId() != 61
             || corruption.cards.hand[0].costForTurn != -9) {
         return fail("corruption_cost_on_return");
@@ -501,7 +520,7 @@ static int exhumeCheck() {
         return fail("full_exhume_use_selection_and_triggers");
     }
 
-    std::cout << "EXHUME_CHECK_OK candidates=3 sameIdDistinctInstances=3 searchReplay=matched singleton=verified empty=verified fullHand=verified corruption=verified fullUse=verified FNP=4 DE=1 selfExcluded=1 cost=1/0 exhaust=1/1\n";
+    std::cout << "EXHUME_CHECK_OK candidates=3 sameIdDistinctInstances=3 searchReplay=matched singletonChoice=verified empty=verified fullHand=verified corruption=verified fullUse=verified FNP=4 DE=1 selfExcluded=1 cost=1/0 exhaust=1/1\n";
     return 0;
 }
 

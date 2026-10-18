@@ -3,12 +3,18 @@ package com.combatsolver1.runtime;
 import com.combatsolver1.CombatLog;
 import com.combatsolver1.engine.CardLibrary;
 import com.combatsolver1.search.Plan;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.megacrit.cardcrawl.actions.GameActionManager;
+import com.megacrit.cardcrawl.actions.unique.ExhumeAction;
 import com.megacrit.cardcrawl.actions.utility.NewQueueCardAction;
 import com.megacrit.cardcrawl.cards.AbstractCard;
+import com.megacrit.cardcrawl.core.Settings;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
+import com.megacrit.cardcrawl.helpers.input.InputHelper;
 import com.megacrit.cardcrawl.monsters.AbstractMonster;
 import com.megacrit.cardcrawl.potions.AbstractPotion;
+import com.megacrit.cardcrawl.screens.select.GridCardSelectScreen;
 import com.megacrit.cardcrawl.ui.panels.EnergyPanel;
 
 import java.util.ArrayList;
@@ -33,8 +39,8 @@ import java.util.Set;
  *
  * 3. 结束回合前要求连续多帧完全空闲：动作列表空 + 无正在执行动作 + 出牌队列空 + 未在出牌中。
  *
- * 4. 任何一个动作无法忠实执行（牌不在、能量不够、需要选牌），立即停下本回合剩余动作并回报
- *    “计划已失效”，交给控制器重新规划——而不是默默少打一张牌。
+ * 4. 任何一个动作无法忠实执行（牌不在、能量不够、目标不可信或不支持的选择），立即停下
+ *    本回合剩余动作；唯一支持的 Exhume 选择会经过独立身份校验和原生界面状态机。
  */
 public class PlanDeployer {
     private static final int IDLE_FRAMES_REQUIRED = 3;
@@ -69,6 +75,15 @@ public class PlanDeployer {
     private final Set<NewQueueCardAction> queuedActions = Collections.newSetFromMap(new IdentityHashMap<NewQueueCardAction, Boolean>());
     private final Set<AbstractCard> queuedCards = Collections.newSetFromMap(new IdentityHashMap<AbstractCard, Boolean>());
     private final List<ExpectedUse> expectedUses = new ArrayList<>();
+    private String planSource;
+    private Plan.Action pendingChoice;
+    private ExhumeChoiceSafety.Gate choiceGate;
+    private AbstractCard choiceTargetCard;
+    private AbstractCard playedExhumeCard;
+    private AbstractCard plannedExhumeCard;
+    private List<AbstractCard> choiceRootHand = Collections.emptyList();
+    private List<AbstractCard> choiceRootExhaust = Collections.emptyList();
+    private int choiceEnergyAfterUse = -1;
     /** 计划里的牌暂时不在手里（多半是本回合内刚抽到的）时，允许等待的帧数。 */
     private int deferrals;
 
@@ -90,6 +105,7 @@ public class PlanDeployer {
         targetSlots = null;
         virtualHand.clear();
         usedPotions.clear();
+        clearChoiceState();
         deferrals = 0;
         idleFrames = 0;
         readyFrames = 0;
@@ -111,13 +127,17 @@ public class PlanDeployer {
             return false;
         }
         expectedUses.remove(expected);
+        if (pendingChoice != null && card == plannedExhumeCard && !captureExhumeChoiceRoot(card)) {
+            finish(false, "Exhume 出牌前后的消耗堆与计划候选不一致");
+            return false;
+        }
         CombatLog.info("deploy useCard confirmed: card=" + card.cardID
                 + " target=" + targetSignature(target));
         return true;
     }
 
     public void execute(Plan.Turn turn, boolean endTurnAfter, ActionJournal actionJournal,
-                        ExecutionSafety.TargetSlots<AbstractMonster> targets) {
+                        ExecutionSafety.TargetSlots<AbstractMonster> targets, String source) {
         if (turn == null) {
             return;
         }
@@ -131,7 +151,9 @@ public class PlanDeployer {
         readyFrames = 0;
         virtualHand.clear();
         usedPotions.clear();
+        clearChoiceState();
         deferrals = 0;
+        planSource = source;
         this.endTurnAfter = endTurnAfter;
         if (targets == null) {
             finish(false, "计划目标索引来源或根状态无法确认");
@@ -146,6 +168,10 @@ public class PlanDeployer {
             return;
         }
         try {
+            if (pendingChoice != null) {
+                updateExhumeChoice();
+                return;
+            }
             // 游戏弹出了选牌界面（武装 / 双持 / 头槌 / 发掘 / 燃烧契约…）：
             // 这些选择我暂时无法自动完成，此时**必须停手**，把控制权交还玩家；
             // 否则下面的"动作已排完 + 空闲"判断会直接把回合结束掉。
@@ -227,10 +253,24 @@ public class PlanDeployer {
             Plan.Action action = pending.actions.get(cursor);
 
             if (action.isSelect()) {
-                finish(false, "计划包含选牌动作（暂不支持自动选择）");
-                if (result != null) {
-                    result.unsupported = true;
+                if (!ExhumeChoiceSafety.supports(action, planSource)) {
+                    if (journal != null) journal.markDirty("拒绝执行缺少 Exhume 候选身份的选牌路线");
+                    finish(false, "无法安全执行该选牌动作：仅支持带候选身份的 Exhume 消耗堆选择");
+                    if (result != null) result.unsupported = true;
+                    return;
                 }
+                if (plannedExhumeCard == null) {
+                    finish(false, "Exhume 选择动作前没有对应的原生 Exhume 出牌");
+                    return;
+                }
+                pendingChoice = action;
+                choiceGate = new ExhumeChoiceSafety.Gate(System.currentTimeMillis(),
+                        action.selectCandidates.size() == 1);
+                choiceTargetCard = null;
+                playedExhumeCard = null;
+                choiceEnergyAfterUse = -1;
+                CombatLog.info("deploy Exhume choice waiting: candidates=" + action.selectCandidates.size()
+                        + " selected=" + action.selectCards.get(0).id);
                 return;
             }
             if (action.isPotion()) {
@@ -262,7 +302,11 @@ public class PlanDeployer {
             deferrals = 0;
             AbstractCard card = resolved.card;
             int cost = card.freeToPlay() ? 0 : card.costForTurn;
-            if (cost < 0) {
+            if ("Exhume".equals(card.cardID) && (card.costForTurn == -9
+                    || (AbstractDungeon.player.hasPower("Corruption")
+                    && card.type == AbstractCard.CardType.SKILL))) {
+                cost = 0;
+            } else if (cost < 0) {
                 cost = Math.max(0, energy);
             }
             if (cost > energy) {
@@ -294,6 +338,7 @@ public class PlanDeployer {
             queuedActions.add(queued);
             queuedCards.add(card);
             expectedUses.add(new ExpectedUse(card, targetSignature(targetRef)));
+            if ("Exhume".equals(card.cardID)) plannedExhumeCard = card;
             AbstractDungeon.actionManager.addToBottom(queued);
             played++;
             queuedThisSegment++;
@@ -393,6 +438,201 @@ public class PlanDeployer {
         }
     }
 
+    /** Called by the narrow GridCardSelectScreen prefix; it synthesizes a dynamic hitbox click only. */
+    public void beforeGridSelectUpdate(GridCardSelectScreen grid) {
+        if (pendingChoice == null || choiceGate == null || grid == null) return;
+        boolean context = isExpectedExhumeGrid(grid);
+        boolean poolMatches = context && matchesNativePool(cardsIn(grid.targetGroup));
+        boolean externalInput = InputHelper.isMouseDown || InputHelper.justClickedLeft
+                || InputHelper.justReleasedClickLeft;
+        ExhumeChoiceSafety.Pulse pulse = choiceGate.beforeGridUpdate(context, poolMatches,
+                externalInput, Gdx.input.isKeyJustPressed(Input.Keys.J), System.currentTimeMillis());
+        if (choiceGate.phase() == ExhumeChoiceSafety.Phase.FAILED
+                || choiceGate.phase() == ExhumeChoiceSafety.Phase.CANCELLED) return;
+        if (pulse == ExhumeChoiceSafety.Pulse.NONE) return;
+        if (choiceTargetCard == null || choiceTargetCard.hb == null
+                || !containsIdentity(cardsIn(grid.targetGroup), choiceTargetCard)) {
+            // Gate has not emitted a click yet in this case; abort rather than touching another card.
+            finish(false, "Exhume 目标实例已不在原生选择界面");
+            return;
+        }
+        // InputHelper uses logical game coordinates. The point comes from the live card hitbox,
+        // so resolution changes and scrolling do not rely on fixed screen coordinates.
+        InputHelper.mX = Math.round(choiceTargetCard.hb.x + choiceTargetCard.hb.width / 2.0f);
+        InputHelper.mY = Math.round(choiceTargetCard.hb.y + choiceTargetCard.hb.height / 2.0f);
+        if (InputHelper.mX < 0 || InputHelper.mX > Settings.WIDTH
+                || InputHelper.mY < 0 || InputHelper.mY > Settings.HEIGHT) {
+            finish(false, "Exhume 目标卡牌当前不在可见屏幕范围，已拒绝自动点击");
+            return;
+        }
+        if (pulse == ExhumeChoiceSafety.Pulse.PRESS) {
+            InputHelper.justClickedLeft = true;
+            CombatLog.info("Exhume native input: card hitbox press");
+        } else {
+            InputHelper.justReleasedClickLeft = true;
+            CombatLog.info("Exhume native input: card hitbox release");
+        }
+    }
+
+    private void updateExhumeChoice() {
+        if (choiceGate == null || pendingChoice == null) {
+            finish(false, "Exhume 选择状态丢失，已停止自动路线");
+            return;
+        }
+        boolean screenUp = AbstractDungeon.isScreenUp;
+        GridCardSelectScreen grid = AbstractDungeon.gridSelectScreen;
+        boolean expectedGrid = screenUp && grid != null && isExpectedExhumeGrid(grid);
+        List<AbstractCard> gridCards = expectedGrid ? cardsIn(grid.targetGroup) : Collections.<AbstractCard>emptyList();
+        boolean poolMatches = expectedGrid && matchesNativePool(gridCards)
+                && containsIdentity(gridCards, choiceTargetCard);
+        boolean selectedUnexpected = expectedGrid && hasUnexpectedGridSelection(grid);
+        choiceGate.observeScreen(screenUp, expectedGrid, poolMatches, selectedUnexpected,
+                System.currentTimeMillis());
+
+        boolean stable = !screenUp && isIdle();
+        boolean resultMatches = selectionResultMatches();
+        boolean gameAlive = AbstractDungeon.player != null && !AbstractDungeon.player.isDead
+                && currentCombatRoom();
+        choiceGate.observeResult(screenUp, gameAlive, stable, resultMatches, System.currentTimeMillis());
+
+        if (choiceGate.phase() == ExhumeChoiceSafety.Phase.COMPLETE) {
+            if (journal != null) journal.recordSelection(pendingChoice);
+            CombatLog.info("Exhume native choice verified: card=" + choiceTargetCard.cardID
+                    + " upgrades=" + choiceTargetCard.timesUpgraded
+                    + " energy=" + EnergyPanel.getCurrentEnergy());
+            cursor++;
+            pendingChoice = null;
+            choiceGate = null;
+            choiceTargetCard = null;
+            playedExhumeCard = null;
+            plannedExhumeCard = null;
+            choiceRootHand = Collections.emptyList();
+            choiceRootExhaust = Collections.emptyList();
+            choiceEnergyAfterUse = -1;
+            readyFrames = 0;
+            idleFrames = 0;
+            return;
+        }
+        if (choiceGate.phase() == ExhumeChoiceSafety.Phase.FAILED
+                || choiceGate.phase() == ExhumeChoiceSafety.Phase.CANCELLED) {
+            finish(false, choiceGate.failure() == null ? "Exhume 选择已取消" : choiceGate.failure());
+        }
+    }
+
+    private boolean captureExhumeChoiceRoot(AbstractCard card) {
+        if (pendingChoice == null || card == null || !"Exhume".equals(card.cardID)) return false;
+        List<AbstractCard> exhaust = AbstractDungeon.player.exhaustPile.group;
+        List<AbstractCard> candidates = legalExhumeCandidates(exhaust);
+        List<Plan.ChoiceCard> descriptions = describe(candidates);
+        ExhumeChoiceSafety.Match match = ExhumeChoiceSafety.match(pendingChoice, descriptions);
+        if (!match.matched()) {
+            CombatLog.info("Exhume candidate validation failed: " + match.failure);
+            return false;
+        }
+        if (match.liveIndex < 0 || match.liveIndex >= candidates.size()) return false;
+        choiceTargetCard = candidates.get(match.liveIndex);
+        playedExhumeCard = card;
+        choiceRootHand = new ArrayList<AbstractCard>(AbstractDungeon.player.hand.group);
+        choiceRootExhaust = new ArrayList<AbstractCard>(exhaust);
+        int currentEnergy = EnergyPanel.getCurrentEnergy();
+        boolean corruptionSkill = AbstractDungeon.player.hasPower("Corruption")
+                && card.type == AbstractCard.CardType.SKILL;
+        int nativeCost = ExhumeChoiceSafety.nativeEnergyCost(card.costForTurn,
+                card.freeToPlay(), corruptionSkill, currentEnergy);
+        choiceEnergyAfterUse = currentEnergy - nativeCost;
+        choiceGate.allowNativeAutoResolution(candidates.size() == 1 && exhaust.size() == 1);
+        CombatLog.info("Exhume pre-choice identity matched: pool=" + candidates.size()
+                + " sourceOrderMayDiffer=true");
+        return true;
+    }
+
+    private boolean isExpectedExhumeGrid(GridCardSelectScreen grid) {
+        return grid != null && AbstractDungeon.screen == AbstractDungeon.CurrentScreen.GRID
+                && AbstractDungeon.actionManager != null
+                && AbstractDungeon.actionManager.currentAction instanceof ExhumeAction
+                && AbstractDungeon.player != null && grid.targetGroup == AbstractDungeon.player.exhaustPile;
+    }
+
+    private boolean matchesNativePool(List<AbstractCard> nativeCandidates) {
+        if (pendingChoice == null || choiceTargetCard == null || nativeCandidates == null) return false;
+        ExhumeChoiceSafety.Match match = ExhumeChoiceSafety.match(pendingChoice, describe(nativeCandidates));
+        return match.matched() && containsIdentity(nativeCandidates, choiceTargetCard);
+    }
+
+    private boolean hasUnexpectedGridSelection(GridCardSelectScreen grid) {
+        if (grid.selectedCards == null || grid.selectedCards.isEmpty()) return false;
+        return grid.selectedCards.size() != 1 || grid.selectedCards.get(0) != choiceTargetCard;
+    }
+
+    private boolean selectionResultMatches() {
+        if (choiceTargetCard == null || playedExhumeCard == null || choiceEnergyAfterUse < 0
+                || AbstractDungeon.player == null) return false;
+        List<AbstractCard> hand = AbstractDungeon.player.hand.group;
+        List<AbstractCard> exhaust = AbstractDungeon.player.exhaustPile.group;
+        if (countIdentity(hand, choiceTargetCard) != 1
+                || countIdentity(exhaust, choiceTargetCard) != 0
+                || countIdentity(exhaust, playedExhumeCard) != 1
+                || hand.size() < choiceRootHand.size()
+                || exhaust.size() != choiceRootExhaust.size()
+                || EnergyPanel.getCurrentEnergy() != choiceEnergyAfterUse) return false;
+        for (AbstractCard rootCard : choiceRootHand) {
+            if (rootCard != playedExhumeCard && countIdentity(hand, rootCard) != 1) return false;
+        }
+        for (AbstractCard rootCard : choiceRootExhaust) {
+            int expected = rootCard == choiceTargetCard ? 0 : 1;
+            if (countIdentity(exhaust, rootCard) != expected) return false;
+        }
+        return true;
+    }
+
+    private boolean currentCombatRoom() {
+        try {
+            return AbstractDungeon.getCurrRoom() != null
+                    && AbstractDungeon.getCurrRoom().phase == com.megacrit.cardcrawl.rooms.AbstractRoom.RoomPhase.COMBAT;
+        } catch (Throwable ignored) { return false; }
+    }
+
+    private static List<AbstractCard> cardsIn(com.megacrit.cardcrawl.cards.CardGroup group) {
+        return group == null ? Collections.<AbstractCard>emptyList() : group.group;
+    }
+
+    private static List<AbstractCard> legalExhumeCandidates(List<AbstractCard> cards) {
+        List<AbstractCard> result = new ArrayList<AbstractCard>();
+        for (AbstractCard card : cards) if (card != null && !"Exhume".equals(card.cardID)) result.add(card);
+        return result;
+    }
+
+    private static List<Plan.ChoiceCard> describe(List<AbstractCard> cards) {
+        List<Plan.ChoiceCard> result = new ArrayList<Plan.ChoiceCard>();
+        for (AbstractCard card : cards) {
+            result.add(ExhumeChoiceSafety.descriptor(card.cardID, card.timesUpgraded, card.costForTurn));
+        }
+        return result;
+    }
+
+    private static boolean containsIdentity(List<AbstractCard> cards, AbstractCard wanted) {
+        return countIdentity(cards, wanted) > 0;
+    }
+
+    private static int countIdentity(List<AbstractCard> cards, AbstractCard wanted) {
+        int count = 0;
+        if (cards != null && wanted != null) for (AbstractCard card : cards) if (card == wanted) count++;
+        return count;
+    }
+
+    private void clearChoiceState() {
+        if (choiceGate != null) choiceGate.cancel();
+        choiceGate = null;
+        pendingChoice = null;
+        choiceTargetCard = null;
+        playedExhumeCard = null;
+        plannedExhumeCard = null;
+        choiceRootHand = Collections.emptyList();
+        choiceRootExhaust = Collections.emptyList();
+        choiceEnergyAfterUse = -1;
+        planSource = null;
+    }
+
     private AbstractMonster potionTarget(Plan.Action action, AbstractPotion potion) {
         if (!potion.targetRequired) return null;
         if (action.targetIndex < 0) return null;
@@ -414,6 +654,9 @@ public class PlanDeployer {
     }
 
     private void finish(boolean completed, String reason) {
+        if (!completed && pendingChoice != null && journal != null) {
+            journal.markDirty("Exhume 选牌未能忠实完成：" + (reason == null ? "未知原因" : reason));
+        }
         if (!completed) cancelQueuedOperations();
         else clearQueuedTracking();
         Result r = new Result();
@@ -432,6 +675,7 @@ public class PlanDeployer {
         targetSlots = null;
         virtualHand.clear();
         usedPotions.clear();
+        clearChoiceState();
     }
 
     private AbstractPotion findPotion(String potionId) {

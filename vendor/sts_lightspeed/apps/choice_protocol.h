@@ -27,11 +27,13 @@ static CardInstance choiceCard(const BattleContext &bc, int idx) {
 static void printChoice(std::ostream &os, const BattleContext &bc, const search::Action &a) {
     const auto task = bc.cardSelectInfo.cardSelectTask;
     const bool multi = a.getActionType() == search::ActionType::MULTI_CARD_SELECT;
+    const bool exhume = task == CardSelectTask::EXHUME;
     const bool skip = task == CardSelectTask::CODEX && a.getSelectIdx() == 3;
     std::vector<int> indices;
     if (multi) { for (int i : a.getSelectedIdxs()) indices.push_back(i); }
     else if (!skip) indices.push_back(a.getSelectIdx());
-    os << "PLANSELECT v=2 task=" << cardSelectTaskStrings[static_cast<int>(task)]
+    os << "PLANSELECT v=" << (exhume ? 3 : 2)
+       << " task=" << cardSelectTaskStrings[static_cast<int>(task)]
        << " source=" << choiceSource(task) << " multi=" << multi << " skip=" << skip
        << " bits=" << std::hex << a.bits << std::dec << " idxs=";
     if (indices.empty()) os << '-';
@@ -43,6 +45,20 @@ static void printChoice(std::ostream &os, const BattleContext &bc, const search:
         const auto c = choiceCard(bc, indices[i]);
         os << hexId(sts::cardIdToJsonString(c.id)) << ':' << c.getUpgradeCount()
            << ':' << static_cast<int>(c.costForTurn);
+    }
+    if (exhume) {
+        // Indices are simulator pile positions. Java matches the selected card against this
+        // complete legal pool by identity; it never treats an engine index as a UI index.
+        os << " pool=";
+        bool first = true;
+        for (int i = 0; i < static_cast<int>(bc.cards.exhaustPile.size()); ++i) {
+            const auto &c = bc.cards.exhaustPile[i];
+            if (c.getId() == CardId::EXHUME) continue;
+            if (!first) os << '|';
+            first = false;
+            os << i << ':' << hexId(sts::cardIdToJsonString(c.id)) << ':' << c.getUpgradeCount()
+               << ':' << static_cast<int>(c.costForTurn);
+        }
     }
     os << '\n';
 }

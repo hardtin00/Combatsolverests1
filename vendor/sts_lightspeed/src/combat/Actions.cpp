@@ -760,21 +760,19 @@ Action Actions::ExhumeAction() {
         }
 
         int nonExhumeCards = 0;
-        int lastNonExhumeIdx = -1;
         for (int i = 0; i < bc.cards.exhaustPile.size(); ++i) {
             if (bc.cards.exhaustPile[i].id != CardId::EXHUME) {
                 ++nonExhumeCards;
-                lastNonExhumeIdx = i;
             }
         }
 
         if (nonExhumeCards == 0) {
             return;
 
-        } else if (nonExhumeCards == 1) {
-            bc.chooseExhumeCard(lastNonExhumeIdx);
-
         } else {
+            // Keep even the single legal candidate explicit in the route. Native STS1 may
+            // resolve a one-card pile without opening a screen, but Java still needs the
+            // selected identity to verify that automatic native result before continuing.
             bc.cardSelectInfo.cardSelectTask = CardSelectTask::EXHUME;
             bc.inputState = InputState::CARD_SELECT;
         }

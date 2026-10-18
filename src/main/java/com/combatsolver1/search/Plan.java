@@ -63,6 +63,15 @@ public class Plan {
         public ChoiceCard(String id, int upgrades, int cost) { this.id=id; this.upgrades=upgrades; this.cost=cost; }
     }
 
+    /** Candidate descriptor. sourceIndex is local to the simulator pile and is never a UI index. */
+    public static final class ChoiceCandidate extends ChoiceCard {
+        public final int sourceIndex;
+        public ChoiceCandidate(int sourceIndex, String id, int upgrades, int cost) {
+            super(id, upgrades, cost);
+            this.sourceIndex = sourceIndex;
+        }
+    }
+
     public static class Action {
         public static final int KIND_CARD = 0;
         public static final int KIND_POTION = 1;
@@ -79,9 +88,11 @@ public class Plan {
         /** 选择类动作（燃烧契约/双持等）要选的手牌/弃牌堆下标。 */
         public int selectIndex = -1;
         public String selectTask, selectSource, selectBits;
+        public int selectProtocolVersion = -1;
         public boolean selectMulti, selectSkip;
         public final List<Integer> selectIndices = new ArrayList<>();
         public final List<ChoiceCard> selectCards = new ArrayList<>();
+        public final List<ChoiceCandidate> selectCandidates = new ArrayList<>();
         public boolean discardPotion;
         /** 引擎给出的手牌下标（用于按位置映射实机手牌）。 */
         public int handIndex = -1;

@@ -793,3 +793,11 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - `exhume_check` 覆盖多候选、同 ID 不同实例、动作 bits、搜索/replay 分支、单候选、空堆、自身/越界候选、满手、Corruption、费用/升级、自身消耗的 Feel No Pain / Dark Embrace 次序与完整出牌流程。修复前分别复现直接选回 Exhume 未被拒绝、Corruption 返回技能费用哨兵被清零；修复后检查通过。
 - 验证：`exhume_check`、`exhaust_trigger_check`、`block_modifier_check` 通过；`tools/solvertest/run.ps1 -Command all` 退出 0；`tools/recordercheck/run-root-replay-diff.ps1 -SelfTest` 30 项通过；`git diff --check` 通过。C++ Release 引擎已重建，协议 v2 启动检查通过；SHA-256 `2D3831D3BED98B0F12E6317BF1608119D9EAF8CEAF493BFBD274B363054A9268`，settings.properties 的 `engine.path` 指向该 EXE。
 - 本轮沙箱无法读取 `C:\Users\3476.combatsolver1\recordings`，三个指定真实 bundle 未能重新运行；历史已知结果仅作为受限旧证据，不能证明 Exhume 的实机准确性。无新的 L3/L4 证据，当前为 L2 离线验证。Java Mod、真实 bundle、搜索策略和执行逻辑未修改。
+
+### 后续：Exhume 原生选牌执行第一阶段
+
+- C++ 对 Exhume 选择输出专用 `PLANSELECT v=3`，含消耗堆候选的模拟器槽位、ID、升级数和当前费用；槽位只用于协议内交叉核验，Java 不将其当作原生 UI 索引。Java 只在选中候选的 ID/升级数/费用签名于完整候选多重集中唯一时映射到实际卡对象；候选顺序变化可接受，签名重复或候选集合变化则拒绝。
+- `PlanDeployer` 仅对 `source=engine` 的 v3 Exhume 路线启用执行；等待原生 `ExhumeAction` 正在打开的 GRID 消耗堆选择，基于目标卡当前 hitbox 合成一组点击输入，不直接修改牌堆或选牌列表。验证选择后回到稳定战斗状态，并核对原手牌保留、目标卡移入手牌、目标从消耗堆移除、Exhume 入消耗堆和能量；不匹配、玩家干预、超时、取消或路线失效均停下并标脏 journal。
+- Java `ExhumeExecutionCheck` 直接调用生产协议解析器、候选身份匹配和等待门控，15 项通过，含不同顺序、同 ID 不同升级、同 ID 同升级歧义拒绝、界面等待/错误界面、点击阶段、取消、超时、手动输入、单候选原生快路径、结算漂移和旧版非 Exhume v2 兼容。修复前协议解析拒绝 v3；C++ 单候选旧假设回归被改为显式枚举/执行。`exhume_check`、`exhaust_trigger_check`、`block_modifier_check`、G/H `ExecutionSafetyCheck`（11 项）、`solvertest all` 和同根差分 SelfTest（30 项）通过。
+- Java 字节码 major=52，MTS 3.30.3 对构建 JAR 的 6 个补丁完成 discovery 与 injection，含 `GridCardSelectExhumePatch`。构建后第一次直接部署遇到系统对游戏 `mods` 目录的 Access Denied，尚待以获准写权限完成最终部署及 SHA 核对。C++ Release EXE 为 `build/engine/combatsolver1-engine.exe`，SHA-256 `6D858D8A1EF87851186289C1BCED61B336E9D2CFEDEBAEFC0C22EDDBE8B9F830`；protocol v2、Exhume/消耗/格挡检查，以及现有胜利 bundle 的只读 `mcts_save`（1 次模拟）和 `replay_trace`（9 动作）启动/回放 smoke 通过。`engine.path` 已指向该绝对路径。
+- 证据为 L2：离线执行模型与真实 MTS 注入已验证；本轮未启动游戏，尚未证明 Exhume 网格屏幕中的 hitbox 输入、原生结算及后续路线可在实际游戏中完成。尚未达到 L3/L4。仅 Exhume 自动执行已启用；Java local 计划及其他选择路线继续安全拒绝。

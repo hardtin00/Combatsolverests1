@@ -17,6 +17,7 @@ import com.megacrit.cardcrawl.monsters.AbstractMonster;
 import com.megacrit.cardcrawl.potions.AbstractPotion;
 import com.megacrit.cardcrawl.potions.PotionSlot;
 import com.megacrit.cardcrawl.rooms.AbstractRoom;
+import com.megacrit.cardcrawl.screens.select.GridCardSelectScreen;
 import com.megacrit.cardcrawl.ui.panels.EnergyPanel;
 
 import java.io.File;
@@ -149,6 +150,11 @@ public class CombatController {
     public void onCardDrawn(AbstractCard card) {
         planValidated = false;
         suppressed = false;
+    }
+
+    /** Narrow game-thread hook used only while a validated Exhume choice is pending. */
+    public void beforeGridSelectUpdate(GridCardSelectScreen screen) {
+        if (inCombat && deployer.isActive()) deployer.beforeGridSelectUpdate(screen);
     }
 
     /** 玩家（或模组）打出一张牌。用于把“手动出牌”也记录进动作日志。 */
@@ -430,7 +436,7 @@ public class CombatController {
                     validatedSignature = null;
                 }
                 lastIdlePotions = null;
-                deployer.execute(firstTurn, autoTurn, journal, targets);
+                deployer.execute(firstTurn, autoTurn, journal, targets, active.source);
                 onDeployFinished(deployer.consumeResult());
             } else if (active != null && active == enginePlan && (executeRequested || fullAuto)
                     && active.turns.size() > 0 && !engineTurnUsable(active)) {

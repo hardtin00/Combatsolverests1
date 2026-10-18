@@ -755,3 +755,9 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - 只读审计基线 `ae4711e7df38023b25ed5b33e3f347b71dbe6b2f`；参考 CombatSolver 源码固定在 `5c773caaec742bc55588bc9ee21c361326a732f0`。报告为 `docs/CORE_CAPABILITY_AUDIT.md`。连接器读取参考仓库的真实源码目录与关键实现；shell 直连 GitHub 被网络阻断。报告逐模块对照状态捕获、模拟、搜索、UI、执行及 replay，明确 sts_lightspeed、Java fallback 与 StS2 参考项目的来源和证据边界。
 - 覆盖统计只使用可复核的局部基准：离线检查中 75 个 Ironclad ID 登记断言、65 个 Bestiary 核心怪物识别/招式生成检查、PotionLibrary 20 个当前登记 ID；这些不是精确机制覆盖率。四职业、完整遗物/药水全集无仓库内可信分母，报告不编造百分比。优先顺序为同根回放证据闭环、Ironclad 机制覆盖与差分基准、原生选牌协议执行。
 - 验证：`tools/solvertest/run.ps1 -Command all` 退出码 0；该工具同时报告历史 corpus 70 个动作中 48 个有差异（668/793 个字段匹配），只作为已有诊断样本，不等同当前缺陷率或严格完整 L4。`git diff --check` 退出 0。未构建/部署 JAR（仅文档）。L2 仅指现有离线检查；报告中的 L3/L4 均限于 STATUS 所记具体历史战斗，L5 未建立。文档提交已生成；推送尝试因无法连接 `github.com:443` 失败，检查时远端 `main` 仍为 `ae4711e7df38023b25ed5b33e3f347b71dbe6b2f`。
+
+## 2026-10-18：最小同根回放差分闭环
+
+- 新增 `tools/recordercheck/run-root-replay-diff.ps1` 与说明。工具不改 bundle：检查 manifest 三份文件 SHA-256、保留 dirty/error/outcome/actionCount，逐步用同一个 `engine-in.save` 调用 `replay_trace`，解析 `REPLAY_OK`/`REPLAY_INVALID`，按 `game turn = engine turn + 1` 对齐稳定 post，并输出 JSON 与 `SUMMARY`。
+- 真实回归：两只虱虫 `battle-20261018-174030-825-a05ceb11-08ef-40fa-82ed-6d9029360f0d` 哈希一致、dirty=true、12 个 journal 动作、最长未拒绝前缀 11；回合边界明确报告 engine HP=52、game HP=51，未猜测伤害根因。三哨卫 `battle-20261018-184303-365-2aecdaee-33b3-40ab-a927-75e3538a9b4a` 哈希一致、dirty=true，动作 3 首次 `REPLAY_INVALID`，最长前缀 2；未把旧 Curse 记录改成已修复。此前成功胜利 bundle `battle-20261018-150839-671-747a4a3c-cf7b-436e-b792-2b68254a6e20` 哈希一致、最长前缀 9，稳定 post 比较无差异；终局仍按无稳定 post 的受限证据处理。
+- 离线回归：`run-root-replay-diff.ps1 -SelfTest` 输出 `{"selfTest":"PASS","checks":10}`，退出 0；覆盖合法前缀、协议拒绝但进程可返回、dirty、缺 post/终局、回合映射、阶段分类、HP 首差异、哈希/未知字段拒绝语义。`tools/solvertest/run.ps1 -Command all` 退出 0，`git diff --check` 退出 0。未修改 Java/C++、未构建部署 JAR，证据为 L2；真实 bundle 结果是受限 L4 诊断，不是全场严格 L4。

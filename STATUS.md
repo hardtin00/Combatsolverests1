@@ -1,3 +1,11 @@
+## 2026-10-18：Ironclad 格挡修正的 Iron Wave 重复应用
+
+- 本轮选择“卡牌格挡修正”机制族。`BattleContext::calculateCardBlock()` 是 Ironclad 多张格挡牌共享入口，按 No Block、Dexterity、Frail 结算；源码审查发现 `BattleContext::useAttackCard()` 的 Iron Wave 把已修正值再次传回同一函数，导致 Dex/Frail 及边界值被重复套用。其余检查过的 Defend、Shrug It Off、Impervious 等分支只应用一次。玩家可见影响：Iron Wave 在 Dex/Frail/No Block 组合下会得到偏高或偏低的格挡；基础 5 格挡、升级 7 格挡及攻击伤害不变。
+- 最小修复是 Iron Wave 只对其基础格挡调用一次 `calculateCardBlock()`；未改共享公式、搜索器、协议、Java fallback 或历史 bundle。`block_modifier_check` 走生产 `search::Action::execute → BattleContext::executeActions → playCardQueueItem/useAttackCard` 路径，覆盖基础/升级、Dex+Frail 组合、Frail 向下取整、No Block、负 Dexterity 下限和能量不足拒绝；核对格挡、怪物 HP、能量、手牌及弃牌堆。修复前旧实现确切失败于 `frail_rounding`（期望 3 格挡，实际因重复修正不足）；修复后 9 组通过。
+- 搜索与 `replay_trace` 都通过 `search::Action::execute()` 投递原生卡牌队列，再由同一 BattleContext 卡牌结算函数处理；本 fixture 覆盖该共享动作结算入口。测试不是 STS1 原生代码差分，也不代表实机验证。
+- 当前机制状态：Iron Wave 在本次覆盖的基础、升级及格挡修正组合上从已知错误改为“离线精确验证”；未据此推定其所有遗物/力量/伤害交互均精确。`calculateCardBlock()` 其他调用方未改。本轮没有对应新 L3/L4 证据。
+- 验证：旧实现测试复现 `frail_rounding` 失败（5 基础格挡被两次取 75%，实际 2、期望 3）；修复后 `build/engine/combatsolver1-engine.exe block_modifier_check` 退出 0，9/9 场景通过。`tools/solvertest/run.ps1 -Command all` 退出 0；`run-root-replay-diff.ps1 -SelfTest` 为 30/30；新 EXE 上三份历史 bundle 均完成 `replay_trace`：虱虫样本 `REPLAY_INVALID` 最长协议前缀 11、可见字段 24/24，52/51 HP 仍是受限回合边界观察；三哨卫动作 3 `REPLAY_INVALID`、前缀 2、24/24；胜利样本 9 个协议动作可重放、8 个配对动作加 root 为 72/72，终局仍无全字段 post。三者均是 diagnostic-only L2，历史记录原样保留。新引擎 `mcts_save` smoke 返回 `PLANEND outcome=1`；settings.properties 的 `engine.path` 指向本轮构建路径，协议 v2 正常。完整引擎 SHA-256、实际命令和提交/推送结果见本轮交付。没有对应新 L3/L4 样本。
+
 ## 2026-10-18：终局胜负离线验收命令
 
 ## 2026-10-18：G/H 执行安全审计

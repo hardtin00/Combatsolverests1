@@ -122,6 +122,99 @@ static int ascendersBaneCostSentinelCheck() {
     return 0;
 }
 
+static int blockModifierCheck() {
+    auto runIronWave = [](bool upgraded, int dexterity, bool frail, bool noBlock,
+            int expectedBlock, int expectedMonsterHp) {
+        BattleContext bc;
+        bc.inputState = InputState::PLAYER_NORMAL;
+        bc.player.curHp = bc.player.maxHp = 80;
+        bc.player.energy = 3;
+        bc.player.dexterity = dexterity;
+        if (frail) bc.player.buff<PS::FRAIL>(2);
+        if (noBlock) bc.player.setHasStatus<PS::NO_BLOCK>(true);
+
+        bc.cards.cardsInHand = 1;
+        CardInstance ironWave(CardId::IRON_WAVE, upgraded);
+        ironWave.setUniqueId(0);
+        bc.cards.hand[0] = ironWave;
+        bc.cards.drawPile.push_back(CardInstance(CardId::STRIKE_RED));
+
+        bc.monsters.monsterCount = 1;
+        bc.monsters.monstersAlive = 1;
+        bc.monsters.arr[0].id = MonsterId::JAW_WORM;
+        bc.monsters.arr[0].idx = 0;
+        bc.monsters.arr[0].curHp = bc.monsters.arr[0].maxHp = 100;
+
+        const search::Action play(search::ActionType::CARD, 0, 0);
+        if (!play.isValidAction(bc)) return false;
+        play.execute(bc); // Search and replay_trace both execute through this production path.
+        return bc.player.block == expectedBlock
+                && bc.monsters.arr[0].curHp == expectedMonsterHp
+                && bc.player.energy == 3 - ironWave.costForTurn
+                && bc.cards.cardsInHand == 0
+                && bc.cards.discardPile.size() == 1
+                && bc.cards.discardPile[0].getId() == CardId::IRON_WAVE;
+    };
+
+    if (!runIronWave(false, 0, false, false, 5, 95)) {
+        std::cerr << "BLOCK_MODIFIER_CHECK_FAIL case=iron_wave_base expected_block=5 expected_hp=95\n";
+        return 1;
+    }
+    if (!runIronWave(true, 0, false, false, 7, 93)) {
+        std::cerr << "BLOCK_MODIFIER_CHECK_FAIL case=iron_wave_upgraded expected_block=7 expected_hp=93\n";
+        return 1;
+    }
+    if (!runIronWave(false, 2, true, false, 5, 95)) {
+        std::cerr << "BLOCK_MODIFIER_CHECK_FAIL case=dexterity_frail_combo expected_block=5 expected_hp=95\n";
+        return 1;
+    }
+    if (!runIronWave(true, 2, true, false, 6, 93)) {
+        std::cerr << "BLOCK_MODIFIER_CHECK_FAIL case=upgraded_dexterity_frail expected_block=6 expected_hp=93\n";
+        return 1;
+    }
+    if (!runIronWave(false, 0, true, false, 3, 95)) {
+        std::cerr << "BLOCK_MODIFIER_CHECK_FAIL case=frail_rounding expected_block=3 expected_hp=95\n";
+        return 1;
+    }
+    if (!runIronWave(true, 0, true, false, 5, 93)) {
+        std::cerr << "BLOCK_MODIFIER_CHECK_FAIL case=upgraded_frail_rounding expected_block=5 expected_hp=93\n";
+        return 1;
+    }
+    if (!runIronWave(false, 2, false, true, 0, 95)) {
+        std::cerr << "BLOCK_MODIFIER_CHECK_FAIL case=no_block expected_block=0 expected_hp=95\n";
+        return 1;
+    }
+    if (!runIronWave(false, -8, true, false, 0, 95)) {
+        std::cerr << "BLOCK_MODIFIER_CHECK_FAIL case=negative_dexterity_floor expected_block=0 expected_hp=95\n";
+        return 1;
+    }
+
+    BattleContext invalid;
+    invalid.inputState = InputState::PLAYER_NORMAL;
+    invalid.player.curHp = invalid.player.maxHp = 80;
+    invalid.player.energy = 0;
+    invalid.cards.cardsInHand = 1;
+    invalid.cards.hand[0] = CardInstance(CardId::IRON_WAVE);
+    invalid.cards.hand[0].setUniqueId(0);
+    invalid.monsters.monsterCount = 1;
+    invalid.monsters.monstersAlive = 1;
+    invalid.monsters.arr[0].id = MonsterId::JAW_WORM;
+    invalid.monsters.arr[0].idx = 0;
+    invalid.monsters.arr[0].curHp = invalid.monsters.arr[0].maxHp = 100;
+    const search::Action unaffordable(search::ActionType::CARD, 0, 0);
+    if (unaffordable.isValidAction(invalid)
+            || invalid.player.block != 0
+            || invalid.monsters.arr[0].curHp != 100
+            || invalid.cards.cardsInHand != 1
+            || invalid.player.energy != 0) {
+        std::cerr << "BLOCK_MODIFIER_CHECK_FAIL case=unaffordable_action_mutated_state\n";
+        return 1;
+    }
+
+    std::cout << "BLOCK_MODIFIER_CHECK_OK cases=9 fields=block,monster_hp,energy,hand,discard upgraded=true invalid_action=true search_action=true\n";
+    return 0;
+}
+
 // ---------------------------------------------------------------------------
 // 结构化输出：给 CombatSolver1 的 Java 侧解析用（避免解析人类可读文本）。
 //   PLANCARD idx=<手牌下标> id=<游戏内卡牌ID> cost=<费用> upg=<0/1> tgt=<目标下标>
@@ -659,6 +752,10 @@ int main(int argc, const char* argv[]) {
 
     if (command == "ascenders_bane_cost_check") {
         return ascendersBaneCostSentinelCheck();
+    }
+
+    if (command == "block_modifier_check") {
+        return blockModifierCheck();
     }
 
     if (command == "protocol") {

@@ -377,8 +377,12 @@ public final class EngineBridge {
                     if (current == null) {
                         current = new Plan.Turn();
                     }
+                    String potionId = EngineProtocolFields.potionId(s);
+                    if (potionId == null) {
+                        throw new IllegalArgumentException("malformed PLANPOTION line");
+                    }
                     int target = intField(s, "tgt=", -1);
-                    Plan.Action a = new Plan.Action("POTION:" + field(s, "id="), field(s, "id="),
+                    Plan.Action a = new Plan.Action("POTION:" + potionId, potionId,
                             target, 0);
                     a.kind = Plan.Action.KIND_POTION;
                     a.colorIndex = 4;

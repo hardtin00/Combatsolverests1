@@ -707,7 +707,7 @@ public class PlanDeployer {
 
     private AbstractPotion findPotion(String potionId) {
         for (AbstractPotion p : AbstractDungeon.player.potions) {
-            if (p != null && p.ID != null && p.ID.equals(potionId) && !usedPotions.contains(p)) {
+            if (p != null && EngineProtocolFields.samePotionId(p.ID, potionId) && !usedPotions.contains(p)) {
                 return p;
             }
         }

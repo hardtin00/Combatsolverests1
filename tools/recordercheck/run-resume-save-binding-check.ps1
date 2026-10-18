@@ -8,8 +8,10 @@ if (-not (Test-Path $javac) -or -not (Test-Path $java)) { throw "Java runtime no
 $out = Join-Path $root 'build\resume-save-check'
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 $sources = @(
+    (Join-Path $root 'src\main\java\com\combatsolver1\runtime\NativeReadEvidence.java'),
     (Join-Path $root 'src\main\java\com\combatsolver1\runtime\LoadedSaveEvidence.java'),
     (Join-Path $root 'src\main\java\com\combatsolver1\runtime\EngineRootStateBinding.java'),
+    (Join-Path $PSScriptRoot 'NativeSaveReadCaptureCheck.java'),
     (Join-Path $PSScriptRoot 'ResumeSaveBindingCheck.java'),
     (Join-Path $PSScriptRoot 'EngineRootStateBindingCheck.java')
 )
@@ -17,5 +19,7 @@ $sources = @(
 if ($LASTEXITCODE -ne 0) { throw "Resume-save binding compile failed: $LASTEXITCODE" }
 & $java -cp $out com.combatsolver1.runtime.ResumeSaveBindingCheck
 if ($LASTEXITCODE -ne 0) { throw "Resume-save binding regression failed: $LASTEXITCODE" }
+& $java -cp $out com.combatsolver1.runtime.NativeSaveReadCaptureCheck
+if ($LASTEXITCODE -ne 0) { throw "Native save read capture regression failed: $LASTEXITCODE" }
 & $java -cp $out com.combatsolver1.runtime.EngineRootStateBindingCheck
 if ($LASTEXITCODE -ne 0) { throw "Engine root state binding regression failed: $LASTEXITCODE" }

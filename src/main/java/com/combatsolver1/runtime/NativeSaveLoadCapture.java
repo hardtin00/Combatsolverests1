@@ -1,7 +1,6 @@
 package com.combatsolver1.runtime;
 
 import com.combatsolver1.CombatLog;
-import com.badlogic.gdx.Gdx;
 import com.megacrit.cardcrawl.cards.AbstractCard;
 import com.megacrit.cardcrawl.characters.AbstractPlayer;
 import com.megacrit.cardcrawl.core.CardCrawlGame;
@@ -15,8 +14,7 @@ import com.megacrit.cardcrawl.saveAndContinue.SaveFile;
 import com.megacrit.cardcrawl.saveAndContinue.SaveFileObfuscator;
 
 import java.io.File;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
+import java.io.InputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,6 +27,7 @@ import java.util.UUID;
 /** Captures only bytes read by the native Continue loader and binds them once to the next battle. */
 public final class NativeSaveLoadCapture {
     private static final ThreadLocal<Attempt> CURRENT = new ThreadLocal<>();
+    private static final ThreadLocal<String> FILE_READ_PATH = new ThreadLocal<>();
     private static volatile LoadedSource pending;
     private static volatile boolean loadObserved;
     private static volatile String loadFailure = "";
@@ -68,36 +67,26 @@ public final class NativeSaveLoadCapture {
         }
     }
 
-    private static final class Candidate {
-        final byte[] bytes;
-        final String path;
-        final String nativePath;
-        final long modifiedAt;
-        final String sha256;
-
-        Candidate(byte[] bytes, String path, String nativePath, long modifiedAt, String sha256) {
-            this.bytes = bytes;
-            this.path = path;
-            this.nativePath = nativePath;
-            this.modifiedAt = modifiedAt;
-            this.sha256 = sha256;
-        }
-    }
-
     private static final class Attempt {
         final String expectedPath;
+        final String expectedAbsolutePath;
+        final String backupAbsolutePath;
         final String playerClass;
-        Candidate candidate;
+        final NativeReadEvidence.Transaction transaction;
         String failure = "native SaveAndContinue read was not captured";
 
         Attempt(AbstractPlayer.PlayerClass playerClass) {
             this.playerClass = playerClass == null ? "" : playerClass.name();
             expectedPath = SaveAndContinue.getPlayerSavePath(playerClass);
+            expectedAbsolutePath = canonicalSavePath(expectedPath);
+            backupAbsolutePath = canonicalSavePath(expectedPath + ".backUp");
+            transaction = new NativeReadEvidence.Transaction(expectedAbsolutePath, backupAbsolutePath);
         }
     }
 
     /** Called by the Prefix of CardCrawlGame.loadPlayerSave(AbstractPlayer). */
     public static synchronized void beginNativeLoad() {
+        FILE_READ_PATH.remove();
         pending = null;
         loadObserved = true;
         loadFailure = "native load did not produce a verified SaveFile";
@@ -117,63 +106,63 @@ public final class NativeSaveLoadCapture {
     /** Called by the Postfix of the exact private loadSaveString(String) overload. */
     public static void observeNativeRead(String loadedText) {
         Attempt attempt = CURRENT.get();
-        if (attempt == null || loadedText == null) return;
-        Candidate main = candidateFor(attempt.expectedPath, loadedText);
-        Candidate backup = candidateFor(attempt.expectedPath + ".backUp", loadedText);
-        if (main == null && backup == null) {
-            attempt.failure = "native loaded text matches neither current character save slot nor its backup";
-            return;
-        }
-        if (main != null && backup != null && !main.sha256.equals(backup.sha256)) {
-            attempt.failure = "native loaded payload matches distinct main and backup files; source is ambiguous";
-            return;
-        }
+        if (attempt == null) return;
+        attempt.transaction.returned(loadedText, raw -> SaveFileObfuscator.isObfuscated(raw)
+                ? SaveFileObfuscator.decode(raw, "key") : raw);
+        attempt.failure = attempt.transaction.failure();
+    }
+
+    /** Called by the FileHandle.read() postfix while the native Continue load transaction is active. */
+    public static void beforeNativeFileRead(com.badlogic.gdx.files.FileHandle handle) {
+        Attempt attempt = CURRENT.get();
+        FILE_READ_PATH.remove();
+        if (attempt == null || handle == null) return;
         try {
-            Candidate selected = main != null ? main : backup;
-            if (main != null && backup != null) {
-                selected = new Candidate(main.bytes,
-                        "native-equivalent:" + main.path + "|" + backup.path,
-                        "native-equivalent:" + attempt.expectedPath + "|" + attempt.expectedPath + ".backUp",
-                        main.modifiedAt, main.sha256);
-            }
-            attempt.candidate = selected;
-            attempt.failure = "";
+            FILE_READ_PATH.set(handle.file().getCanonicalPath());
         } catch (Throwable t) {
-            attempt.failure = "could not verify native loaded save bytes: " + t.getClass().getSimpleName();
+            attempt.failure = "native source path unavailable: " + t.getClass().getSimpleName();
         }
     }
 
-    private static Candidate candidateFor(String slotPath, String loadedText) {
+    public static InputStream wrapNativeRead(InputStream input) {
+        String actualPath = FILE_READ_PATH.get();
+        FILE_READ_PATH.remove();
+        Attempt attempt = CURRENT.get();
+        if (attempt == null || input == null || actualPath == null) return input;
         try {
-            File source = Gdx.files.local(slotPath).file().getCanonicalFile();
-            if (!source.isFile()) return null;
-            byte[] bytes = Files.readAllBytes(source.toPath());
-            // FileHandle.readString() uses InputStreamReader without an explicit charset.
-            String raw = new String(bytes, Charset.defaultCharset());
-            String decoded = SaveFileObfuscator.isObfuscated(raw)
-                    ? SaveFileObfuscator.decode(raw, "key") : raw;
-            if (!loadedText.equals(decoded)) return null;
-            return new Candidate(bytes, source.getAbsolutePath(), slotPath,
-                    source.lastModified(), sha256(bytes));
-        } catch (Throwable ignored) {
-            return null;
+            InputStream wrapped = NativeReadEvidence.wrap(attempt.transaction, actualPath, input);
+            return wrapped;
+        } catch (Throwable t) {
+            attempt.failure = "native source path unavailable: " + t.getClass().getSimpleName();
+            return input;
         }
     }
 
     /** Called by the Postfix of CardCrawlGame.loadPlayerSave after saveFile was assigned. */
     public static synchronized void finishNativeLoad() {
+        FILE_READ_PATH.remove();
         Attempt attempt = CURRENT.get();
         CURRENT.remove();
         if (attempt == null) {
             loadFailure = "native load transaction was not active";
             return;
         }
-        if (attempt.candidate == null || CardCrawlGame.saveFile == null) {
-            loadFailure = attempt.failure.isEmpty() ? "native SaveFile assignment or source bytes unavailable" : attempt.failure;
+        SaveFile save = CardCrawlGame.saveFile;
+        attempt.transaction.sealSuccessfulLoad(save);
+        NativeReadEvidence.CapturedSave captured = attempt.transaction.parsedSave();
+        if (captured == null || save == null) {
+            String failure = attempt.transaction.failure();
+            loadFailure = failure.isEmpty()
+                    ? (attempt.failure.isEmpty() ? "native SaveFile assignment or source bytes unavailable" : attempt.failure)
+                    : failure;
             return;
         }
-        SaveFile save = CardCrawlGame.saveFile;
+        if (captured.saveObject != save) {
+            loadFailure = "native load transaction mismatch: parsed SaveFile differs from active SaveFile";
+            return;
+        }
         try {
+            String capturedHash = sha256(captured.bytes);
             String room = save.current_room;
             String encounter = allEncounterSignatures(save);
             String deck = signatureCardsFromSave(save.cards);
@@ -184,15 +173,17 @@ public final class NativeSaveLoadCapture {
                 return;
             }
             LoadedSaveEvidence.Facts facts = new LoadedSaveEvidence.Facts(
-                    attempt.candidate.nativePath, attempt.expectedPath, attempt.candidate.sha256, true,
+                    captured.path, attempt.expectedAbsolutePath, capturedHash, true,
                     save, attempt.playerClass, save.floor_num, save.seed, room, encounter,
                     save.current_health, save.max_health, deck, relics, potions);
-            pending = new LoadedSource(attempt.candidate.bytes, attempt.candidate.path,
-                    attempt.candidate.sha256, attempt.candidate.modifiedAt, UUID.randomUUID().toString(), facts);
+            pending = new LoadedSource(captured.bytes, captured.path,
+                    capturedHash, modifiedAt(captured.path), UUID.randomUUID().toString(), facts);
             loadFailure = "";
             CombatLog.info("native Continue save captured: character=" + attempt.playerClass
-                    + " floor=" + save.floor_num + " source=" + sourceKind(attempt.candidate.nativePath, attempt.expectedPath)
-                    + " sha256=" + attempt.candidate.sha256);
+                    + " floor=" + save.floor_num + " source=" + sourceKind(captured.path,
+                    attempt.expectedAbsolutePath, attempt.backupAbsolutePath)
+                    + " sourcePath=" + captured.path
+                    + " bytes=" + captured.bytes.length + " sha256=" + capturedHash);
         } catch (Throwable t) {
             loadFailure = "native SaveFile metadata could not be bound: " + t.getClass().getSimpleName();
             CombatLog.error("native Continue save binding failed", t);
@@ -341,20 +332,24 @@ public final class NativeSaveLoadCapture {
         return value instanceof Number ? ((Number) value).intValue() : defaultValue;
     }
 
-    private static boolean samePath(String left, String right) {
-        if (left == null || right == null) return false;
-        String a = left.replace('\\', '/');
-        String b = right.replace('\\', '/');
-        if (a.startsWith("./")) a = a.substring(2);
-        if (b.startsWith("./")) b = b.substring(2);
-        return a.equalsIgnoreCase(b);
+    private static String canonicalSavePath(String path) {
+        try {
+            return new File(com.badlogic.gdx.Gdx.files.local(path).file().getPath()).getCanonicalPath();
+        } catch (Throwable t) {
+            return "";
+        }
     }
 
-    private static String sourceKind(String sourcePath, String expectedPath) {
-        if (sourcePath != null && sourcePath.startsWith("native-equivalent:")) {
-            return "primary-and-backup-identical-payload";
-        }
-        return samePath(sourcePath, expectedPath + ".backUp") ? "backup" : "primary";
+    private static long modifiedAt(String path) {
+        try { return new File(path).lastModified(); }
+        catch (Throwable ignored) { return 0L; }
+    }
+
+    private static String sourceKind(String sourcePath, String expectedPath, String backupPath) {
+        String actual = NativeReadEvidence.normalize(sourcePath);
+        if (actual.equals(NativeReadEvidence.normalize(backupPath))) return "backup";
+        if (actual.equals(NativeReadEvidence.normalize(expectedPath))) return "primary";
+        return "unexpected-path";
     }
 
     private static String sha256(byte[] bytes) throws Exception {

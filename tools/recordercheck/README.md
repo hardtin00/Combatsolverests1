@@ -1,6 +1,6 @@
-# Root replay diff
+# 根状态回放差分
 
-Inspect one historical battle bundle without editing it:
+检查一份历史 battle bundle，不会修改归档内容：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/recordercheck/run-root-replay-diff.ps1 `
@@ -8,18 +8,18 @@ powershell -ExecutionPolicy Bypass -File tools/recordercheck/run-root-replay-dif
   -EnginePath build\engine\combatsolver1-engine.exe
 ```
 
-The command writes a machine-readable JSON report followed by one concise `SUMMARY` line. The report keeps five results separate: archive/file hashes, JSONL/journal alignment and state-chain gaps, C++ replay protocol, per-action stable-state comparisons, and the evidence level.
+命令先输出机器可读 JSON，再输出一行简要 `SUMMARY`。报告分别呈现文件与哈希、JSONL/journal 动作对齐及状态链、C++ 回放协议、稳定状态差分和最终证据等级。
 
-The checker verifies `manifest.json`, the three declared files and their SHA-256 values, manifest `actionCount`, the JSONL root/action sequence, journal action kinds, card hand/target identity metadata, and terminal unpaired-action metadata. Potion actions are identified but currently stop strict action alignment because this JSONL schema does not expose enough payload to verify their slot and target. A missing file, invalid hash, malformed JSON, or missing root blocks engine comparison. An action mismatch caps the comparable action prefix at the first mismatch. `journalDirty=true`, an open manifest, a state-chain break, or an unpaired terminal action limits the evidence to `diagnostic_only`; the tool never clears dirty state or edits a bundle.
+工具检查 `manifest.json`、其中声明的三份文件与 SHA-256、`actionCount`、JSONL root/动作顺序、journal 动作类别、卡牌手牌下标和目标身份，以及终局未配对动作。当前 JSONL 没有足够字段核验药水槽位与目标，因此药水虽会被识别，但会截断严格动作对齐。文件缺失、哈希不符、JSON 解析失败或缺 root 时，不会启动引擎比较。动作不一致会把可比较动作前缀截断在第一处分歧。`journalDirty=true`、manifest 未封存、状态链断裂或终局动作无 post 时，结果只能是 `diagnostic_only`；工具不会清除 dirty，也不会改写 bundle。
 
-For each journal prefix the checker starts an independent `replay_trace` run from the same `engine-in.save` and retains that run's result. Only exit code 0 plus exactly `REPLAY_OK n=N` and `TRACE0..TRACEN` confirms prefix N. `REPLAY_INVALID n=N` reports the first refused action even when the engine uses a nonzero rejection exit code. Timeouts and other nonzero exits are execution errors; absent, conflicting, malformed, or incomplete protocol output is a protocol error. In the C++ CLI, TRACE0 is the initialized root and TRACEi is emitted only after action i executes, so native post i is compared only to TRACEi from the separately confirmed prefix i.
+工具为每个 journal 前缀从同一 `engine-in.save` 独立启动一次 `replay_trace`，并分别保存结果。只有退出码为 0、协议明确返回 `REPLAY_OK n=N`，且输出完整 `TRACE0..TRACEN` 时，前缀 N 才合法。`REPLAY_INVALID n=N` 会报告首次拒绝动作，即使引擎使用非零拒绝退出码。超时和其他非零退出属于执行错误；缺协议、协议标记冲突、格式错误或 TRACE 不完整属于协议错误。C++ CLI 中 `TRACE0` 是初始化根状态，`TRACEi` 是动作 i 执行后的状态；原生 post i 只与已单独确认的前缀 i 中的 `TRACEi` 比较。
 
-Visible comparable fields are root/action player HP, max HP, block, energy, the game/engine turn mapping (`game turn = engine turn + 1`), and draw/discard/exhaust pile counts. Turn-transition observations align the first native pre-action state of a game turn with the first confirmed engine TRACE after the mapped end-turn transition. Other fields, including card order, monster state, relic state, full powers, and RNG state, remain explicitly unavailable because `replay_trace` does not emit a complete matching state. A comparison with matching visible fields and any such unknown native fields is labeled `partial_match_with_unavailable_fields`, not full match. An intermediate state, missing stable post, or journal/JSONL action mismatch is `not_comparable` or a restricted boundary observation. A final journal-only action with no stable post is `terminal_not_comparable`; manifest outcome is reported separately and does not imply terminal full-state equality.
+可比较字段包括根/动作后的玩家生命、最大生命、格挡、能量、回合映射（`game turn = engine turn + 1`），以及抽牌堆、弃牌堆、消耗堆数量。回合边界观察将新回合第一个原生动作前状态，与引擎完成对应结束回合后的首个确认 TRACE 对齐。卡牌顺序、怪物状态、遗物、完整 powers 和 RNG 状态仍不可比较，因为 `replay_trace` 没有输出完整对应状态。如果可见字段一致但原生状态还包含未输出字段，状态标为 `partial_match_with_unavailable_fields`。瞬时状态、缺少稳定 post 或动作对应不可信时标为 `not_comparable` 或受限边界观察。journal 中只有编码、没有稳定 post 的终局动作标记为 `terminal_not_comparable`；manifest 胜负只单独报告，不代表终局全字段一致。
 
-Run the production-function regression suite without a game installation:
+不需要游戏安装即可运行生产函数回归：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/recordercheck/run-root-replay-diff.ps1 -SelfTest
 ```
 
-The self-test uses synthetic bundles and injected engine responses. It exercises archive/hash gates, action alignment and dirty handling, legal and rejected protocol responses, timeout/crash/malformed output, trace-to-action association, terminal/missing posts, turn mapping, phase gating, unknown fields, first HP mismatch, and protection from a later failed prefix contaminating an earlier successful comparison.
+自测使用合成 bundle 和注入的引擎响应，直接调用生产门控、解析和比较函数，覆盖哈希门控、dirty、缺失/重复/错位动作、手牌与目标身份、终局及中间 post、成功/拒绝协议、超时/崩溃/格式错误、TRACE 与动作关联、回合映射、阶段门控、未知字段、首个 HP 差异，以及后续失败前缀不污染此前成功比较。

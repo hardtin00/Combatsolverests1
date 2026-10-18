@@ -12,6 +12,7 @@ public final class ExecutionSafetyCheck {
 
     public static void main(String[] args) {
         fetchFromBeforeManualActionIsRejected();
+        dirtyJournalRejectsPendingReplayFetch();
         onlyCurrentTurnCanExecute();
         staleOrUnvalidatedPlanIsRejected();
         pauseAndSuppressionRejectExecution();
@@ -28,6 +29,16 @@ public final class ExecutionSafetyCheck {
         check(!ExecutionSafety.fetchMatchesJournal(0, 1), "stale initial engine fetch was accepted after a manual action");
         check(ExecutionSafety.fetchMatchesJournal(1, 1), "matching replay fetch was rejected");
         check(ExecutionSafety.fetchMatchesJournal(-1, 1), "unversioned fetch compatibility changed");
+        pass();
+    }
+
+    private static void dirtyJournalRejectsPendingReplayFetch() {
+        check(!ExecutionSafety.canAdoptReplayFetch(false, 4, 4),
+                "pending engine replay based on a dirty journal was adopted");
+        check(ExecutionSafety.canAdoptReplayFetch(true, 4, 4),
+                "fresh replay from a clean journal was rejected");
+        check(!ExecutionSafety.canAdoptReplayFetch(true, 3, 4),
+                "stale replay from an older journal was adopted");
         pass();
     }
 

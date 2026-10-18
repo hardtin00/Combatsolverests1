@@ -16,6 +16,10 @@ final class ExecutionSafety {
         return capturedSize < 0 || capturedSize == currentSize;
     }
 
+    static boolean canAdoptReplayFetch(boolean journalUsable, int capturedSize, int currentSize) {
+        return journalUsable && fetchMatchesJournal(capturedSize, currentSize);
+    }
+
     static boolean mayExecute(boolean hasPlan, boolean validated, boolean stale,
                               boolean suppressed, boolean paused, boolean requested,
                               boolean fullAuto, String validatedSignature, String liveSignature) {

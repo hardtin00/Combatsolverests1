@@ -321,6 +321,9 @@ public class CombatController {
                     && AbstractDungeon.actionManager.cardQueue.isEmpty()
                     && !AbstractDungeon.actionManager.usingCard
                     && !AbstractDungeon.isScreenUp;
+            if (stable && canAct) {
+                TurnBoundaryDiagnostics.onStablePlayerReady();
+            }
             CombatRecorder.onIdle(stable, canAct);
             recordPassiveChanges(canAct);
 
@@ -741,6 +744,9 @@ public class CombatController {
             String reason = BattleArtifacts.journalFailureReason();
             journal.markDirty("引擎回放 journal 替换失败："
                     + (reason == null || reason.isEmpty() ? "未捕获底层错误" : reason));
+            // Only discard an unadopted asynchronous result. A currently adopted route is left
+            // intact; its execution remains guarded by its live-state signature and drift checks.
+            pendingEngineFetch = null;
             return;
         }
         engineFetching = true;
@@ -778,6 +784,21 @@ public class CombatController {
     private void adoptEngineFetchIfReady() {
         EngineBridge.Fetch fetch = pendingEngineFetch;
         if (fetch == null) {
+            return;
+        }
+        if (!ExecutionSafety.canAdoptReplayFetch(journal.isUsable(),
+                pendingEngineFetchJournalSize, journal.size())) {
+            boolean dirty = !journal.isUsable();
+            pendingEngineFetch = null;
+            if (dirty) {
+                engineNote = "journal 已标脏，丢弃未采纳的引擎回放结果";
+                CombatLog.info("engine fetch rejected: action journal is dirty");
+            } else {
+                replayRequestedForSize = -1;
+                engineNote = "引擎结果基于旧动作日志，已丢弃并等待重算";
+                CombatLog.info("engine fetch stale: journal " + pendingEngineFetchJournalSize
+                        + " -> " + journal.size());
+            }
             return;
         }
         if (deployer.isActive()) {

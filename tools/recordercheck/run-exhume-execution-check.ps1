@@ -12,6 +12,7 @@ New-Item -ItemType Directory -Force -Path $out | Out-Null
 $sources = @(
     (Join-Path $root 'src\main\java\com\combatsolver1\search\Plan.java'),
     (Join-Path $root 'src\main\java\com\combatsolver1\search\ChoiceProtocol.java'),
+    (Join-Path $root 'src\main\java\com\combatsolver1\runtime\ExecutionSafety.java'),
     (Join-Path $root 'src\main\java\com\combatsolver1\runtime\ExhumeChoiceSafety.java'),
     (Join-Path $PSScriptRoot 'ExhumeExecutionCheck.java')
 )

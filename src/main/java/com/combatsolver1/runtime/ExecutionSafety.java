@@ -139,6 +139,19 @@ final class ExecutionSafety {
         return removed;
     }
 
+    static <T> int removeMatchingExcept(List<T> queue, Predicate<T> predicate,
+                                       Predicate<T> preserve) {
+        int removed = 0;
+        for (Iterator<T> iterator = queue.iterator(); iterator.hasNext();) {
+            T item = iterator.next();
+            if (predicate.test(item) && !preserve.test(item)) {
+                iterator.remove();
+                removed++;
+            }
+        }
+        return removed;
+    }
+
     static <T> int removeOwnedByIdentity(List<?> queue, Set<T> owned) {
         return removeMatching(queue, item -> isOwnedByIdentity(owned, item));
     }

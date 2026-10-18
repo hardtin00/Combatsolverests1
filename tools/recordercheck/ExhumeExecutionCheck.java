@@ -33,6 +33,23 @@ public final class ExhumeExecutionCheck {
                 candidates("Bash:0:2", "Strike_R:0:1"));
         require(unique.matched() && unique.liveIndex == 1,
                 "unique selected instance did not map after candidate order change");
+
+        // Real H failure: C++ serializes AscendersBane with -3, while native STS1 uses -2.
+        // That known cost representation difference must not make the candidate pool look different.
+        Plan.Action curseCost = ChoiceProtocol.parse("PLANSELECT v=3 task=EXHUME source=exhaust multi=0 skip=0 "
+                + "bits=40000000 idxs=0 cards=496d70657276696f7573:0:2 pool="
+                + "0:496d70657276696f7573:0:2|1:4a61636b204f6620416c6c20547261646573:0:0|"
+                + "2:496e6665726e616c20426c616465:0:1|3:417363656e6465727342616e65:0:-3");
+        require(ExhumeChoiceSafety.match(curseCost, candidates("Impervious:0:2", "Jack Of All Trades:0:0",
+                "Infernal Blade:0:1", "AscendersBane:0:-2")).matched(),
+                "known AscendersBane cost encoding difference rejected the real candidate pool");
+        Plan.Action unrecognizedCost = ChoiceProtocol.parse("PLANSELECT v=3 task=EXHUME source=exhaust multi=0 skip=0 "
+                + "bits=40000000 idxs=0 cards=496d70657276696f7573:0:2 pool="
+                + "0:496d70657276696f7573:0:2|1:4a61636b204f6620416c6c20547261646573:0:0|"
+                + "2:496e6665726e616c20426c616465:0:1|3:417363656e6465727342616e65:0:-4");
+        require(!ExhumeChoiceSafety.match(unrecognizedCost, candidates("Impervious:0:2", "Jack Of All Trades:0:0",
+                "Infernal Blade:0:1", "AscendersBane:0:-2")).matched(),
+                "unrecognized AscendersBane cost was normalized");
         Plan.Action many = parse("2", "537472696b655f52:1:1", "0:42617368:0:2|1:537472696b655f52:0:1|2:537472696b655f52:1:1");
         ExhumeChoiceSafety.Match upgraded = ExhumeChoiceSafety.match(many,
                 candidates("Strike_R:0:1", "Bash:0:2", "Strike_R:1:1"));
@@ -43,6 +60,21 @@ public final class ExhumeExecutionCheck {
         require(!ExhumeChoiceSafety.match(duplicate, candidates("Strike_R:0:1", "Strike_R:0:1")).matched(),
                 "ambiguous identical instances were accepted");
         require(!ExhumeChoiceSafety.match(action, candidates("Bash:0:2")).matched(), "changed pool accepted");
+
+        // A native useCard callback happens while its CardQueueItem is still in the game queue.
+        // Failing the route must preserve that in-flight item so the vanilla action can finish.
+        QueueCard inFlight = new QueueCard("Exhume");
+        QueueCard future = new QueueCard("Strike_R");
+        java.util.List<QueueCard> cardQueue = new java.util.ArrayList<QueueCard>();
+        cardQueue.add(inFlight);
+        cardQueue.add(future);
+        java.util.Set<String> ownedCards = new java.util.HashSet<String>();
+        ownedCards.add("Exhume");
+        ownedCards.add("Strike_R");
+        int removedCount = ExecutionSafety.removeMatchingExcept(cardQueue,
+                item -> ownedCards.contains(item.card), item -> item.card == inFlight.card);
+        require(removedCount == 1 && cardQueue.size() == 1 && cardQueue.get(0) == inFlight,
+                "queue cancellation removed the in-flight native card and could break GameActionManager");
 
         // F/G: wait for the native expected grid; a different interface must fail closed.
         ExhumeChoiceSafety.Gate gate = new ExhumeChoiceSafety.Gate(0, false);
@@ -96,7 +128,7 @@ public final class ExhumeExecutionCheck {
         require(ChoiceProtocol.parse("PLANSELECT v=2 task=CODEX source=deck multi=0 skip=0 bits=40000000 idxs=0 cards=537472696b655f52:0:1")
                 .isSelect(), "legacy non-Exhume selection regressed");
         expectRejected("PLANSELECT v=2 task=EXHUME source=exhaust multi=0 skip=0 bits=40000001 idxs=1 cards=537472696b655f52:0:1");
-        System.out.println("EXHUME_EXECUTION_CHECK_OK cases=15 identity=verified wait/click/result=verified cancel/timeout/drift=fail_closed singleton=verified legacy=compatible");
+        System.out.println("EXHUME_EXECUTION_CHECK_OK cases=17 identity=verified cost-encoding=canonical queue-cancel=in-flight-preserved wait/click/result=verified cancel/timeout/drift=fail_closed singleton=verified legacy=compatible");
     }
 
     private static void driveToResult(ExhumeChoiceSafety.Gate gate) {
@@ -121,6 +153,10 @@ public final class ExhumeExecutionCheck {
         turn.actions.add(new Plan.Action("Exhume", "Exhume", -1, 1));
         if (selection != null) turn.actions.add(selection);
         return turn;
+    }
+    private static final class QueueCard {
+        final String card;
+        QueueCard(String card) { this.card = card; }
     }
     private static void expectRejected(String line) {
         try { ChoiceProtocol.parse(line); throw new AssertionError("unsafe protocol accepted"); }

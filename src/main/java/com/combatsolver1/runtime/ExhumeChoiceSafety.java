@@ -87,7 +87,13 @@ final class ExhumeChoiceSafety {
     }
 
     private static String key(Plan.ChoiceCard card) {
-        return card.id + "\u0000" + card.upgrades + "\u0000" + card.cost;
+        return card.id + "\u0000" + card.upgrades + "\u0000" + identityCost(card);
+    }
+
+    /** C++ encodes AscendersBane as -3 while native STS1 uses -2; both mean unplayable. */
+    private static int identityCost(Plan.ChoiceCard card) {
+        if ("AscendersBane".equals(card.id) && (card.cost == -2 || card.cost == -3)) return -2;
+        return card.cost;
     }
 
     enum Phase { WAITING_FOR_SCREEN, PRESS_PENDING, RELEASE_PENDING, WAITING_FOR_RESULT,

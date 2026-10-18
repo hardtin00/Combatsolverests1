@@ -123,12 +123,12 @@ public class PlanDeployer {
             String actualTarget = target == null ? "<null>" : targetSignature(target)
                     + " trusted=" + target.trusted;
             finish(false, "执行期间检测到未计划的出牌或目标变化，card="
-                    + actualCard + " target=" + actualTarget + "，已取消剩余路线");
+                    + actualCard + " target=" + actualTarget + "，已取消剩余路线", card);
             return false;
         }
         expectedUses.remove(expected);
         if (pendingChoice != null && card == plannedExhumeCard && !captureExhumeChoiceRoot(card)) {
-            finish(false, "Exhume 出牌前后的消耗堆与计划候选不一致");
+            finish(false, "Exhume 出牌前后的消耗堆与计划候选不一致", card);
             return false;
         }
         CombatLog.info("deploy useCard confirmed: card=" + card.cardID
@@ -680,11 +680,16 @@ public class PlanDeployer {
     }
 
     private void finish(boolean completed, String reason) {
+        finish(completed, reason, null);
+    }
+
+    /** Preserve the CardQueueItem currently entering AbstractPlayer.useCard until vanilla returns. */
+    private void finish(boolean completed, String reason, AbstractCard inFlightCard) {
         if (!completed && ExhumeChoiceSafety.requiresDirtyJournalOnFailure(
                 pendingChoice != null, plannedExhumeCard != null) && journal != null) {
             journal.markDirty("Exhume 选牌未能忠实完成：" + (reason == null ? "未知原因" : reason));
         }
-        if (!completed) cancelQueuedOperations();
+        if (!completed) cancelQueuedOperations(inFlightCard);
         else clearQueuedTracking();
         Result r = new Result();
         r.completed = completed;
@@ -736,6 +741,10 @@ public class PlanDeployer {
     }
 
     private void cancelQueuedOperations() {
+        cancelQueuedOperations(null);
+    }
+
+    private void cancelQueuedOperations(final AbstractCard inFlightCard) {
         GameActionManager manager = AbstractDungeon.actionManager;
         if (manager != null) {
             // J can be pressed while one of our queue wrappers is already currentAction.
@@ -745,8 +754,9 @@ public class PlanDeployer {
                 manager.currentAction.isDone = true;
             }
             int cancelledActions = ExecutionSafety.removeOwnedByIdentity(manager.actions, queuedActions);
-            int cancelledCards = ExecutionSafety.removeMatching(manager.cardQueue,
-                    item -> containsIdentity(queuedCards, item.card));
+            int cancelledCards = ExecutionSafety.removeMatchingExcept(manager.cardQueue,
+                    item -> containsIdentity(queuedCards, item.card),
+                    item -> item != null && item.card == inFlightCard);
             CombatLog.info("deploy queue cancellation: currentAction=" + cancelledCurrent
                     + " pendingActions=" + cancelledActions + " cardQueue=" + cancelledCards);
         }

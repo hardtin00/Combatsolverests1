@@ -128,7 +128,8 @@ void CardInstance::setCostForTurn(int newCost) {
 //    assert(newCost >= 0);
 //#endif
     if (costForTurn >= 0) {
-        costForTurn = static_cast<int8_t>(std::max(0,newCost));
+        // Preserve the game's negative sentinels (notably -9 for Corruption skills).
+        costForTurn = static_cast<int8_t>(newCost < 0 ? newCost : std::max(0, newCost));
     }
 }
 

@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #include "data_structure/fixed_list.h"
 #include "constants/Cards.h"
@@ -34,6 +35,9 @@
 using namespace sts;
 
 #include "choice_protocol.h"
+
+static bool applyReplayAction(sts::BattleContext &bc, std::uint32_t bits);
+static void printChoice(std::ostream &os, const sts::BattleContext &bc, const sts::search::Action &a);
 
 static int ascendersBaneCostSentinelCheck() {
     auto fail = [](const char *reason) {
@@ -264,6 +268,240 @@ static int exhaustTriggerCheck() {
     }
 
     std::cout << "EXHAUST_TRIGGER_CHECK_OK active=2x(FNP4+DE1) terminal=FNP4_only piles=verified\n";
+    return 0;
+}
+
+static int exhumeCheck() {
+    auto fail = [](const char *reason) {
+        std::cerr << "EXHUME_CHECK_FAIL reason=" << reason << '\n';
+        return 1;
+    };
+    auto prepare = [](BattleContext &bc, bool withCandidates) {
+        bc.outcome = Outcome::UNDECIDED;
+        bc.inputState = InputState::PLAYER_NORMAL;
+        bc.player.energy = 3;
+        bc.cards.cardsInHand = 0;
+        bc.cards.exhaustPile.clear();
+        bc.cardSelectInfo.cardSelectTask = CardSelectTask::EXHUME;
+        CardInstance exhume(CardId::EXHUME, true);
+        exhume.setUniqueId(99);
+        bc.curCardQueueItem.card = exhume;
+        bc.cards.exhaustPile.push_back(exhume); // current Exhume must never be selectable
+        if (withCandidates) {
+            CardInstance baseStrike(CardId::STRIKE_RED, false);
+            baseStrike.setUniqueId(41);
+            CardInstance upgradedStrike(CardId::STRIKE_RED, true);
+            upgradedStrike.setUniqueId(42);
+            CardInstance duplicateStrike(CardId::STRIKE_RED, false);
+            duplicateStrike.setUniqueId(43);
+            bc.cards.exhaustPile.push_back(baseStrike);
+            bc.cards.exhaustPile.push_back(upgradedStrike);
+            bc.cards.exhaustPile.push_back(duplicateStrike);
+        }
+    };
+
+    if (CardInstance(CardId::EXHUME, false).cost != 1
+            || CardInstance(CardId::EXHUME, true).cost != 0
+            || !doesCardExhaust(CardId::EXHUME, false)
+            || !doesCardExhaust(CardId::EXHUME, true)) {
+        return fail("cost_or_self_exhaust");
+    }
+
+    for (int selectedIdx = 1; selectedIdx <= 3; ++selectedIdx) {
+        BattleContext searchBranch;
+        prepare(searchBranch, true);
+        Actions::ExhumeAction().actFunc(searchBranch);
+        const auto choices = search::Action::enumerateCardSelectActions(searchBranch);
+        search::BattleScumSearcher2 searcher(searchBranch);
+        search::BattleScumSearcher2::Node searchNode;
+        searcher.enumerateActionsForNode(searchNode, searchBranch);
+        if (searchBranch.inputState != InputState::CARD_SELECT || choices.size() != 3
+                || searchNode.edges.size() != choices.size()
+                || search::Action(search::ActionType::SINGLE_CARD_SELECT, 0).isValidAction(searchBranch)
+                || !search::Action(search::ActionType::SINGLE_CARD_SELECT, 1).isValidAction(searchBranch)
+                || !search::Action(search::ActionType::SINGLE_CARD_SELECT, 2).isValidAction(searchBranch)
+                || !search::Action(search::ActionType::SINGLE_CARD_SELECT, 3).isValidAction(searchBranch)) {
+            return fail("candidate_enumeration_or_self_filter");
+        }
+
+        // Each branch uses the production search action and its normal state transition.
+        const auto selected = std::find(choices.begin(), choices.end(),
+                search::Action(search::ActionType::SINGLE_CARD_SELECT, selectedIdx));
+        if (selected == choices.end()) return fail("candidate_branch_missing");
+        std::ostringstream selectionProtocol;
+        printChoice(selectionProtocol, searchBranch, *selected);
+        if (selectionProtocol.str().find("idxs=" + std::to_string(selectedIdx) + " cards=") == std::string::npos
+                || selectionProtocol.str().find("bits=" + [&]() {
+                    std::ostringstream bits;
+                    bits << std::hex << selected->bits;
+                    return bits.str();
+                }()) == std::string::npos) {
+            return fail("choice_protocol_does_not_encode_selected_index");
+        }
+        selected->execute(searchBranch);
+
+        const int expectedUniqueId = selectedIdx == 1 ? 41 : (selectedIdx == 2 ? 42 : 43);
+        const bool expectedUpgraded = selectedIdx == 2;
+        bool selectedReturned = false;
+        for (int i = 0; i < searchBranch.cards.cardsInHand; ++i) {
+            const auto &card = searchBranch.cards.hand[i];
+            if (card.getUniqueId() == expectedUniqueId) {
+                selectedReturned = card.id == CardId::STRIKE_RED && card.upgraded == expectedUpgraded;
+            }
+        }
+        if (!selectedReturned || searchBranch.cards.exhaustPile.size() != 3
+                || searchBranch.cards.exhaustPile[0].getUniqueId() != 99
+                || searchBranch.cards.exhaustPile[1].getUniqueId() == expectedUniqueId) {
+            return fail("selected_instance_not_moved_exactly_once");
+        }
+
+        // replay_trace consumes the same serialized Action bits; exercise that dispatcher too.
+        BattleContext replayBranch;
+        prepare(replayBranch, true);
+        Actions::ExhumeAction().actFunc(replayBranch);
+        if (!applyReplayAction(replayBranch, selected->bits)
+                || replayBranch.cards.cardsInHand != searchBranch.cards.cardsInHand
+                || replayBranch.cards.hand[0].getUniqueId() != searchBranch.cards.hand[0].getUniqueId()
+                || replayBranch.cards.hand[0].upgraded != searchBranch.cards.hand[0].upgraded
+                || replayBranch.cards.exhaustPile.size() != searchBranch.cards.exhaustPile.size()
+                || applyReplayAction(replayBranch, selected->bits)) {
+            return fail("search_replay_choice_diverged");
+        }
+    }
+
+    BattleContext singleton;
+    prepare(singleton, false);
+    CardInstance onlyCandidate(CardId::BASH, false);
+    onlyCandidate.setUniqueId(51);
+    singleton.cards.exhaustPile.push_back(onlyCandidate);
+    Actions::ExhumeAction().actFunc(singleton);
+    if (singleton.inputState != InputState::PLAYER_NORMAL || singleton.cards.cardsInHand != 1
+            || singleton.cards.hand[0].getUniqueId() != 51 || singleton.cards.hand[0].upgraded
+            || singleton.cards.exhaustPile.size() != 1 || singleton.cards.exhaustPile[0].getUniqueId() != 99) {
+        return fail("single_candidate_fast_path");
+    }
+
+    BattleContext empty;
+    prepare(empty, false);
+    Actions::ExhumeAction().actFunc(empty);
+    if (empty.inputState != InputState::PLAYER_NORMAL || !search::Action::enumerateCardSelectActions(empty).empty()) {
+        return fail("self_only_exhaust_pile");
+    }
+
+    // ConsoleSimulator reaches this chooser directly instead of going through Action validation.
+    empty.chooseExhumeCard(0);
+    if (empty.cards.cardsInHand != 0 || empty.cards.exhaustPile.size() != 1
+            || empty.cards.exhaustPile[0].getUniqueId() != 99) {
+        return fail("direct_self_selection_was_not_rejected");
+    }
+    empty.chooseExhumeCard(-1);
+    empty.chooseExhumeCard(1);
+    if (empty.cards.cardsInHand != 0 || empty.cards.exhaustPile.size() != 1) {
+        return fail("out_of_range_selection_was_not_rejected");
+    }
+
+    BattleContext noExhaust;
+    prepare(noExhaust, false);
+    noExhaust.cards.exhaustPile.clear();
+    Actions::ExhumeAction().actFunc(noExhaust);
+    if (noExhaust.inputState != InputState::PLAYER_NORMAL || noExhaust.cards.cardsInHand != 0) {
+        return fail("empty_exhaust_pile");
+    }
+
+    BattleContext fullHand;
+    prepare(fullHand, true);
+    fullHand.cards.cardsInHand = CardManager::MAX_HAND_SIZE;
+    Actions::ExhumeAction().actFunc(fullHand);
+    if (fullHand.inputState != InputState::PLAYER_NORMAL || fullHand.cards.cardsInHand != CardManager::MAX_HAND_SIZE
+            || fullHand.cards.exhaustPile.size() != 4) {
+        return fail("full_hand_must_not_return_card");
+    }
+
+    BattleContext corruption;
+    prepare(corruption, false);
+    corruption.player.setHasStatus<PS::CORRUPTION>(true);
+    CardInstance skill(CardId::POWER_THROUGH, false);
+    skill.setUniqueId(61);
+    corruption.cards.exhaustPile.push_back(skill);
+    Actions::ExhumeAction().actFunc(corruption);
+    if (corruption.cards.cardsInHand != 1 || corruption.cards.hand[0].getUniqueId() != 61
+            || corruption.cards.hand[0].costForTurn != -9) {
+        return fail("corruption_cost_on_return");
+    }
+
+    BattleContext exhaustTriggers;
+    exhaustTriggers.outcome = Outcome::UNDECIDED;
+    exhaustTriggers.inputState = InputState::EXECUTING_ACTIONS;
+    exhaustTriggers.player.buff<PS::FEEL_NO_PAIN>(4);
+    exhaustTriggers.player.buff<PS::DARK_EMBRACE>(1);
+    exhaustTriggers.monsters.monsterCount = 1;
+    exhaustTriggers.monsters.monstersAlive = 1;
+    exhaustTriggers.monsters.arr[0].id = MonsterId::JAW_WORM;
+    exhaustTriggers.monsters.arr[0].curHp = exhaustTriggers.monsters.arr[0].maxHp = 10;
+    CardInstance drawCard(CardId::STRIKE_RED);
+    drawCard.setUniqueId(71);
+    exhaustTriggers.cards.drawPile.push_back(drawCard);
+    CardInstance exhume(CardId::EXHUME, true);
+    exhume.setUniqueId(72);
+    exhaustTriggers.triggerAndMoveToExhaustPile(exhume);
+    exhaustTriggers.executeActions();
+    if (exhaustTriggers.player.block != 4 || exhaustTriggers.cards.cardsInHand != 1
+            || exhaustTriggers.cards.hand[0].getUniqueId() != 71
+            || exhaustTriggers.cards.drawPile.size() != 0
+            || exhaustTriggers.cards.exhaustPile.size() != 1
+            || exhaustTriggers.cards.exhaustPile[0].getUniqueId() != 72) {
+        return fail("exhume_self_exhaust_triggers");
+    }
+
+    // Full card-use order: selection happens before Exhume itself exhausts, then FNP/DE resolve.
+    BattleContext fullUse;
+    fullUse.outcome = Outcome::UNDECIDED;
+    fullUse.inputState = InputState::PLAYER_NORMAL;
+    fullUse.player.energy = 1;
+    fullUse.player.buff<PS::FEEL_NO_PAIN>(4);
+    fullUse.player.buff<PS::DARK_EMBRACE>(1);
+    fullUse.cards.cardsInHand = 1;
+    CardInstance playedExhume(CardId::EXHUME, false);
+    playedExhume.setUniqueId(80);
+    fullUse.cards.hand[0] = playedExhume;
+    CardInstance optionA(CardId::STRIKE_RED, false);
+    optionA.setUniqueId(81);
+    CardInstance optionB(CardId::BASH, false);
+    optionB.setUniqueId(82);
+    fullUse.cards.exhaustPile.push_back(optionA);
+    fullUse.cards.exhaustPile.push_back(optionB);
+    CardInstance drawn(CardId::DEFEND_RED, false);
+    drawn.setUniqueId(83);
+    fullUse.cards.drawPile.push_back(drawn);
+    fullUse.monsters.monsterCount = 1;
+    fullUse.monsters.monstersAlive = 1;
+    fullUse.monsters.arr[0].id = MonsterId::JAW_WORM;
+    fullUse.monsters.arr[0].curHp = fullUse.monsters.arr[0].maxHp = 10;
+    fullUse.curCardQueueItem = CardQueueItem(playedExhume, 0, 1);
+    fullUse.useCard();
+    fullUse.inputState = InputState::EXECUTING_ACTIONS;
+    fullUse.executeActions();
+    if (fullUse.inputState != InputState::CARD_SELECT || fullUse.cards.exhaustPile.size() != 2
+            || !search::Action(search::ActionType::SINGLE_CARD_SELECT, 1).isValidAction(fullUse)) {
+        return fail("exhume_choice_before_self_exhaust_timing");
+    }
+    search::Action(search::ActionType::SINGLE_CARD_SELECT, 1).execute(fullUse);
+    bool tookSelectedInstance = false, keptOtherInstance = false, exhaustedPlayedExhume = false, drewAfterReturn = false;
+    for (int i = 0; i < fullUse.cards.cardsInHand; ++i) {
+        tookSelectedInstance |= fullUse.cards.hand[i].getUniqueId() == 82;
+        drewAfterReturn |= fullUse.cards.hand[i].getUniqueId() == 83;
+    }
+    for (const auto &card : fullUse.cards.exhaustPile) {
+        keptOtherInstance |= card.getUniqueId() == 81;
+        exhaustedPlayedExhume |= card.getUniqueId() == 80;
+    }
+    if (fullUse.inputState != InputState::PLAYER_NORMAL || fullUse.player.energy != 0
+            || fullUse.player.block != 4 || fullUse.cards.cardsInHand != 2
+            || !tookSelectedInstance || !drewAfterReturn || !keptOtherInstance || !exhaustedPlayedExhume) {
+        return fail("full_exhume_use_selection_and_triggers");
+    }
+
+    std::cout << "EXHUME_CHECK_OK candidates=3 sameIdDistinctInstances=3 searchReplay=matched singleton=verified empty=verified fullHand=verified corruption=verified fullUse=verified FNP=4 DE=1 selfExcluded=1 cost=1/0 exhaust=1/1\n";
     return 0;
 }
 
@@ -721,6 +959,14 @@ int mcts(int argc, const char *argv[]) {
     return 0;
 }
 
+static bool applyReplayAction(BattleContext &bc, std::uint32_t bits) {
+    if (bc.outcome != Outcome::UNDECIDED) return false;
+    const search::Action action(bits);
+    if (!action.isValidAction(bc)) return false;
+    action.execute(bc);
+    return true;
+}
+
 // 从存档开战，先按动作文件回放（十六进制 action bits，每行一个），
 // 再在回放后的状态上重新搜索。动作文件由 Java 侧记录（含自动执行与手动出牌）。
 int replaySearch(int argc, const char *argv[]) {
@@ -766,13 +1012,11 @@ int replaySearch(int argc, const char *argv[]) {
             std::cout << "REPLAY_INVALID n=" << actionIndex << " reason=terminal\n";
             return 2;
         }
-        search::Action a(bits);
-        if (!a.isValidAction(bc)) {
+        if (!applyReplayAction(bc, bits)) {
             std::cout << "REPLAY_INVALID n=" << actionIndex << " bits=" << hex << '\n';
             std::cout.flush();
             return 0;
         }
-        a.execute(bc);
         if (trace) printStateLine(std::cout, bc, ("TRACE" + std::to_string(actionIndex)).c_str());
     }
 
@@ -812,6 +1056,10 @@ int main(int argc, const char* argv[]) {
 
     if (command == "exhaust_trigger_check") {
         return exhaustTriggerCheck();
+    }
+
+    if (command == "exhume_check") {
+        return exhumeCheck();
     }
 
     if (command == "protocol") {

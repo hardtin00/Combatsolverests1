@@ -3021,7 +3021,15 @@ void BattleContext::chooseExhaustOneCard(int handIdx) {
 
 
 void BattleContext::chooseExhumeCard(int exhaustIdx) {
-    // todo game handles corruption here
+    // ConsoleSimulator also calls this helper directly, without Action::isValidAction.
+    // Match the native ExhumeAction: only a non-Exhume card may be returned.
+    if (exhaustIdx < 0 || exhaustIdx >= static_cast<int>(cards.exhaustPile.size())) {
+        return;
+    }
+    if (cards.exhaustPile[exhaustIdx].getId() == CardId::EXHUME) {
+        return;
+    }
+
     auto c = cards.exhaustPile[exhaustIdx];
     cards.removeFromExhaustPile(exhaustIdx);
     cards.notifyAddCardToCombat(c);

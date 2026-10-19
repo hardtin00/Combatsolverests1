@@ -21,19 +21,22 @@ public final class PanelModelCheck {
         Plan.Action select = new Plan.Action("SELECT", "发掘：岿然不动", -1, 0);
         select.kind = Plan.Action.KIND_SELECT;
         turn.actions.add(select);
+        turn.actions.add(new Plan.Action("Defend_R", "防御", 0, 1));
         turn.hpAfter = 0;
         turn.endsTurn = true;
         plan.turns.add(turn);
         List<String> lines = model.routeLines();
-        require(lines.size() == 5, "all four actions and result visible");
+        require(lines.size() == 6, "all five actions and result visible");
         require(lines.get(0).startsWith("T3 · 1") && lines.get(0).endsWith("后排哨卫")
                 && lines.get(1).endsWith("前排哨卫"), "order, live turn and distinct targets");
         require(lines.get(2).contains("药水 · 敏捷药水") && lines.get(3).contains("选牌 · 发掘"),
                 "potion and native choice distinguished");
-        require(lines.get(4).contains("结束回合") && lines.get(4).contains("HP 0"), "zero HP retained");
+        require(lines.get(4).endsWith("防御") && !lines.get(4).contains("→"),
+                "untargeted card protocol placeholder is hidden");
+        require(lines.get(5).contains("结束回合") && lines.get(5).contains("HP 0"), "zero HP retained");
         lines.clear();
-        require(model.routeLines().size() == 5 && turn.actions.get(0) == first
-                && first.targetIndex == 1 && turn.actions.size() == 4, "view cannot mutate plan");
+        require(model.routeLines().size() == 6 && turn.actions.get(0) == first
+                && first.targetIndex == 1 && turn.actions.size() == 5, "view cannot mutate plan");
         System.out.println("PanelModelCheck: 6 passed, 0 failed");
     }
 

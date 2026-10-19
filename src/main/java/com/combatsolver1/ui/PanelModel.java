@@ -65,9 +65,10 @@ public class PanelModel {
             for (int j = 0; j < turn.actions.size(); j++) {
                 Plan.Action action = turn.actions.get(j);
                 String kind = action.isSelect() ? "选牌 · " : action.isPotion() ? "药水 · " : "";
-                String target = action.targetIndex >= 0 ? " → "
-                        + (action.targetName == null || action.targetName.isEmpty()
-                        ? "目标 " + (action.targetIndex + 1) : action.targetName) : "";
+                // Only resolved target-bearing actions have a name. Do not expose protocol
+                // placeholder indices carried by untargeted cards such as Defend.
+                String target = action.targetIndex >= 0 && action.targetName != null
+                        && !action.targetName.isEmpty() ? " → " + action.targetName : "";
                 lines.add(prefix + " · " + (j + 1) + "   " + kind + action.displayName() + target);
             }
             String end = turn.killsAll ? "预计击杀全部敌人" : turn.endsTurn ? "结束回合" : "本段结束";

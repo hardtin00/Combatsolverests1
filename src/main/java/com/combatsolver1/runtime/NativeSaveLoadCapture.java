@@ -28,6 +28,7 @@ import java.util.UUID;
 public final class NativeSaveLoadCapture {
     private static final ThreadLocal<Attempt> CURRENT = new ThreadLocal<>();
     private static final NativeReadEvidence.ReadScopes FILE_READ_SCOPES = new NativeReadEvidence.ReadScopes();
+    private static final NativeReadEvidence.LoadSaveCalls LOAD_SAVE_CALLS = new NativeReadEvidence.LoadSaveCalls();
     private static volatile LoadedSource pending;
     private static volatile boolean loadObserved;
     private static volatile String loadFailure = "";
@@ -72,7 +73,7 @@ public final class NativeSaveLoadCapture {
         final String expectedAbsolutePath;
         final String backupAbsolutePath;
         final String playerClass;
-        final NativeReadEvidence.Transaction transaction;
+        NativeReadEvidence.LoadSaveCall lastCompletedCall;
         String failure = "native SaveAndContinue read was not captured";
 
         Attempt(AbstractPlayer.PlayerClass playerClass) {
@@ -80,13 +81,13 @@ public final class NativeSaveLoadCapture {
             expectedPath = SaveAndContinue.getPlayerSavePath(playerClass);
             expectedAbsolutePath = canonicalSavePath(expectedPath);
             backupAbsolutePath = canonicalSavePath(expectedPath + ".backUp");
-            transaction = new NativeReadEvidence.Transaction(expectedAbsolutePath, backupAbsolutePath);
         }
     }
 
     /** Called by the Prefix of CardCrawlGame.loadPlayerSave(AbstractPlayer). */
     public static synchronized void beginNativeLoad() {
         FILE_READ_SCOPES.clear();
+        LOAD_SAVE_CALLS.clear();
         pending = null;
         loadObserved = true;
         loadFailure = "native load did not produce a verified SaveFile";
@@ -104,24 +105,42 @@ public final class NativeSaveLoadCapture {
         }
     }
 
-    /** Called by the Postfix of the exact private loadSaveString(String) overload. */
+    /** Called by Prefix of each private loadSaveString(String) invocation. */
+    public static void beginLoadSaveString() {
+        Attempt attempt = CURRENT.get();
+        if (attempt == null) return;
+        LOAD_SAVE_CALLS.begin(attempt.expectedAbsolutePath, attempt.backupAbsolutePath);
+    }
+
+    /** Called by Postfix of each loadSaveString invocation; serialized text is never logged. */
     public static void observeNativeRead(String loadedText) {
         Attempt attempt = CURRENT.get();
         if (attempt == null) return;
-        attempt.transaction.returned(loadedText, raw -> SaveFileObfuscator.isObfuscated(raw)
-                ? SaveFileObfuscator.decode(raw, "key") : raw);
-        attempt.failure = attempt.transaction.failure();
+        NativeReadEvidence.LoadSaveCall call = LOAD_SAVE_CALLS.complete(loadedText,
+                raw -> SaveFileObfuscator.isObfuscated(raw)
+                        ? SaveFileObfuscator.decode(raw, "key") : raw);
+        if (call == null) {
+            attempt.failure = "native loadSaveString returned without an invocation scope";
+            return;
+        }
+        attempt.lastCompletedCall = call;
+        attempt.failure = call.transaction.failure();
+        CombatLog.info("native save read call completed: id=" + call.id
+                + " path=" + call.streamPath()
+                + " nativeChars=" + call.returnedTextLength()
+                + " result=" + call.transaction.failure());
     }
 
     /** Called by FileHandle.read() Prefix; Postfix pops this exact invocation's path. */
     public static void beforeNativeFileRead(com.badlogic.gdx.files.FileHandle handle) {
-        Attempt attempt = CURRENT.get();
+        NativeReadEvidence.LoadSaveCall call = LOAD_SAVE_CALLS.current();
         String actualPath = null;
-        if (attempt != null && handle != null) {
+        if (call != null && handle != null) {
             try { actualPath = handle.file().getCanonicalPath(); }
-            catch (Throwable t) { attempt.failure = "native source path unavailable: " + t.getClass().getSimpleName(); }
+            catch (Throwable ignored) { actualPath = ""; }
+            call.observeStreamPath(actualPath);
         }
-        FILE_READ_SCOPES.begin(attempt == null ? null : attempt.transaction, actualPath);
+        FILE_READ_SCOPES.begin(call == null ? null : call.transaction, actualPath);
     }
 
     /** Called by FileHandle.read() Postfix; each return pairs with its LIFO Prefix context. */
@@ -140,15 +159,22 @@ public final class NativeSaveLoadCapture {
         Attempt attempt = CURRENT.get();
         CURRENT.remove();
         FILE_READ_SCOPES.clear();
+        LOAD_SAVE_CALLS.clear();
         if (attempt == null) {
             loadFailure = "native load transaction was not active";
             return;
         }
         SaveFile save = CardCrawlGame.saveFile;
-        attempt.transaction.sealSuccessfulLoad(save);
-        NativeReadEvidence.CapturedSave captured = attempt.transaction.parsedSave();
+        NativeReadEvidence.Transaction transaction = attempt.lastCompletedCall == null
+                ? null : attempt.lastCompletedCall.transaction;
+        if (transaction != null) transaction.sealSuccessfulLoad(save);
+        NativeReadEvidence.CapturedSave captured = transaction == null ? null : transaction.parsedSave();
         if (captured == null || save == null) {
-            String failure = attempt.transaction.failure();
+            String failure = transaction == null ? attempt.failure : transaction.failure();
+            if (attempt.lastCompletedCall != null) {
+                failure = "loadSaveString call id=" + attempt.lastCompletedCall.id
+                        + " path=" + attempt.lastCompletedCall.streamPath() + ": " + failure;
+            }
             loadFailure = failure.isEmpty()
                     ? (attempt.failure.isEmpty() ? "native SaveFile assignment or source bytes unavailable" : attempt.failure)
                     : failure;

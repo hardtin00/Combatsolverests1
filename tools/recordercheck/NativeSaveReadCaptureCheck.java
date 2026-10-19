@@ -14,6 +14,12 @@ public final class NativeSaveReadCaptureCheck {
 
     public static void main(String[] args) throws Exception {
         int checks = 0;
+        require(NativeReadEvidence.useNativeLoadedSave(true, true),
+                "verified Continue source did not retain priority"); checks++;
+        require(!NativeReadEvidence.useNativeLoadedSave(true, false),
+                "invalid Continue evidence suppressed fresh battle autosave selection"); checks++;
+        require(!NativeReadEvidence.useNativeLoadedSave(false, false),
+                "new battle without Continue evidence selected an absent native source"); checks++;
         byte[] primary = "{\"seed\":101,\"hp\":70,\"label\":\"铁甲\"}".getBytes(Charset.defaultCharset());
         byte[] backup = "{\"seed\":101,\"hp\":69}".getBytes(Charset.defaultCharset());
 
@@ -76,9 +82,14 @@ public final class NativeSaveReadCaptureCheck {
                 "later disk mutation changed captured load evidence"); checks++;
 
         NativeReadEvidence.Transaction decodeMismatch = transaction();
-        readAndReturn(decodeMismatch, MAIN, primary, raw -> "different native decode");
+        byte[] nativeJson = "{\"seed\":102,\"hp\":70,\"label\":\"铁甲\"}".getBytes(Charset.defaultCharset());
+        InputStream mismatchStream = decodeMismatch.wrap(MAIN, new ByteArrayInputStream(primary));
+        drainAndClose(mismatchStream);
+        decodeMismatch.returned(new String(nativeJson, Charset.defaultCharset()), identityDecoder());
         require(decodeMismatch.parsedSave() == null && decodeMismatch.failure().contains("decode mismatch"),
                 "decode mismatch was accepted"); checks++;
+        require(decodeMismatch.failure().contains("firstDiff=") && decodeMismatch.failure().contains("field=seed"),
+                "decode mismatch did not identify first differing field without values"); checks++;
 
         InputStream outsideStream = new ByteArrayInputStream(primary);
         require(NativeReadEvidence.wrap(null, MAIN, outsideStream) == outsideStream,
@@ -112,7 +123,39 @@ public final class NativeSaveReadCaptureCheck {
         require(missedReadHook.failure().equals(firstCaptureFailure),
                 "successful-load sealing erased the original read-hook failure"); checks++;
 
-        System.out.println("NativeSaveReadCaptureCheck passed=" + checks + " failed=0; exact opened-stream bytes, path, decode and SaveFile identity verified.");
+        NativeReadEvidence.LoadSaveCalls calls = new NativeReadEvidence.LoadSaveCalls();
+        NativeReadEvidence.ReadScopes callReads = new NativeReadEvidence.ReadScopes();
+        byte[] mismatchShape = new byte[13561];
+        Arrays.fill(mismatchShape, (byte) 'A');
+        NativeReadEvidence.Transaction sharedLegacy = transaction();
+        drainAndClose(sharedLegacy.wrap(MAIN, new ByteArrayInputStream(mismatchShape)));
+        sharedLegacy.returned("12345678901234567890123", identityDecoder());
+        require(sharedLegacy.failure().contains("nativeChars=23 capturedChars=13561 firstDiff=0"),
+                "legacy shared transaction fixture did not reproduce the observed mismatch shape"); checks++;
+
+        NativeReadEvidence.LoadSaveCall mainCall = calls.begin(MAIN, BACKUP);
+        callReads.begin(mainCall.transaction, MAIN);
+        InputStream mainInput = callReads.finish(new ByteArrayInputStream(mismatchShape));
+        byte[] mainBytes = drainAndClose(mainInput);
+        NativeReadEvidence.LoadSaveCall mainCompleted = calls.complete(
+                new String(mainBytes, Charset.defaultCharset()), identityDecoder());
+        require(mainCompleted.id == mainCall.id && mainCompleted.transaction.parsedSave() == null
+                        && mainCompleted.transaction.failure().contains("verified; SaveFile parse not yet confirmed"),
+                "loadSaveString call did not complete against its own captured stream"); checks++;
+
+        NativeReadEvidence.LoadSaveCall interruptedMain = calls.begin(MAIN, BACKUP);
+        callReads.begin(interruptedMain.transaction, MAIN);
+        drainAndClose(callReads.finish(new ByteArrayInputStream(primary)));
+        NativeReadEvidence.LoadSaveCall backupCall = calls.begin(MAIN, BACKUP);
+        NativeReadEvidence.LoadSaveCall backupCompleted = calls.complete("12345678901234567890123", identityDecoder());
+        require(interruptedMain.id != backupCall.id && backupCompleted.id == backupCall.id,
+                "nested loadSaveString calls did not receive distinct transaction IDs"); checks++;
+        require(backupCompleted.streamPath().isEmpty() && backupCompleted.returnedTextLength() == 23
+                        && backupCompleted.transaction.failure().contains("without an observed FileHandle.read"),
+                "23-character return was incorrectly paired with another invocation's autosave bytes"); checks++;
+        calls.clear();
+
+        System.out.println("NativeSaveReadCaptureCheck passed=" + checks + " failed=0; exact per-call stream/path/decode and SaveFile identity verified.");
     }
 
     private static NativeReadEvidence.Transaction transaction() {

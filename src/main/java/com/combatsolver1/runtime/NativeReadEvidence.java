@@ -8,10 +8,16 @@ import java.nio.charset.Charset;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** Captures bytes from the exact FileHandle stream used by STS1's Continue loader. */
 public final class NativeReadEvidence {
     private NativeReadEvidence() { }
+
+    /** Invalid Continue evidence never suppresses the independent fresh-autosave path. */
+    public static boolean useNativeLoadedSave(boolean nativeLoadObserved, boolean verifiedSourceAvailable) {
+        return nativeLoadObserved && verifiedSourceAvailable;
+    }
 
     public static InputStream wrap(Transaction transaction, String actualPath, InputStream input) {
         return transaction == null ? input : transaction.wrap(actualPath, input);
@@ -44,6 +50,56 @@ public final class NativeReadEvidence {
         }
 
         public void clear() { scopes.remove(); }
+    }
+
+    /** Isolates each native loadSaveString(path) call from other calls in the same Continue load. */
+    public static final class LoadSaveCalls {
+        private final AtomicLong nextId = new AtomicLong();
+        private final ThreadLocal<Deque<LoadSaveCall>> calls = new ThreadLocal<>();
+
+        public LoadSaveCall begin(String primaryPath, String backupPath) {
+            Deque<LoadSaveCall> stack = calls.get();
+            if (stack == null) {
+                stack = new ArrayDeque<>();
+                calls.set(stack);
+            }
+            LoadSaveCall call = new LoadSaveCall(nextId.incrementAndGet(), primaryPath, backupPath);
+            stack.push(call);
+            return call;
+        }
+
+        public LoadSaveCall current() {
+            Deque<LoadSaveCall> stack = calls.get();
+            return stack == null || stack.isEmpty() ? null : stack.peek();
+        }
+
+        public LoadSaveCall complete(String returnedText, Decoder decoder) {
+            Deque<LoadSaveCall> stack = calls.get();
+            if (stack == null || stack.isEmpty()) return null;
+            LoadSaveCall call = stack.pop();
+            if (stack.isEmpty()) calls.remove();
+            call.returnedTextLength = returnedText == null ? -1 : returnedText.length();
+            call.transaction.returned(returnedText, decoder);
+            return call;
+        }
+
+        public void clear() { calls.remove(); }
+    }
+
+    public static final class LoadSaveCall {
+        public final long id;
+        public final Transaction transaction;
+        private String streamPath = "";
+        private int returnedTextLength = -1;
+
+        private LoadSaveCall(long id, String primaryPath, String backupPath) {
+            this.id = id;
+            this.transaction = new Transaction(primaryPath, backupPath);
+        }
+
+        public void observeStreamPath(String path) { this.streamPath = path == null ? "" : path; }
+        public String streamPath() { return streamPath; }
+        public int returnedTextLength() { return returnedTextLength; }
     }
 
     private static final class ReadScope {
@@ -132,7 +188,8 @@ public final class NativeReadEvidence {
                 String decoded = decoder.decode(raw);
                 if (!nativeDecodedText.equals(decoded)) {
                     returnedCandidate = null;
-                    failure = "native read/decode mismatch: path=" + path + " bytes=" + bytes.length;
+                    failure = "native read/decode mismatch: path=" + path + " bytes=" + bytes.length
+                            + mismatchDetails(nativeDecodedText, decoded);
                     return;
                 }
                 returnedCandidate = new Candidate(path, bytes);
@@ -175,6 +232,34 @@ public final class NativeReadEvidence {
         private boolean isExpectedPath(String path) {
             String normalized = normalize(path);
             return !normalized.isEmpty() && (normalized.equals(mainPath) || normalized.equals(backupPath));
+        }
+
+        private static String mismatchDetails(String nativeText, String capturedText) {
+            int limit = Math.min(nativeText.length(), capturedText.length());
+            int offset = 0;
+            while (offset < limit && nativeText.charAt(offset) == capturedText.charAt(offset)) offset++;
+            String field = jsonFieldAt(nativeText, offset);
+            return " nativeChars=" + nativeText.length() + " capturedChars=" + capturedText.length()
+                    + " firstDiff=" + offset + (field.isEmpty() ? "" : " field=" + field);
+        }
+
+        /** Reports only a JSON key, never the possibly private value around a mismatch. */
+        private static String jsonFieldAt(String text, int offset) {
+            int colon = text.lastIndexOf(':', Math.min(offset, text.length()) - 1);
+            if (colon < 0) return "";
+            int keyEnd = colon - 1;
+            while (keyEnd >= 0 && Character.isWhitespace(text.charAt(keyEnd))) keyEnd--;
+            if (keyEnd < 0 || text.charAt(keyEnd) != '"') return "";
+            int keyStart = text.lastIndexOf('"', keyEnd - 1);
+            if (keyStart < 0) return "";
+            String key = text.substring(keyStart + 1, keyEnd);
+            if (key.isEmpty()) return "";
+            for (int i = 0; i < key.length(); i++) {
+                char c = key.charAt(i);
+                if (!(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z')
+                        && !(c >= '0' && c <= '9') && c != '_') return "";
+            }
+            return key;
         }
     }
 

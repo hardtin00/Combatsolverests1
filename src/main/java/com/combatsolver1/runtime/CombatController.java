@@ -658,16 +658,11 @@ public class CombatController {
                         return;
                     }
                     File archivedSave;
-                    if (saveResolution != null && saveResolution.nativeLoadObserved) {
-                        NativeSaveLoadCapture.LoadedSource loaded = saveResolution.source;
-                        if (loaded == null) {
-                            BattleArtifacts.nativeLoadedSaveRejected(artifactId, saveResolution.reason);
-                            String reason = "Native Continue save rejected: " + saveResolution.reason;
-                            BattleArtifacts.enginePreparationFailed(artifactId, reason);
-                            engineNote = "读档存档与当前战斗未能可信绑定：" + saveResolution.reason;
-                            CombatLog.info("resume save rejected: " + saveResolution.reason);
-                            return;
-                        }
+                    NativeSaveLoadCapture.LoadedSource loaded = saveResolution == null
+                            ? null : saveResolution.source;
+                    boolean useContinueSave = NativeReadEvidence.useNativeLoadedSave(
+                            saveResolution != null && saveResolution.nativeLoadObserved, loaded != null);
+                    if (useContinueSave) {
                         archivedSave = BattleArtifacts.captureNativeLoadedSave(artifactId, loaded.bytes,
                                 loaded.sourcePath, loaded.sourceModifiedAt, loaded.evidenceId);
                         if (archivedSave != null) {
@@ -675,10 +670,21 @@ public class CombatController {
                                     + " sourceSha256=" + loaded.sourceSha256);
                         }
                     } else {
+                        if (saveResolution != null && saveResolution.nativeLoadObserved) {
+                            CombatLog.info("Continue capture not used for this battle; checking fresh battle autosave: "
+                                    + saveResolution.reason);
+                        }
                         File save = EngineBridge.freshAutosave(since);
                         if (save == null) {
-                            BattleArtifacts.captureAutosave(artifactId, null, since);
-                            BattleArtifacts.enginePreparationFailed(artifactId, "No fresh autosave found; stale autosave was not used.");
+                            if (saveResolution != null && saveResolution.nativeLoadObserved) {
+                                BattleArtifacts.nativeLoadedSaveRejected(artifactId, saveResolution.reason);
+                            } else {
+                                BattleArtifacts.captureAutosave(artifactId, null, since);
+                            }
+                            String reason = "No fresh autosave found; stale autosave was not used."
+                                    + (saveResolution != null && saveResolution.nativeLoadObserved
+                                        ? " Continue capture rejected: " + saveResolution.reason : "");
+                            BattleArtifacts.enginePreparationFailed(artifactId, reason);
                             engineNote = "未找到本场新自动存档，已拒绝旧存档";
                             return;
                         }

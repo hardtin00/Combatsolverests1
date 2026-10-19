@@ -78,3 +78,36 @@ it accepts `0` and `INT_MAX - 1`. `INT_MAX` is not silently omitted from analysi
 an invalid input to the Java bounded API after signed wraparound, while the direct C++ call
 would invoke undefined behavior. Test it at the validation boundary, never by making the
 unsafe RNG call.
+
+## Event-level unupgraded True Grit validation
+
+`TrueGritSelectionProbe.java` adds an isolated MTS hook for the exact
+`CardGroup.getRandomCard(Random)` call made by True Grit's `ExhaustAction`. It is armed by
+`TrueGrit.use`, then accepts only `player.hand`, `AbstractDungeon.cardRandomRng`, and an
+active `ExhaustAction` with `isRandom=true` and `amount=1`. The prefix records the six RNG
+states and ordered hand candidates immediately before the original call; the postfix
+records the original selected card identity and six post-call states. It never calls an RNG
+method, changes a return value, or changes game state. Output goes to the ignored local
+`build/rng-capture-validation/event-capture.tsv`.
+
+Compile the probe with Java 6 bytecode and annotation processing disabled (the installed
+game classpath contains Java 8 annotation processors):
+
+```powershell
+$jdk = 'C:\Program Files\Java\jdk1.6.0_43\bin'
+$game = 'C:\Program Files (x86)\Steam\steamapps\common\SlayTheSpire'
+$classes = Join-Path $env:TEMP 'CS1RngEventHookClasses'
+$sources = @(Get-ChildItem tools\rng-capture-validation\stubs -Recurse -File -Filter *.java | ForEach-Object FullName) + @((Resolve-Path tools\rng-capture-validation\LiveRngProbe.java).Path, (Resolve-Path tools\rng-capture-validation\TrueGritSelectionProbe.java).Path)
+New-Item -ItemType Directory -Force $classes | Out-Null
+& "$jdk\javac.exe" -proc:none -source 1.6 -target 1.6 -d $classes $sources
+& "$jdk\javac.exe" -proc:none -source 1.6 -target 1.6 -cp "$game\desktop-1.0.jar" -d $classes tools\rng-capture-validation\TrueGritRandomTrace.java
+& "$jdk\jar.exe" cf (Join-Path $env:TEMP 'CS1RngProbe.event-hook.jar') -C $classes rngprobe -C tools\rng-capture-validation ModTheSpire.json
+```
+
+Build `cpp_true_grit_rng_trace.cpp` like the regular C++ trace, then pass the
+`cardRandomRng` pre-state and recorded inclusive bound (`candidateCount - 1`) to the Java 8
+and C++ one-call trace. Require equality of selected index, both state words, and counter;
+map the index against the logged candidate UUID order, then compare with `selected` and
+`post` from that same event row. A prior stable-boundary sample is not an event pre-state.
+Only install the isolated JAR after the game has exited normally; remove it only after a
+later normal exit. A missing event row means the experiment is BLOCKED, not passed.

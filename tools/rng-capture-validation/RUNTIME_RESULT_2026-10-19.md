@@ -32,3 +32,11 @@ The temporary probe is still loaded by the currently running game. Removing its 
 ## Conclusion
 
 **BLOCKED; route C is not GO yet.** The real capture established that reading all six RNG states is non-mutating, Java/C++ traces match, and the selected initialized Sentry state maps to C++ correctly. A real user-visible RNG event has not been correlated to its independent-copy prediction, so the runtime prediction requirement remains incomplete. This is missing evidence, not an observed RNG algorithm failure.
+
+## True Grit random-event attempt — 2026-10-19 (BLOCKED)
+
+The corrected existing probe captured a stable first-turn Sentry state at local 14:52:03 and confirmed all six streams were unchanged by observation. STS1 bytecode confirms that unupgraded True Grit enqueues `ExhaustAction(1,true,false,false)`, which selects from the remaining hand using `cardRandomRng.random(handSize - 1)`. With the reported hand order Metallicize, Bash, Strike, True Grit, Defend, the four post-play candidates are indexed 0..3.
+
+An isolated one-call replay from the captured `cardRandomRng` state returned index 1 (Bash); Java 8 and C++ `sts::Random` matched both the result and resulting state. The player reported Defend, and the recorded battle JSONL confirms True Grit was actually played in turn 3, whereas the snapshot was from turn 1. A stable post-event sample at local 15:14:19 confirms Defend in the exhaust pile; the stream wrapper counter moved from 0 at the old capture to 2 after the event. Therefore the predicted-versus-actual difference used a stale pre-state and is not evidence of a Java/C++ RNG algorithm mismatch. No fresh state immediately before the turn-3 event exists, so this event experiment is **BLOCKED**, not GO or algorithm NO-GO.
+
+The temporary agent only re-armed the isolated probe's one-shot capture flag. Production solver/protocol/safety gates, official JAR, engine, saves, and notification configuration were not changed. The probe JAR remains loaded until the game exits normally; cleanup is pending.

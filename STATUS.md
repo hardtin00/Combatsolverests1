@@ -915,3 +915,11 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - 用户未触发可见随机结果，故“真实游戏随机事件与副本预测”尚未验证；此缺项为证据未取得，不代表算法失败。阶段仍标记 **BLOCKED**，不宣称路线 C GO。后续若不再开展本次随机事件测试，则应保留该限制并清理临时探针。正式 JAR SHA-256 仍为 `644E4F0E2457BBDC6A969B94302B317ED0904D91F761E590DFF0A27E1432EC7F`。
 - 已尝试清理临时 `mods/CS1RngProbe.jar`，但 Windows 报告该文件正被当前运行游戏占用；没有强制结束游戏。待游戏正常退出后再删除临时探针。正式 JAR 未被占用或修改，哈希仍为上列值。
 - 只读查看当前游戏画面，手牌为 Exhume/Defend/Strike/Bash/Strike，药水为 Swift Potion 和空槽；该场没有可见随机生成/随机目标效果，未为测试消耗卡牌或药水。随机事件对照因此仍缺证据。
+
+### 2026-10-19：True Grit 随机事件尝试（BLOCKED：预事件快照过期）
+
+- 复用隔离探针和 RNG trace；未修改正式 Mod、求解协议、搜索/执行/安全门控或玩家存档。真实采样 `1792392723519`（本地 14:52:03）处于稳定 Sentry 战斗玩家操作边界，六流读取均无推进。用户确认未升级 True Grit 仍在手牌，屏幕顺序为 Metallicize、Bash、Strike、True Grit、Defend。
+- STS1 `TrueGrit.use` 字节码确认未升级分支使用 `ExhaustAction(1,true,false,false)`；`ExhaustAction` 调用 `player.hand.getRandomCard(AbstractDungeon.cardRandomRng)`，`CardGroup.getRandomCard(Random)` 再调用 `random(size-1)`。排除已打出的 True Grit 后，候选数为 4、inclusive bound 为 3。
+- 使用 14:52 实拍 `cardRandomRng` 状态，在独立 Java 8 与 C++ `sts::Random` 副本上执行单次 `random(3)`，两端值及后续 state/counter 完全相同，索引为 1；按屏幕顺序映射为 Bash。用户报告并由真实 `combat.jsonl` 记录确认，实际消耗的是 Defend。该差异不能计为算法失败：战斗记录显示快照在第 1 回合，True Grit 实际在第 3 回合才执行，故输入快照不是事件前状态。
+- 事件后探针样本 `1792394059618`（本地 15:14:19）处于稳定第 3 回合边界；真实记录中 Defend 已进入消耗堆。`cardRandomRng.counter` 从第 1 回合快照的 0 变为事件后 2；True Grit 自身消耗一次，说明旧快照与事件间至少还有一次该流调用。事件真正发生前没有新鲜快照，因此不可由本次数据判定该事件的 RNG 预测是否正确。既有 Java/C++ 108 步证据保持有效。
+- 结论：本次真实随机事件实验 **BLOCKED（采样时机错误）**，不是 GO，也不是算法 NO-GO。真实结果为 Defend、旧快照副本预测 Bash；首次差异明确为陈旧的第 1 回合输入状态。事件后重新采样使用一次性 Attach agent，仅复位隔离探针的内部 `captured` 标记；未触碰 RNG 或战斗状态。游戏仍运行，临时 `CS1RngProbe.jar` 仍被占用，须在玩家正常退出后再删除。正式 JAR/引擎/存档/通知配置未改。

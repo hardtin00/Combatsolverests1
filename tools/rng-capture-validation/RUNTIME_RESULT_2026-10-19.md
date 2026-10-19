@@ -25,7 +25,7 @@ The corrected live object reflection returned three Sentries at 39/42/43 HP, gro
 
 The first sample remains invalid for move-history mapping (`nextMove=-1`, `intent=DEBUG`); the corrected second sample supersedes it for Sentry mapping. JDK 6 `javac -source 1.6 -target 1.6` and archive metadata/stub-exclusion checks exited 0. The corrected temporary JAR was loaded in the restarted game, SHA-256 `0F0433AD8C429A28ECF5E8FB9ED2C61A25ED445279B5F7967BC5AD0835A997A4`.
 
-No user-visible random game result was triggered and matched against the independent prediction; this remains the outstanding experiment requirement. No production protocol, solver, execution path, safety gate, official JAR, engine, player save, or notification configuration was changed.
+The current screen was inspected without input: the hand contains Exhume, Defend, Strike, Bash, Strike; the only potion is Swift Potion (the other slot is empty). These actions do not expose a random-result event in this encounter, and the Sentry's observed initial moves are deterministic by position. No user-visible random game result was triggered or matched against an independent prediction; this remains the outstanding experiment requirement. No production protocol, solver, execution path, safety gate, official JAR, engine, player save, or notification configuration was changed.
 
 The temporary probe is still loaded by the currently running game. Removing its file failed because Windows reports it is in use; it must be removed after the game exits normally. No process was forcibly closed. The official CombatSolver1 JAR hash remains `644E4F0E2457BBDC6A969B94302B317ED0904D91F761E590DFF0A27E1432EC7F`.
 

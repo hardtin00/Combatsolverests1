@@ -914,3 +914,4 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - 第二份真实样本六流均无推进；针对该样本重跑 6 组 Java8/C++ trace，每组 18 行、108 行全匹配，无首次差异。边界回归通过。详情见 runtime result 报告和 ignored `build/rng-capture-validation/` 日志。
 - 用户未触发可见随机结果，故“真实游戏随机事件与副本预测”尚未验证；此缺项为证据未取得，不代表算法失败。阶段仍标记 **BLOCKED**，不宣称路线 C GO。后续若不再开展本次随机事件测试，则应保留该限制并清理临时探针。正式 JAR SHA-256 仍为 `644E4F0E2457BBDC6A969B94302B317ED0904D91F761E590DFF0A27E1432EC7F`。
 - 已尝试清理临时 `mods/CS1RngProbe.jar`，但 Windows 报告该文件正被当前运行游戏占用；没有强制结束游戏。待游戏正常退出后再删除临时探针。正式 JAR 未被占用或修改，哈希仍为上列值。
+- 只读查看当前游戏画面，手牌为 Exhume/Defend/Strike/Bash/Strike，药水为 Swift Potion 和空槽；该场没有可见随机生成/随机目标效果，未为测试消耗卡牌或药水。随机事件对照因此仍缺证据。

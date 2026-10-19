@@ -1,7 +1,5 @@
 package com.combatsolver1.runtime;
 
-import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.combatsolver1.CombatLog;
 import com.combatsolver1.engine.SimState;
@@ -86,10 +84,6 @@ public class CombatController {
     private boolean searching;
     private boolean paused;
     private int lastTurn = -1;
-    private boolean gKeyDown;
-    private boolean hKeyDown;
-    private boolean jKeyDown;
-    private boolean rKeyDown;
     private boolean executeRequested;
     private boolean fullAuto;
     private final ExecutionSafety.FailureLatch executionFailure = new ExecutionSafety.FailureLatch();
@@ -195,7 +189,6 @@ public class CombatController {
 
     public void update() {
         if (!inCombat) {
-            clearKeys();
             return;
         }
         try {
@@ -205,31 +198,8 @@ public class CombatController {
             }
             AbstractRoom room = currentRoom();
             if (room == null || room.phase != AbstractRoom.RoomPhase.COMBAT) {
-                clearKeys();
                 return;
             }
-            if (edge(Input.Keys.G)) {
-                if (authorizeAfterFailure("G")) {
-                    executeRequested = true;
-                    suppressed = false;
-                    CombatLog.info("G requested: current turn only");
-                }
-            }
-            if (edge(Input.Keys.H)) {
-                fullAuto = !fullAuto;
-                CombatLog.info("full auto: " + fullAuto);
-                if (fullAuto) authorizeAfterFailure("H");
-                if (!fullAuto && deployer.isActive()) {
-                    CombatLog.info("H disabled: current deployment is not cancelled; J pauses and cancels pending actions");
-                }
-            }
-            if (edge(Input.Keys.J)) {
-                stopAndPause();
-            }
-            if (edge(Input.Keys.R)) {
-                recalculate();
-            }
-
             int uiAction = overlay.handleInput(!AbstractDungeon.isScreenUp);
             if (uiAction == OverlayRenderer.ACTION_RECALCULATE) {
                 recalculate();
@@ -1404,32 +1374,6 @@ public class CombatController {
         CombatLog.info("recalculate requested");
     }
 
-    private boolean edge(int key) {
-        boolean down = Gdx.input.isKeyPressed(key) || Gdx.input.isKeyJustPressed(key);
-        boolean prev;
-        if (key == Input.Keys.G) {
-            prev = gKeyDown;
-            gKeyDown = down;
-        } else if (key == Input.Keys.H) {
-            prev = hKeyDown;
-            hKeyDown = down;
-        } else if (key == Input.Keys.J) {
-            prev = jKeyDown;
-            jKeyDown = down;
-        } else {
-            prev = rKeyDown;
-            rKeyDown = down;
-        }
-        return ExecutionSafety.risingEdge(prev, down);
-    }
-
-    private void clearKeys() {
-        gKeyDown = false;
-        hKeyDown = false;
-        jKeyDown = false;
-        rKeyDown = false;
-    }
-
     private void reset() {
         inCombat = false;
         executionFailure.clear();
@@ -1456,7 +1400,6 @@ public class CombatController {
         expectedEndState = null;
         pendingDriftExpected = null;
         lastIdlePotions = null;
-        clearKeys();
         deployer.cancel();
     }
 

@@ -478,12 +478,12 @@ public class OverlayRenderer {
         float sideW = (totalW - gapSum - execW) / 3f;
         float bx = left + PAD * s;
 
-        Rect autoBtn = button(sb, "H 自动：" + (model.fullAuto ? "开" : "关"), bx, by, sideW,
+        Rect autoBtn = button(sb, "自动执行：" + (model.fullAuto ? "开" : "关"), bx, by, sideW,
                 model.fullAuto, false, t, s);
         buttons.add(autoBtn);
         bx += sideW + GAP * s;
 
-        Rect execBtn = button(sb, model.paused ? "G 执行（暂停）" : "G 执行本回合", bx, by, execW,
+        Rect execBtn = button(sb, model.paused ? "执行（已暂停）" : "执行本回合", bx, by, execW,
                 model.executing, true, t, s);
         buttons.add(execBtn);
         bx += execW + GAP * s;
@@ -498,7 +498,7 @@ public class OverlayRenderer {
         buttons.add(recalcBtn);
         bx += sideW + GAP * s;
 
-        Rect pauseBtn = button(sb, model.paused ? "J 已暂停" : "J 停止", bx, by, sideW,
+        Rect pauseBtn = button(sb, model.paused ? "已停止" : "停止", bx, by, sideW,
                 model.paused, false, t, s);
         buttons.add(pauseBtn);
     }
@@ -670,7 +670,7 @@ public class OverlayRenderer {
     private int buttonAction(float mx, float my) {
         for (int i = 0; i < buttons.size(); i++) {
             if (buttons.get(i).contains(mx, my)) {
-                // 顺序即布局顺序：全自动 / 执行 / 重新计算 / 暂停
+                // 顺序即布局顺序：自动执行 / 执行 / 重新计算 / 暂停
                 if (i == 0) {
                     return ACTION_TOGGLE_AUTO;
                 }

@@ -71,3 +71,12 @@ Continue 读档外部求解、其他职业、罕见卡牌、其他原生选牌�
 ## 候选包文件记录
 
 候选版已安装供实机验收：`build/libs/CombatSolver1.jar`，版本 `1.0.0-rc1`，SHA-256 `A0B01326D855BFFBBE01CD0837241272CE71C6E9D489FE28706EB23AEB1D93E5`。游戏目录校验值一致。安装前游戏 JAR 备份为 `CombatSolver1.jar.bak-20261019-102110`（旧 SHA-256 `D11EF4BCBEA2DE2BC4E8BCCCFC00F2A454350F1888421DE980837A86A8B26E18`）；另有工作区副本 `build/v1-audit/CombatSolver1-installed-before-rc1.jar`。候选 JAR 副本在 `build/v1-audit/CombatSolver1-1.0.0-rc1.jar`。正式版尚未发布。
+
+## 2026-10-19 用户截图/现场记录复核
+
+- 截图匹配真实 bundle `battle-20261019-102938-114-1b883da4-4b72-4d5f-9749-d87f438490d8`：铁甲战士 HP 44/75、T1 能量 3、三哨卫 39/39、42/42、43/43、手牌含 Exhume。manifest 仍 `open/in_progress`、`journalDirty=false`、`actionCount=2`；活动中的 JSONL/journal 哈希会继续变化，不以 manifest 哈希不符判损坏。
+- 根状态来源为 `sts_lightspeed`。manifest `rawAutosaveBindingStatus=engine-root-matched`，表明 HP/格挡/能量/手牌/怪物的 STATE0 与实机根匹配；完整的 engine initialization 与根配对仍 pending，故只算该场局部 L3 证据，不算严格 L4。
+- 已记录 Bash（手牌槽 3）→`Sentry#3`，候选前后生命 43→35、能量 3→1；Defend（手牌槽 1）后格挡为 5、能量 0。两张动作顺序与截图上的当回合路线一致，身份/目标均 trusted。JSONL/journal 不记录按键来源，因而不能证明它们由 G 而非手动点击触发；还没有 H/J 或 Exhume 选择动作。
+- 同日上一场 `battle-20261019-102851-177-e2a9e863-6ef6-46e6-88c1-6c2245c6ecf7` 为蘑菇兽胜利，但 manifest 记录 native read/decode mismatch，未准备 sts_lightspeed，最终动作无稳定 post 且 `journalDirty=true`。不计本版外部求解或完整验收。
+- 本次截图也暴露 UI 将 Defend 的协议占位索引显示成“目标 1”。根因是只读路线投影对所有卡牌无条件显示非负 `targetIndex`，而外部协议会给无目标牌带占位下标；执行 journal 显示该牌实际为 self-target。已修复投影仅在有解析目标名时画箭头，并加回归断言“无目标牌不显示箭头”。Java 8 离线编译成功；`PanelModelCheck` 6 项、`ExecutionSafetyCheck` 11 项和 `SettingsPersistenceCheck` 4 项全部通过。
+- 隐藏占位目标修复提交 `4aaf5c27a4a582f5357c998a0cbc1a553d27fdc0` 后重新构建并部署候选 JAR：Java major 52、131 个条目。工作区与游戏目录 SHA-256 一致：`B4D16023AAA375AB5AB0C9D342EE2BACA50A98178A2C56352A60903382AFFEA5`；MTS 3.30.3 discovery/injection 9 类通过。安装前版本备份为 `CombatSolver1.jar.bak-20261019-103945`。需重启游戏加载修复；重启后的 UI、G/H/J 和 Exhume 尚未实机验收。截图中的文字整体仍需玩家目测确认，不凭静态尺寸宣布 UI 通过。

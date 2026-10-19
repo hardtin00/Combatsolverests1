@@ -465,17 +465,21 @@ public class CombatController {
         model.plan = currentPlan();
         model.fullAuto = fullAuto;
         model.paused = paused;
-        model.searching = searching;
+        model.searching = searching || engineFetching;
         model.executing = deployer.isActive();
         model.settings = settings;
         model.collapsed = overlay.isCollapsed();
 
         // 状态徽章与上下文
-        if (paused) {
+        if (executionFailure.isBlocked()) {
+            model.badge = "执行已停止";
+            model.badgeColor = "danger";
+            model.context = engineDriftReason.isEmpty() ? "状态校验未通过，请检查路线" : engineDriftReason;
+        } else if (paused) {
             model.badge = "已暂停";
             model.badgeColor = "warning";
             model.context = "点“重新计算”继续";
-        } else if (searching) {
+        } else if (searching || engineFetching) {
             model.badge = "搜索中";
             model.badgeColor = "accent";
             model.context = shortSourceLine();
@@ -483,6 +487,14 @@ public class CombatController {
             model.badge = "执行中";
             model.badgeColor = "accent";
             model.context = shortSourceLine();
+        } else if (planStale) {
+            model.badge = "路线已过期";
+            model.badgeColor = "warning";
+            model.context = shortSourceLine();
+        } else if (model.plan == null) {
+            model.badge = "暂无可用路线";
+            model.badgeColor = "warning";
+            model.context = engineNote.isEmpty() ? shortSourceLine() : engineNote;
         } else {
             model.badge = "就绪";
             model.badgeColor = "success";
@@ -491,7 +503,10 @@ public class CombatController {
 
         // 摘要行与搜索进度
         Plan plan = model.plan;
-        if (searching) {
+        if (engineFetching) {
+            model.progressText = "sts_lightspeed 正在求解…";
+            model.progressRatio = -1f;
+        } else if (searching) {
             int depth = search.progressDepth();
             int max = Math.max(1, search.progressMaxTurns());
             model.progressText = "搜索中… 已展开 " + search.progressNodes() + " 个节点（第 "

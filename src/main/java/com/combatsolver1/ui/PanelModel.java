@@ -52,4 +52,28 @@ public class PanelModel {
     public String coverageLine = "";
     public String sourceLine = "";
     public final List<String> enemyLines = new ArrayList<>();
+
+    /** Display-only projection: never merges actions or changes the executable plan. */
+    public List<String> routeLines() {
+        List<String> lines = new ArrayList<>();
+        if (plan == null) return lines;
+        for (int i = 0; i < plan.turns.size(); i++) {
+            Plan.Turn turn = plan.turns.get(i);
+            int number = turn.liveTurnNumber > 0 ? turn.liveTurnNumber
+                    : turn.turnNumber > 0 ? turn.turnNumber : i + 1;
+            String prefix = "T" + number;
+            for (int j = 0; j < turn.actions.size(); j++) {
+                Plan.Action action = turn.actions.get(j);
+                String kind = action.isSelect() ? "选牌 · " : action.isPotion() ? "药水 · " : "";
+                String target = action.targetIndex >= 0 ? " → "
+                        + (action.targetName == null || action.targetName.isEmpty()
+                        ? "目标 " + (action.targetIndex + 1) : action.targetName) : "";
+                lines.add(prefix + " · " + (j + 1) + "   " + kind + action.displayName() + target);
+            }
+            String end = turn.killsAll ? "预计击杀全部敌人" : turn.endsTurn ? "结束回合" : "本段结束";
+            lines.add(prefix + " · " + end + "   HP " + turn.hpAfter
+                    + (turn.endEnergy >= 0 ? "   能量 " + turn.endEnergy : ""));
+        }
+        return lines;
+    }
 }

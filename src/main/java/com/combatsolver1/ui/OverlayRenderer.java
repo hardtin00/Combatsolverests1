@@ -18,20 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 战斗路线窗口：按 CombatSolver 原项目的设计语言重做的覆盖层。
- *
- * - 深色半透明圆角面板，浅色主题可切换，带阴影与 1px 描边；背景底色保底不透明度；
- * - 顶部标题栏（可拖动）：剑图标 + 状态点 + 标题，右上角快捷设置（预算 / 透明度 / 主题）与折叠；
- * - 状态徽章 + 摘要主行（预计整场扣血，按损失等级着色）+ 搜索进度条；
- * - 路线区：“推荐路线 / 正在执行的路线”逐回合行：当前回合金色高亮，后续回合变暗；
- *   左边高亮条，中部彩色行动胶囊（攻击红 / 技能蓝 / 能力金 / 药水青 / 选牌橙 /
- *   结束回合灰，击杀绿），右边“受击 / HP / 能量”三项指标；超过 5 回合可展开；
- *   无路线时用居中空状态（等待 / 搜索中 / 未找到生还路线 / 已暂停）；
- * - 底部动作条（与内容区有分隔线）：全自动、执行本回合（金色主按钮）、重新计算
- *   （搜索中变停止）、暂停；
- * - 右下角拖拽手柄可调整宽度与高度；高度仍会按内容自适应，避免留白。位置与尺寸持久化。
- */
+/** Read-only battle plan overlay; input returns existing controller actions. */
 public class OverlayRenderer {
     public static final int ACTION_NONE = -1;
     public static final int ACTION_RECALCULATE = 0;
@@ -47,26 +34,17 @@ public class OverlayRenderer {
 
     // 逻辑尺寸（Settings.scale = 1 时）。所有布局尺寸乘以 Settings.scale。
     private static final float MARGIN = 24f;
-    private static final float HEADER_H = 34f;
-    private static final float PAD = 12f;
+    private static final float HEADER_H = 44f;
+    private static final float PAD = 16f;
     private static final float GAP = 8f;
-    private static final float BADGE_H = 22f;
-    private static final float ROUTE_ROW_H = 40f;
-    private static final float PILL_H = 26f;
-    private static final float PILL_RADIUS = 4f;
-    private static final float TURN_COL_W = 78f;
-    private static final float METRIC_DMG_W = 64f;
-    private static final float METRIC_HP_W = 48f;
-    private static final float METRIC_EN_W = 38f;
-    private static final float BTN_H = 36f;
-    private static final float CHIP_H = 24f;
+    private static final float BADGE_H = 28f;
+    private static final float BTN_H = 42f;
+    private static final float CHIP_H = 28f;
     private static final float GRIP = 18f;
     private static final float PANEL_RADIUS = 10f;
-    private static final float DEFAULT_W = 620f;
-    private static final float MIN_W = 460f;
+    private static final float DEFAULT_W = 680f;
+    private static final float MIN_W = 580f;
     private static final float MAX_W = 840f;
-    private static final int MAX_ROUTE_ROWS_COLLAPSED = 5;
-    private static final int MAX_ROUTE_ROWS_EXPANDED = 20;
     private static final float DIVIDER_H = 1f;
     private static final float EMPTY_STATE_H = 72f;
 
@@ -93,8 +71,15 @@ public class OverlayRenderer {
     private float resizeStartH;
     private boolean prevMouseDown;
     private boolean collapsed;
-    private boolean routeExpanded;
     private Rect expandToggleRect;
+    // View state only: reset page when the plan changes; settings visibility lasts this session.
+    private boolean settingsOpen;
+    private Rect settingsRect, previousPageRect, nextPageRect;
+    private int routePage;
+    private Plan displayedPlan;
+    private float requestedHeight = 480f;
+    private final List<String> displayLines = new ArrayList<>();
+    private static final float LINE_H = 29f;
 
     private final List<Rect> headerChips = new ArrayList<>();
     private final List<Rect> buttons = new ArrayList<>();
@@ -119,11 +104,11 @@ public class OverlayRenderer {
     }
 
     public void toggleRouteExpanded() {
-        routeExpanded = !routeExpanded;
+        routePage = 0; // Compatibility with the existing controller action.
     }
 
     public void render(SpriteBatch sb, PanelModel model) {
-        Color previous = sb.getColor();
+        Color previous = new Color(sb.getColor());
         float s = Settings.scale;
         Theme t = model.settings.lightTheme ? Theme.light() : Theme.dark();
         lastSettings = model.settings;
@@ -132,14 +117,14 @@ public class OverlayRenderer {
         loadPersisted(model.settings);
         if (Float.isNaN(panelX)) {
             panelW = DEFAULT_W;
-            panelX = Settings.WIDTH - panelW * s - MARGIN * s;
-            panelTop = MARGIN * s + panelH * s;
+            panelX = MARGIN * s;
+            panelTop = Settings.HEIGHT - 32f * s;
         }
 
-        float contentH = collapsed ? HEADER_H * s : measureContentHeight(sb, model, s);
-        // 面板高度始终按内容自适应（需求：尽量避免无效空白）；拖拽手柄只调整宽度。
-        // 这样即使之前保存过更大的高度，也不会在面板里留出一大片空白。
-        panelH = Math.min(contentH, Settings.HEIGHT - MARGIN * s * 2f);
+        prepareRoute(model, s);
+        float contentH = measureContentHeight(sb, model, s) / s;
+        panelH = collapsed ? HEADER_H : Math.min(sizeCustom ? requestedHeight : contentH,
+                Settings.HEIGHT / s * 0.46f);
         clampPanel(s);
 
         float left = panelX;
@@ -156,10 +141,14 @@ public class OverlayRenderer {
 
         float y = panelTop - HEADER_H * s;
         expandToggleRect = null;
+        previousPageRect = nextPageRect = null;
+        buttons.clear();
+        resizeRect = null;
         renderHeader(sb, model, t, s, left, y, right, bottom);
         if (!collapsed) {
             // 内容区下限 = 面板底 + footer 高度，避免 info captions 溢出到按钮区
             float contentBottom = bottom + footerHeight(model, s);
+            if (settingsOpen) y = renderSettings(sb, model, t, s, left, y, right);
             y = renderSummary(sb, model, t, s, left, y, right);
             y = renderRoute(sb, model, t, s, left, y, right, contentBottom);
             y = renderInfoCaptions(sb, model, t, s, left, y, right, contentBottom);
@@ -171,7 +160,7 @@ public class OverlayRenderer {
 
     private float measureContentHeight(SpriteBatch sb, PanelModel model, float s) {
         // 与 render 中的分段一致，用于自动高度。
-        float h = HEADER_H * s + GAP * s;
+        float h = (HEADER_H + (settingsOpen ? 40f : 0f)) * s + GAP * s;
         h += summaryHeight(model, s);
         h += routeHeight(model, s);
         h += infoCaptionsHeight(model, s);
@@ -179,14 +168,10 @@ public class OverlayRenderer {
         return h + PAD * s;
     }
 
-    private int maxRouteRows() {
-        return routeExpanded ? MAX_ROUTE_ROWS_EXPANDED : MAX_ROUTE_ROWS_COLLAPSED;
-    }
-
     private float summaryHeight(PanelModel model, float s) {
         float h = BADGE_H * s + GAP * s;
         if (!model.summary.isEmpty() || model.searching) {
-            h += 22f * s;
+            h += 28f * s;
         }
         if (model.searching) {
             h += 10f * s;
@@ -194,19 +179,24 @@ public class OverlayRenderer {
         return h;
     }
 
+    private void prepareRoute(PanelModel model, float s) {
+        if (displayedPlan != model.plan) { routePage = 0; displayedPlan = model.plan; }
+        displayLines.clear();
+        float width = (panelW - PAD * 2 - 24f) * s;
+        for (String line : model.routeLines()) {
+            String rest = line;
+            while (!rest.isEmpty()) {
+                int end = rest.length();
+                while (end > 1 && textW(bodyFont, rest.substring(0, end)) > width) end--;
+                displayLines.add(rest.substring(0, end));
+                rest = rest.substring(end);
+            }
+        }
+    }
+
     private float routeHeight(PanelModel model, float s) {
-        Plan plan = model.plan;
-        if (plan == null || plan.turns.isEmpty()) {
-            // 空状态：标题行 + 居中提示区
-            return 18f * s + EMPTY_STATE_H * s + GAP * s;
-        }
-        int maxRows = maxRouteRows();
-        int rows = Math.min(maxRows, plan.turns.size());
-        float h = 18f * s + rows * (ROUTE_ROW_H + GAP) * s;
-        if (plan.turns.size() > maxRows) {
-            h += 18f * s; // 展开/折叠按钮行
-        }
-        return h;
+        return (66f + (displayLines.isEmpty() ? EMPTY_STATE_H
+                : Math.min(8, displayLines.size()) * LINE_H)) * s;
     }
 
     private float infoCaptionsHeight(PanelModel model, float s) {
@@ -220,7 +210,7 @@ public class OverlayRenderer {
         if (!model.potionLine.isEmpty() || !model.coverageLine.isEmpty()) {
             n++;
         }
-        return n * 17f * s;
+        return n * 23f * s;
     }
 
     private float footerHeight(PanelModel model, float s) {
@@ -230,7 +220,7 @@ public class OverlayRenderer {
 
     private void clampPanel(float s) {
         float w = Math.max(MIN_W * s, Math.min(MAX_W * s, panelW * s));
-        float h = Math.max(HEADER_H * s + 40f * s,
+        float h = Math.max((collapsed ? HEADER_H : 420f) * s,
                 Math.min(Settings.HEIGHT - MARGIN * s * 2f, panelH * s));
         panelW = w / s;
         panelH = h / s;
@@ -248,7 +238,7 @@ public class OverlayRenderer {
         }
         if (settings.panelW >= MIN_W) {
             panelW = Math.min(MAX_W, settings.panelW);
-            panelH = Math.max(HEADER_H + 40f, settings.panelH);
+            requestedHeight = Math.max(420f, settings.panelH);
             sizeCustom = true;
         }
     }
@@ -257,10 +247,10 @@ public class OverlayRenderer {
 
     private void renderHeader(SpriteBatch sb, PanelModel model, Theme t, float s,
                               float left, float y, float right, float bottom) {
-        text(sb, titleFont, "Combat Solver", left + PAD * s, y + 7f * s, t.accent);
+        text(sb, titleFont, "Combat Solver", left + PAD * s, y + 32f * s, t.accent);
         // 标题旁的状态点：让标题栏也能一眼看出当前状态
         float dotX = left + PAD * s + textW(titleFont, "Combat Solver") + 8f * s;
-        float dotY = y + 7f * s - lineH(titleFont) / 2f + 2f * s;
+        float dotY = y + 32f * s - lineH(titleFont) / 2f + 2f * s;
         Color dotColor = color(model.badgeColor, t);
         fillRounded(sb, dotX, dotY + 1f * s, 6f * s, 6f * s, 3f * s, dotColor);
 
@@ -268,35 +258,43 @@ public class OverlayRenderer {
         collapseRect = null;
         expandRect = null;
 
+        settingsRect = null;
         if (collapsed) {
             String auto = "全自动：" + (model.fullAuto ? "开" : "关");
             float chipW = textW(captionFont, auto) + 20f * s;
             float cx = right - PAD * s - chipW;
-            headerChips.add(chip(sb, captionFont, auto, cx, y + 5f * s, chipW, CHIP_H * s,
+            headerChips.add(chip(sb, captionFont, auto, cx, y + 36f * s, chipW, CHIP_H * s,
                     t, model.fullAuto ? t.positive : t.surfaceRaised, t.borderSubtle,
                     model.fullAuto ? Color.WHITE : t.textSecondary));
             String exec = "执行本回合";
             float exW = textW(captionFont, exec) + 20f * s;
             float exX = cx - GAP * s - exW;
-            headerChips.add(chip(sb, captionFont, exec, exX, y + 5f * s, exW, CHIP_H * s,
-                    t, t.accent, t.borderSubtle, Color.WHITE));
-            expandRect = chip(sb, captionFont, "展开 +", exX - GAP * s - 48f * s,
-                    y + 5f * s, 46f * s, CHIP_H * s, t, t.surface, t.border, t.textSecondary);
+            headerChips.add(chip(sb, captionFont, exec, exX, y + 36f * s, exW, CHIP_H * s,
+                    t, t.accent, t.borderSubtle, Theme.c("201b13ff")));
+            expandRect = chip(sb, captionFont, "展开", exX - GAP * s - 68f * s,
+                    y + 36f * s, 66f * s, CHIP_H * s, t, t.surface, t.border, t.textSecondary);
             return;
         }
 
-        String[] labels = {"预算：" + model.settings.presetName(), "透明度", "主题"};
-        float cursor = right - PAD * s;
-        for (int i = 2; i >= 0; i--) {
-            String label = i == 0 ? labels[0] : (i == 1 ? labels[1] + " " + Math.round(model.settings.opacity() * 100) + "%" : labels[2] + "：" + (model.settings.lightTheme ? "浅色" : "深色"));
-            float w = textW(captionFont, label) + 16f * s;
-            cursor -= w;
-            headerChips.add(chip(sb, captionFont, label, cursor, y + 5f * s, w, CHIP_H * s,
+        collapseRect = chip(sb, captionFont, "折叠 −", right - 100f * s, y + 36f * s,
+                84f * s, CHIP_H * s, t, t.surface, t.borderSubtle, t.textSecondary);
+        settingsRect = chip(sb, captionFont, settingsOpen ? "收起设置" : "设置", right - 206f * s,
+                y + 36f * s, 98f * s, CHIP_H * s, t, t.surface, t.borderSubtle, t.textSecondary);
+    }
+
+    private float renderSettings(SpriteBatch sb, PanelModel model, Theme t, float s,
+                                 float left, float y, float right) {
+        String[] labels = {"主题：" + (model.settings.lightTheme ? "浅色" : "深色"),
+                "透明度 " + Math.round(model.settings.opacity() * 100) + "%",
+                "预算：" + model.settings.presetName()};
+        float x = left + PAD * s;
+        for (String label : labels) {
+            float w = textW(captionFont, label) + 20f * s;
+            headerChips.add(chip(sb, captionFont, label, x, y, w, CHIP_H * s,
                     t, t.surface, t.borderSubtle, t.textSecondary));
-            cursor -= GAP * s;
+            x += w + GAP * s;
         }
-        collapseRect = chip(sb, captionFont, "折叠 -", cursor - 44f * s, y + 5f * s,
-                44f * s, CHIP_H * s, t, t.surface, t.borderSubtle, t.textSecondary);
+        return y - 40f * s;
     }
 
     private float renderSummary(SpriteBatch sb, PanelModel model, Theme t, float s,
@@ -320,8 +318,8 @@ public class OverlayRenderer {
 
         if (model.searching) {
             if (!model.progressText.isEmpty()) {
-                text(sb, bodyFont, model.progressText, left + PAD * s, y + 2f * s, t.textPrimary);
-                y -= 20f * s;
+                text(sb, bodyFont, ellipsize(bodyFont, model.progressText, right - left - PAD * s * 2), left + PAD * s, y + 2f * s, t.textPrimary);
+                y -= 28f * s;
             }
             if (model.progressRatio >= 0f) {
                 float px = left + PAD * s;
@@ -335,68 +333,42 @@ public class OverlayRenderer {
             float tx = left + PAD * s;
             float ty = y + 2f * s;
             for (PanelModel.Segment seg : model.summary) {
-                text(sb, metricFont, seg.text, tx, ty, color(seg.color, t));
-                tx += textW(metricFont, seg.text);
+                String shown = ellipsize(metricFont, seg.text, right - PAD * s - tx);
+                text(sb, metricFont, shown, tx, ty, color(seg.color, t));
+                tx += textW(metricFont, shown);
             }
-            y -= 22f * s;
+            y -= 28f * s;
         }
         return y - GAP * s;
     }
 
     private float renderRoute(SpriteBatch sb, PanelModel model, Theme t, float s,
                               float left, float y, float right, float bottom) {
-        // bottom 已经是内容区下限（render 中已扣除 footer 高度）
-        float footerTop = bottom;
-        y -= 4f * s;
-        text(sb, bodyFont, model.heading, left + PAD * s, y, color(model.headingColor, t));
-        float rx = right - PAD * s;
-        if (!model.potionOutcome.isEmpty()) {
-            textRight(sb, captionFont, model.potionOutcome, rx, y + 2f * s, t.warning);
-            rx -= textW(captionFont, model.potionOutcome) + 12f * s;
+        String heading = model.heading + (model.potionOutcome.isEmpty() ? "" : " · " + model.potionOutcome);
+        text(sb, bodyFont, ellipsize(bodyFont, heading, (panelW - PAD * 2) * s),
+                left + PAD * s, y, color(model.headingColor, t));
+        y -= 30f * s;
+        if (displayLines.isEmpty()) return renderEmptyState(sb, model, t, s, left, right, y, bottom);
+        float reserved = infoCaptionsHeight(model, s) + 42f * s;
+        int capacity = Math.max(1, (int)((y - bottom - reserved) / (LINE_H * s)));
+        int pages = (displayLines.size() + capacity - 1) / capacity;
+        routePage = Math.max(0, Math.min(routePage, pages - 1));
+        int start = routePage * capacity;
+        for (int i = start; i < Math.min(displayLines.size(), start + capacity); i++) {
+            if (y - LINE_H * s < bottom + 38f * s) break;
+            box(sb, left + PAD * s, y, (panelW - PAD * 2) * s, (LINE_H - 2) * s,
+                    3f * s, i % 2 == 0 ? t.surfaceRaised : t.surface, t.borderSubtle);
+            text(sb, bodyFont, displayLines.get(i), left + (PAD + 10f) * s, y - 4f * s, t.textPrimary);
+            y -= LINE_H * s;
         }
-        if (!model.hpOutcome.isEmpty()) {
-            textRight(sb, bodyFont, model.hpOutcome, rx, y, color(model.hpOutcomeColor, t));
-            rx -= textW(bodyFont, model.hpOutcome) + 12f * s;
-        }
-        if (model.showDeathOutcome) {
-            textRight(sb, bodyFont, "未找到生还路线", rx, y, t.danger);
-        }
-        y -= 18f * s;
-
-        Plan plan = model.plan;
-        if (plan == null || plan.turns.isEmpty()) {
-            return renderEmptyState(sb, model, t, s, left, right, y, footerTop);
-        }
-
-        int prevHp = plan.startHp;
-        int maxRows = maxRouteRows();
-        int shown = Math.min(maxRows, plan.turns.size());
-        for (int i = 0; i < shown; i++) {
-            Plan.Turn turn = plan.turns.get(i);
-            float rowTop = y;
-            float rowBottom = y - ROUTE_ROW_H * s;
-            if (rowBottom < footerTop) {
-                break;
-            }
-            boolean current = i == 0;
-            renderRouteRow(sb, turn, i, current, prevHp, plan, model, t, s, left, right, rowTop);
-            if (turn.hpAfter > 0) {
-                prevHp = turn.hpAfter;
-            }
-            y = rowBottom - GAP * s;
-        }
-        if (plan.turns.size() > maxRows && y - 18f * s >= footerTop) {
-            // 展开 / 折叠按钮
-            String label = routeExpanded ? "收起路线" : "展开全部 " + plan.turns.size() + " 回合";
-            float labelW = textW(captionFont, label) + 20f * s;
-            float cx = left + PAD * s;
-            expandToggleRect = chip(sb, captionFont, label, cx, y + 2f * s, labelW, 20f * s,
-                    t, t.surface, t.borderSubtle, t.accent);
-            y -= 18f * s;
-        } else {
-            expandToggleRect = null;
-        }
-        return y;
+        float navY = y - 5f * s;
+        text(sb, captionFont, "路线 " + (routePage + 1) + " / " + pages,
+                left + PAD * s, navY - 3f * s, t.textSecondary);
+        if (routePage > 0) previousPageRect = chip(sb, captionFont, "上一页",
+                right - 190f * s, navY, 80f * s, CHIP_H * s, t, t.surface, t.border, t.accent);
+        if (routePage + 1 < pages) nextPageRect = chip(sb, captionFont, "下一页",
+                right - 100f * s, navY, 80f * s, CHIP_H * s, t, t.surface, t.border, t.accent);
+        return y - 42f * s;
     }
 
     /** 空状态：等待 / 搜索中 / 未找到路线时给出居中的醒目提示。 */
@@ -419,7 +391,7 @@ public class OverlayRenderer {
         Color msgColor;
         if (model.searching) {
             icon = "…";
-            msg = "正在搜索最优路线…";
+            msg = "正在搜索候选路线…";
             iconColor = t.accent;
             msgColor = t.textPrimary;
         } else if (model.showDeathOutcome) {
@@ -449,231 +421,6 @@ public class OverlayRenderer {
         return boxBottom - GAP * s;
     }
 
-    private void renderRouteRow(SpriteBatch sb, Plan.Turn turn, int index, boolean current,
-                                int hpBefore, Plan plan, PanelModel model, Theme t, float s,
-                                float left, float right, float rowTop) {
-        float x = left + PAD * s;
-        float w = right - left - PAD * s * 2f;
-        // 当前回合用更强的背景与边框；后续回合用暗一些的面板，明确区分层级
-        Color rowBg = current ? t.surfaceRaised : t.surface;
-        Color rowBorder = current ? t.border : t.borderSubtle;
-        box(sb, x, rowTop, w, ROUTE_ROW_H * s, 6f * s, rowBg, rowBorder);
-        if (current) {
-            // 当前回合：左侧加粗的金色高亮条
-            fillRect(sb, x, rowTop - 6f * s, 4f * s, ROUTE_ROW_H * s - 12f * s, alpha(t.accent));
-        }
-        String head = "T" + (turn.turnNumber > 0 ? turn.turnNumber : index + 1);
-        text(sb, bodyFont, head, x + 10f * s,
-                rowTop - (ROUTE_ROW_H * s - lineH(bodyFont)) / 2f,
-                current ? t.accent : t.textSecondary);
-
-        // 中部胶囊流
-        float pillX = x + TURN_COL_W * s;
-        float pillRight = right - PAD * s - (METRIC_DMG_W + METRIC_HP_W + METRIC_EN_W) * s - 8f * s;
-        pillX = renderActionPills(sb, turn, plan, model, t, s, pillX, pillRight, rowTop);
-
-        // 右侧指标：受击 / HP / 能量
-        float rx = right - PAD * s;
-        float metricY = rowTop - (ROUTE_ROW_H * s - lineH(captionFont)) / 2f;
-        int damage = Math.max(0, hpBefore - Math.max(0, turn.hpAfter));
-        if (damage > 0) {
-            textRight(sb, captionFont, "受击" + damage, rx, metricY, t.warning);
-        }
-        rx -= METRIC_DMG_W * s;
-        if (turn.hpAfter > 0) {
-            Color hpColor = turn.killsAll ? t.success : (current ? t.textPrimary : t.textSecondary);
-            textRight(sb, captionFont, "HP" + turn.hpAfter, rx, metricY, hpColor);
-        }
-        rx -= METRIC_HP_W * s;
-        if (turn.endEnergy >= 0) {
-            textRight(sb, captionFont, "能 " + turn.endEnergy, rx, metricY, t.textMuted);
-        }
-    }
-
-    /** 胶囊流：同类连续动作合并成 ×N；放不下的折叠为“+N 个行动”。返回下一个可用 x。 */
-    private float renderActionPills(SpriteBatch sb, Plan.Turn turn, Plan plan, PanelModel model,
-                                    Theme t, float s, float x, float maxX, float rowTop) {
-        float cursor = x;
-        List<Plan.Action> actions = new ArrayList<>(turn.actions);
-
-        // 先把“同类连续动作”合并成 (动作, 重复数)，便于精确测算宽度。
-        List<Plan.Action> merged = new ArrayList<>();
-        List<Integer> repeats = new ArrayList<>();
-        int j = 0;
-        while (j < actions.size()) {
-            Plan.Action a = actions.get(j);
-            int repeat = 1;
-            while (j + repeat < actions.size() && samePill(a, actions.get(j + repeat))) {
-                repeat++;
-            }
-            merged.add(a);
-            repeats.add(repeat);
-            j += repeat;
-        }
-
-        boolean last = isLastTurn(plan, turn);
-        boolean appendEnd = turn.endsTurn || last;
-        float endW = appendEnd ? pillWidth(endTurnAction(plan, turn, last), 1, s) : 0f;
-
-        // 先算出“全部展开”需要多少宽度；放不下就预留折叠指示器与结束胶囊的空间。
-        float totalW = 0f;
-        for (int k = 0; k < merged.size(); k++) {
-            totalW += pillWidth(merged.get(k), repeats.get(k), s) + 6f * s;
-        }
-        float reserved = endW > 0f ? endW + 6f * s : 0f;
-        boolean overflow = cursor + totalW + reserved > maxX;
-        float foldW = 0f;
-        if (overflow) {
-            foldW = pillWidth(new Plan.Action("MORE", "+99 个行动", -1, 0), 1, s) + 6f * s;
-            reserved += foldW;
-        }
-
-        int shownCount = 0;
-        for (int k = 0; k < merged.size(); k++) {
-            float w = pillWidth(merged.get(k), repeats.get(k), s);
-            float limit = maxX - reserved;
-            if (cursor + w > limit) {
-                if (shownCount == 0) {
-                    float avail = maxX - reserved - cursor;
-                    if (avail < 24f * s) {
-                        break;
-                    }
-                    w = avail;
-                } else {
-                    break;
-                }
-            }
-            drawPill(sb, merged.get(k), repeats.get(k), t, s, cursor,
-                    rowTop - (ROUTE_ROW_H * s - PILL_H * s) / 2f, w);
-            cursor += w + 6f * s;
-            shownCount++;
-        }
-
-        int remaining = merged.size() - shownCount;
-        if (remaining > 0) {
-            // 放不下的行动不能直接消失：给一颗 “+N 个行动” 的胶囊
-            Plan.Action more = new Plan.Action("MORE", "+" + remaining + " 个行动", -1, 0);
-            float moreW = pillWidth(more, 1, s);
-            if (cursor + moreW <= maxX) {
-                drawPill(sb, more, 1, t, s, cursor,
-                        rowTop - (ROUTE_ROW_H * s - PILL_H * s) / 2f, moreW);
-                cursor += moreW + 6f * s;
-            }
-        }
-        if (appendEnd) {
-            Plan.Action end = endTurnAction(plan, turn, last);
-            float w = pillWidth(end, 1, s);
-            if (cursor + w <= maxX) {
-                drawPill(sb, end, 1, t, s, cursor,
-                        rowTop - (ROUTE_ROW_H * s - PILL_H * s) / 2f, w);
-            } else {
-                // 完全放不下时，尽量把结束/击杀胶囊压缩进剩余空间，绝不越出面板
-                float avail = maxX - cursor;
-                if (avail >= 24f * s) {
-                    drawPill(sb, end, 1, t, s, cursor,
-                            rowTop - (ROUTE_ROW_H * s - PILL_H * s) / 2f, avail);
-                }
-            }
-        }
-        return cursor;
-    }
-
-    private boolean isLastTurn(Plan plan, Plan.Turn turn) {
-        return !plan.turns.isEmpty() && plan.turns.get(plan.turns.size() - 1) == turn;
-    }
-
-    private Plan.Action endTurnAction(Plan plan, Plan.Turn turn, boolean last) {
-        Plan.Action end = new Plan.Action("", "", -1, 0);
-        if (turn.killsAll) {
-            end.cardName = "结束回合 · 击杀";
-            end.colorIndex = 6;
-        } else if (!turn.endsTurn && plan.predictedWin) {
-            end.cardName = "获胜";
-            end.colorIndex = 7;
-        } else if (!turn.endsTurn) {
-            end.cardName = "…";
-            end.colorIndex = 6;
-        } else if (last && plan.predictedWin) {
-            end.cardName = "结束回合 · 获胜";
-            end.colorIndex = 7;
-        } else {
-            end.cardName = "结束回合";
-            end.colorIndex = 6;
-        }
-        return end;
-    }
-
-    private boolean samePill(Plan.Action a, Plan.Action b) {
-        return a.colorIndex == b.colorIndex
-                && a.displayName().equals(b.displayName())
-                && a.targetIndex == b.targetIndex;
-    }
-
-    private float pillWidth(Plan.Action a, int repeat, float s) {
-        String name = a.displayName();
-        float w = textW(bodyFont, name) + 14f * s;
-        if (a.targetName != null && a.targetIndex >= 0) {
-            w += textW(bodyFont, " → " + a.targetName) + 4f * s;
-        }
-        if (repeat > 1) {
-            w += textW(captionFont, " ×" + repeat) + 2f * s;
-        }
-        return w + 10f * s;
-    }
-
-    private void drawPill(SpriteBatch sb, Plan.Action a, int repeat, Theme t, float s,
-                          float x, float y, float w) {
-        Color marker = pillColor(a, t);
-        box(sb, x, y, w, PILL_H * s, PILL_RADIUS * s, t.surfaceRaised, t.borderSubtle);
-        fillRect(sb, x + 3f * s, y + 6f * s, 3f * s, PILL_H * s - 12f * s, marker);
-        float tx = x + 11f * s;
-        float textMaxW = w - 16f * s;
-        String name = a.displayName();
-        // 药水/选牌的箭头和 ×N 也占宽度，先预留
-        float suffixW = 0f;
-        if (a.targetName != null && a.targetIndex >= 0) {
-            suffixW += textW(bodyFont, " → " + a.targetName);
-        }
-        if (repeat > 1) {
-            suffixW += textW(captionFont, " ×" + repeat) + 2f * s;
-        }
-        name = ellipsize(bodyFont, name, textMaxW - suffixW);
-        text(sb, bodyFont, name, tx, y - (PILL_H * s - lineH(bodyFont)) / 2f,
-                t.textPrimary);
-        tx += textW(bodyFont, name);
-        if (a.targetName != null && a.targetIndex >= 0) {
-            String arrow = " → " + a.targetName;
-            text(sb, bodyFont, arrow, tx, y - (PILL_H * s - lineH(bodyFont)) / 2f, t.textSecondary);
-            tx += textW(bodyFont, arrow);
-        }
-        if (repeat > 1) {
-            text(sb, captionFont, " ×" + repeat, tx + 2f * s,
-                    y - (PILL_H * s - lineH(captionFont)) / 2f, t.warning);
-        }
-    }
-
-    private Color pillColor(Plan.Action a, Theme t) {
-        if (a.isPotion() || a.colorIndex == 4) {
-            return t.potion;
-        }
-        switch (a.colorIndex) {
-            case 0:
-                return t.attack;
-            case 1:
-                return t.skill;
-            case 2:
-                return t.power;
-            case 3:
-                return t.negative;
-            case 5:
-                return t.choice;
-            case 7:
-                return t.success;
-            default:
-                return t.textMuted;
-        }
-    }
-
     private float renderInfoCaptions(SpriteBatch sb, PanelModel model, Theme t, float s,
                                      float left, float y, float right, float bottom) {
         float yStart = y;
@@ -686,16 +433,16 @@ public class OverlayRenderer {
                 sb2.append(line);
             }
             String text = ellipsize(captionFont, sb2.toString(), right - left - PAD * s * 2f);
-            if (y - 17f * s >= bottom) {
+            if (y - 23f * s >= bottom) {
                 text(sb, captionFont, text, left + PAD * s, y + 4f * s, t.textSecondary);
-                y -= 17f * s;
+                y -= 23f * s;
             }
         }
         if (!model.sourceLine.isEmpty()) {
             String text = ellipsize(captionFont, model.sourceLine, right - left - PAD * s * 2f);
-            if (y - 17f * s >= bottom) {
-                text(sb, captionFont, text, left + PAD * s, y + 4f * s, t.textMuted);
-                y -= 17f * s;
+            if (y - 23f * s >= bottom) {
+                text(sb, captionFont, text, left + PAD * s, y + 4f * s, t.textSecondary);
+                y -= 23f * s;
             }
         }
         String bottom2 = model.potionLine;
@@ -706,9 +453,9 @@ public class OverlayRenderer {
         }
         if (!bottom2.isEmpty()) {
             String text = ellipsize(captionFont, bottom2, right - left - PAD * s * 2f);
-            if (y - 17f * s >= bottom) {
-                text(sb, captionFont, text, left + PAD * s, y + 4f * s, t.textMuted);
-                y -= 17f * s;
+            if (y - 23f * s >= bottom) {
+                text(sb, captionFont, text, left + PAD * s, y + 4f * s, t.textSecondary);
+                y -= 23f * s;
             }
         }
         return y - (y == yStart ? 0f : 4f * s);
@@ -731,12 +478,12 @@ public class OverlayRenderer {
         float sideW = (totalW - gapSum - execW) / 3f;
         float bx = left + PAD * s;
 
-        Rect autoBtn = button(sb, "全自动：" + (model.fullAuto ? "开" : "关"), bx, by, sideW,
+        Rect autoBtn = button(sb, "H 自动：" + (model.fullAuto ? "开" : "关"), bx, by, sideW,
                 model.fullAuto, false, t, s);
         buttons.add(autoBtn);
         bx += sideW + GAP * s;
 
-        Rect execBtn = button(sb, model.paused ? "执行（已暂停）" : "执行本回合", bx, by, execW,
+        Rect execBtn = button(sb, model.paused ? "G 执行（暂停）" : "G 执行本回合", bx, by, execW,
                 model.executing, true, t, s);
         buttons.add(execBtn);
         bx += execW + GAP * s;
@@ -751,13 +498,13 @@ public class OverlayRenderer {
         buttons.add(recalcBtn);
         bx += sideW + GAP * s;
 
-        Rect pauseBtn = button(sb, model.paused ? "已暂停" : "暂停", bx, by, sideW,
+        Rect pauseBtn = button(sb, model.paused ? "J 已暂停" : "J 停止", bx, by, sideW,
                 model.paused, false, t, s);
         buttons.add(pauseBtn);
     }
 
     private void renderResizeGrip(SpriteBatch sb, Theme t, float s, float right, float bottom) {
-        resizeRect = new Rect(right - GRIP * s, bottom, GRIP * s, GRIP * s);
+        resizeRect = new Rect(right - GRIP * s, bottom + GRIP * s, GRIP * s, GRIP * s);
         fillRect(sb, right - GRIP * s + 6f * s, bottom + 5f * s, 7f * s, 2f * s, t.textMuted);
         fillRect(sb, right - GRIP * s + 6f * s, bottom + 9f * s, 7f * s, 2f * s, t.textMuted);
         fillRect(sb, right - GRIP * s + 6f * s, bottom + 13f * s, 7f * s, 2f * s, t.textMuted);
@@ -784,7 +531,7 @@ public class OverlayRenderer {
             border = t.border;
         } else if (primary) {
             bg = hover ? t.accentHover : t.accent;
-            textColor = Color.WHITE;
+            textColor = Theme.c("201b13ff");
             border = t.accentHover;
         } else {
             bg = hover ? t.surfaceHover : t.surfaceRaised;
@@ -819,6 +566,17 @@ public class OverlayRenderer {
 
         int action = ACTION_NONE;
         if (down && !prevMouseDown) {
+            if (!collapsed && settingsRect != null && settingsRect.contains(mx, my)) {
+                settingsOpen = !settingsOpen;
+                prevMouseDown = down;
+                return ACTION_NONE;
+            }
+            if (!collapsed && previousPageRect != null && previousPageRect.contains(mx, my)) {
+                routePage--; prevMouseDown = down; return ACTION_NONE;
+            }
+            if (!collapsed && nextPageRect != null && nextPageRect.contains(mx, my)) {
+                routePage++; prevMouseDown = down; return ACTION_NONE;
+            }
             if (collapsed) {
                 if (expandRect != null && expandRect.contains(mx, my)) {
                     action = ACTION_EXPAND;
@@ -832,7 +590,7 @@ public class OverlayRenderer {
             } else if (resizeRect != null && resizeRect.contains(mx, my)) {
                 resizing = true;
                 resizeStartW = panelW;
-                resizeStartH = panelH;
+                resizeStartH = requestedHeight;
                 dragOffX = mx;
                 dragOffY = my;
             } else if (collapseRect != null && collapseRect.contains(mx, my)) {
@@ -854,9 +612,10 @@ public class OverlayRenderer {
             panelX = mx - dragOffX;
             panelTop = my - dragOffY;
         } else if (down && resizing) {
-            panelW = Math.max(MIN_W, Math.min(MAX_W, resizeStartW + (mx - dragOffX)));
-            panelH = Math.max(HEADER_H + 60f,
-                    Math.min(Settings.HEIGHT - MARGIN * 2f, resizeStartH + (my - dragOffY)));
+            panelW = Math.max(MIN_W, Math.min(MAX_W, resizeStartW + (mx - dragOffX) / Settings.scale));
+            requestedHeight = Math.max(420f,
+                    Math.min(Settings.HEIGHT / Settings.scale * 0.46f,
+                            resizeStartH - (my - dragOffY) / Settings.scale));
             sizeCustom = true;
         }
 
@@ -957,7 +716,7 @@ public class OverlayRenderer {
             settings.panelX = panelX;
             settings.panelY = panelTop;
             settings.panelW = panelW;
-            settings.panelH = panelH;
+            settings.panelH = requestedHeight;
             settings.save();
         }
     }
@@ -969,11 +728,11 @@ public class OverlayRenderer {
     // ---------------------------------------------------------------- 绘制原语
 
     private void text(SpriteBatch sb, BitmapFont font, String str, float x, float y, Color c) {
-        FontHelper.renderFontLeftTopAligned(sb, font, str, x, y, alpha(c));
+        FontHelper.renderFontLeftTopAligned(sb, font, str, x, y, c);
     }
 
     private void textRight(SpriteBatch sb, BitmapFont font, String str, float x, float y, Color c) {
-        FontHelper.renderFontRightTopAligned(sb, font, str, x, y, alpha(c));
+        FontHelper.renderFontRightTopAligned(sb, font, str, x, y, c);
     }
 
     private float lineH(BitmapFont font) {
@@ -986,6 +745,7 @@ public class OverlayRenderer {
     }
 
     private String ellipsize(BitmapFont font, String str, float maxW) {
+        if (maxW <= 0f || textW(font, "…") > maxW) return "";
         if (str == null || str.isEmpty() || textW(font, str) <= maxW) {
             return str;
         }
@@ -1009,7 +769,7 @@ public class OverlayRenderer {
         }
         r = Math.max(1f, r);
         TextureRegion[] regs = cornerRegionsFor((int) Math.ceil(r));
-        sb.setColor(alpha(c));
+        sb.setColor(c);
         float yB = yTop - h;
         float innerW = w - 2f * r;
         float innerH = h - 2f * r;
@@ -1018,7 +778,7 @@ public class OverlayRenderer {
         sb.draw(regs[4], x + w - r, yB + r, r, innerH);
         sb.draw(regs[4], x + r, yB, innerW, r);
         sb.draw(regs[4], x + r, yB + h - r, innerW, r);
-        float d = 2f * r;
+        float d = r;
         sb.draw(regs[0], x, yB, d, d);
         sb.draw(regs[1], x + w - d, yB, d, d);
         sb.draw(regs[2], x, yB + h - d, d, d);
@@ -1067,18 +827,12 @@ public class OverlayRenderer {
             cornerTextures.put(r, tex);
         }
         TextureRegion[] regs = new TextureRegion[5];
-        TextureRegion bl = new TextureRegion(tex);
-        regs[0] = bl;
-        TextureRegion br = new TextureRegion(bl);
-        br.flip(true, false);
-        regs[1] = br;
-        TextureRegion tl = new TextureRegion(bl);
-        tl.flip(false, true);
-        regs[2] = tl;
-        TextureRegion tr = new TextureRegion(bl);
-        tr.flip(true, true);
-        regs[3] = tr;
-        regs[4] = new TextureRegion(tex);
+        // Four quarter circles and one opaque pixel; stretching a whole circle leaves holes.
+        regs[0] = new TextureRegion(tex, 0, r, r, r);
+        regs[1] = new TextureRegion(tex, r, r, r, r);
+        regs[2] = new TextureRegion(tex, 0, 0, r, r);
+        regs[3] = new TextureRegion(tex, r, 0, r, r);
+        regs[4] = new TextureRegion(tex, r, r, 1, 1);
         cornerRegions.put(r, regs);
         return regs;
     }
@@ -1219,7 +973,7 @@ public class OverlayRenderer {
                 accentHover = c("e8c877ff");
                 textPrimary = c("eef1f6ff");
                 textSecondary = c("b8c0ccff");
-                textMuted = c("858f9fff");
+                textMuted = c("a5afbdff");
                 warning = c("d6a34cff");
                 danger = c("e26666ff");
                 success = c("69b77dff");
@@ -1256,9 +1010,9 @@ public class OverlayRenderer {
     }
 
     static {
-        titleFont = font(16f);
-        bodyFont = font(14f);
-        metricFont = font(15f);
-        captionFont = font(12f);
+        titleFont = font(22f);
+        bodyFont = font(19f);
+        metricFont = font(22f);
+        captionFont = font(17f);
     }
 }

@@ -877,3 +877,20 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - 用户截图对应 bundle `battle-20261019-120212-544-969f6e6b-4a74-41a8-b929-07ea0fbf54db`。本次调用级记录确认 `loadSaveString call id=1` 读取 `saves/IRONCLAD.autosave`，仍出现 `nativeChars=23`、`capturedChars=13561`、`firstDiff=0`；原文未记录。该证据将 mismatch 关联到实际路径及唯一调用，但不能解释游戏为何对该路径只返回 23 字符。
 - 控制器不再因无效 Continue 捕获提前退出，已尝试 fresh-autosave 分支；由于磁盘 `IRONCLAD.autosave` 的最后写入仍是 2026-10-19 10:29:37，早于本次战斗开始时间 12:02:12，严格 freshness 检查拒绝它。bundle `engineCombatSaveStatus=failed`，错误为 `No fresh autosave found; stale autosave was not used`；本次未进入 `engine-in.save`/C++ `STATE0`，无外部 `plan ready`。游戏日志在 `04:02:12` 记录 `publish start battle`，`04:03:20` 记录 autosave 成功加载；日志未显示该存档在战斗开始后被更新。该候选修复证明了无效 Continue 不再遮蔽 fresh-source 查找，但没有解除新战斗输入阻断。
 - 本次是新版实机复现失败（L3 失败）；没有外部路线或执行，不计 L4。不可将旧 autosave 放宽为可信输入。针对性来源分流修复已部署，运行证据显示剩余问题是战斗当前状态没有可用的可信快照。停止继续叠加分支；下一方案需先经用户决定：在战斗开始时从游戏当前内存态生成/序列化经 `STATE0` 绑定的输入，或维持拒绝并将该环境标为不支持。任何序列化方案都需先验证一致性与可用 API，再单独实现和验收。
+
+### 2026-10-19：路线 C 第一阶段 RNG/怪物字段验证（未达 GO）
+
+- 静态证据：Random Number Prediction Master 反汇编显示其从 `RandomXS128.seed0/seed1` 读取状态，并通过 `Random.copy()` 复制 `seed0/seed1/counter`；预测逻辑在副本上抽取。STS1 `RandomXS128` 的 `getState(0/1)` 与游戏 `Random.copy()` 可支持只读读取设计。STS1 与 C++ `sts::Random` 的共同 xorshift128+ 基础已定位，但尚无真实捕获状态输入，因此不能报告逐步序列一致。
+- 隔离代码：新增 `tools/rng-capture-validation/`，含一次性只读 MTS 探针、Java 反射式 RNG trace、C++ `sts::Random` trace 及运行说明。探针只在 COMBAT、玩家回合且 action/card/monster 队列为空时读取六流，并在怪物字段读取前后核对 seed0/seed1/counter；读取不变才记录。代码没有接入正式输入协议/出牌路径。
+- 离线构建：JDK 6 `javac -source 1.6 -target 1.6` 编译 Java trace 与 probe（probe 使用隔离 MTS/游戏 API stub）；MinGW `g++ -std=c++17 -O0 -I vendor/sts_lightspeed/include` 编译 C++ trace，均退出 0。生成了隔离 probe JAR。未运行 Java/C++ 同状态 trace：没有真实 RNG 状态，且不得用合成状态替代。拒绝采样边界已纳入 trace；`INT_MAX` 会触发 C++ `range+1` 有符号溢出，不作为有效调用输入，协议导入前必须校验。
+- 实机阻塞：直接启动本机 MTS 3.30.3 报 `Could not connect to Steam`，没有启动游戏或加载探针，故无真实六流前后快照、随机事件对照或怪物私有状态运行记录。临时 `mods/CS1RngProbe.jar` 已移除；确认未运行游戏操作、未改 autosave、未改正式 CombatSolver1 JAR/引擎。
+- 怪物静态映射：STS1 Sentry 的 `firstMove`、`beamDmg`、`dazedAmt` 为可反射读取的私有字段，通用 `nextMove`、`intent`、`moveHistory` 可反射访问；lightspeed 侧通过 Sentry 的 `idx`、`moveHistory`/`firstTurn()` 分支及 `miscInfo` 建模。是否与实机具体招式和 AI RNG 消耗一致仍未知，不能推广到其他怪物。
+- 结论：本阶段 NO-GO（证据不足，非证明技术不可行）。未达到六流无推进、Java/C++ 逐步完全一致、真实怪物状态映射和随机事件验证条件；路线 C 不得进入生产实施。验证命令：Java `javac -source 1.6 -target 1.6 ...JavaRngTrace.java`（0）；C++ `g++ -std=c++17 -O0 ...cpp_rng_trace.cpp`（0）；隔离探针编译/打包（0）；真实游戏运行及双端同态 trace 未执行。未提交/推送；原有 `sendToDevs/` 保持未跟踪且未触碰。
+
+### 2026-10-19：恢复 Steam 启动并修正隔离 RNG 边界测试（实机采样待用户启动）
+
+- 已复用上一轮探针/双端 trace；未重建测试框架。Steam `gameprocess_log.txt` 记录 Steam AppID 646570 于 13:22:22 启动 `mts-launcher.jar`，13:22:23 启动 Workshop ModTheSpire 进程；桌面窗口列表出现 `Modded Slay the Spire` 与 `ModTheSpire 3.30.3`。原有 Modded 主菜单正常显示，随后在主菜单退出；`IRONCLAD.autosave` 长 18,084 字节，时间仍为 10:29:37。原有 Modded 启动已验证可运行。
+- 修复隔离测试：新增 `cpp_rng_range_guard.h` 和 `cpp_rng_boundary_check.cpp`，拒绝 `INT_MIN`、负数、`INT_MAX`，接受 0 和 `INT_MAX-1`；C++ 主 trace 的 inclusive int wrapper 统一先过 guard，并加入 `INT_MAX-1` 真实序列项，与 Java trace 对齐。`INT_MAX` 不直接传入 C++（其 `range+1` 有符号 UB），而在边界验证处覆盖；STS1 Java `random(INT_MAX)` 会先增加 counter 再因有符号 wrap 后的负 bound 抛错，因此无效输入的失败前副作用不同，快照/协议须在调用前拒绝。
+- 首次启动 C++ trace 的系统错误经 `objdump -p` 确认依赖 `libgcc_s_seh-1.dll`、`libstdc++-6.dll` 等 MinGW DLL；已在本次 PowerShell 进程 PATH 临时加入 MinGW bin 后可正常启动。隔离 boundary 回归输出 `RNG_RANGE_BOUNDARY_OK rejected=INT_MIN,-1,INT_MAX accepted=0,INT_MAX-1`，退出 0。Java trace javac 退出 0；C++ trace 编译退出 0。未运行随机序列，因没有真实快照。
+- 临时探针曾重新放入 `mods/CS1RngProbe.jar`，随后 Steam 启动请求进入需用户选择的 Play with Mods 入口；当前 Computer Use 对 Steam 窗口申请超时，未能代替用户选择，故游戏未重新加载探针。探针 JAR 已清理。没有六流真实捕获、前后无推进记录、Sentry 实机字段或 Java/C++ 序列比较；不能判定 RNG 算法失败，技术结论待定。
+- 当前仅隔离测试/README/STATUS 有修改；正式协议、求解器、部署 JAR、存档和通知配置未改。`sendToDevs/` 保持未跟踪且未触碰。命令：JDK6 `javac -source 1.6 -target 1.6 ...JavaRngTrace.java`（0）；MinGW `g++ ...cpp_rng_trace.cpp`（0）；MinGW `g++ ...cpp_rng_boundary_check.cpp` + 执行（0）。Steam 启动/退出证据：`C:\Program Files (x86)\Steam\logs\gameprocess_log.txt`。本记录为待用户完成 Play with Mods 启动后继续的状态，不是路线 C GO/NO-GO。

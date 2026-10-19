@@ -80,3 +80,10 @@ Continue 读档外部求解、其他职业、罕见卡牌、其他原生选牌�
 - 同日上一场 `battle-20261019-102851-177-e2a9e863-6ef6-46e6-88c1-6c2245c6ecf7` 为蘑菇兽胜利，但 manifest 记录 native read/decode mismatch，未准备 sts_lightspeed，最终动作无稳定 post 且 `journalDirty=true`。不计本版外部求解或完整验收。
 - 本次截图也暴露 UI 将 Defend 的协议占位索引显示成“目标 1”。根因是只读路线投影对所有卡牌无条件显示非负 `targetIndex`，而外部协议会给无目标牌带占位下标；执行 journal 显示该牌实际为 self-target。已修复投影仅在有解析目标名时画箭头，并加回归断言“无目标牌不显示箭头”。Java 8 离线编译成功；`PanelModelCheck` 6 项、`ExecutionSafetyCheck` 11 项和 `SettingsPersistenceCheck` 4 项全部通过。
 - 隐藏占位目标修复提交 `4aaf5c27a4a582f5357c998a0cbc1a553d27fdc0` 后重新构建并部署候选 JAR：Java major 52、131 个条目。工作区与游戏目录 SHA-256 一致：`B4D16023AAA375AB5AB0C9D342EE2BACA50A98178A2C56352A60903382AFFEA5`；MTS 3.30.3 discovery/injection 9 类通过。安装前版本备份为 `CombatSolver1.jar.bak-20261019-103945`。需重启游戏加载修复；重启后的 UI、G/H/J 和 Exhume 尚未实机验收。截图中的文字整体仍需玩家目测确认，不凭静态尺寸宣布 UI 通过。
+
+## 2026-10-19 面板交互实机复核
+
+- 用户报告候选版面板操作无反馈、暂停无法取消。复核 bundle：`battle-20261019-105535-395-f0de597d-563b-4f62-8926-9f73224ba7c7`，铁甲战士 T1 三哨卫；STATE0 为 HP 44/75、能量 3、手牌 Exhume/Defend/Strike/Bash/Strike。记录仅有 root，无动作；原生 autosave 绑定拒绝，错误 `native read/decode mismatch`，外部引擎未生成可用战斗路线。
+- 在已加载候选包的真实游戏窗口逐一点击验证：重新计算进入搜索并显示进度；自动执行可开/关切换；停止后徽章显示已暂停且按钮提供继续；点击继续后解除暂停并回到路线状态。当前四项控制点击均有视觉反馈。操作前后战斗状态未变化。
+- 在“路线已过期 / 预算内未找到存活路线”状态下点击执行本回合没有出牌。该结果不能作为有效路线下 G 等价按钮的执行通过；它表明失效路线没有被盲目执行。由于没有可信路线，本轮没有开启自动执行保持态，也未验证出牌。
+- 当前实机交互说明：面板点击/暂停恢复可用；求解/执行仍被 native save mismatch 阻断。新即时命中区候选哈希 `B624475AA70EA40C063B381A099FC81A834F12C4F13B3379EB83DFE63AE40A34` 已在本次游戏中加载（启动日志起始时间 11:02，候选部署于 11:00）。此结果为有限 L3 UI 交互，不计有效 L4 战斗验收。

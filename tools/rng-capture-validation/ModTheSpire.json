@@ -1,0 +1,10 @@
+{
+  "modid": "cs1rngprobe",
+  "name": "CombatSolver1 RNG Validation Probe",
+  "author_list": ["CombatSolver1 validation"],
+  "description": "Isolated read-only runtime RNG and monster-state validation probe.",
+  "version": "0.1.0",
+  "sts_version": "12-18-2022",
+  "mts_version": "3.30.3",
+  "dependencies": ["basemod"]
+}

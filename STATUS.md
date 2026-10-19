@@ -894,3 +894,9 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - 首次启动 C++ trace 的系统错误经 `objdump -p` 确认依赖 `libgcc_s_seh-1.dll`、`libstdc++-6.dll` 等 MinGW DLL；已在本次 PowerShell 进程 PATH 临时加入 MinGW bin 后可正常启动。隔离 boundary 回归输出 `RNG_RANGE_BOUNDARY_OK rejected=INT_MIN,-1,INT_MAX accepted=0,INT_MAX-1`，退出 0。Java trace javac 退出 0；C++ trace 编译退出 0。未运行随机序列，因没有真实快照。
 - 临时探针曾重新放入 `mods/CS1RngProbe.jar`。退出原有游戏后再次调用 Steam URI，没有观察到新的 AppID 646570 进程记录；Computer Use 对 Steam 窗口的访问授权超时，因此不能确认 Steam 当时的具体提示，也不能确认第二次启动是否到达 Play with Mods 选择。探针 JAR 已清理。没有六流真实捕获、前后无推进记录、Sentry 实机字段或 Java/C++ 序列比较；不能判定 RNG 算法失败，技术结论待定。
 - 当前仅隔离测试/README/STATUS 有修改；正式协议、求解器、部署 JAR、存档和通知配置未改。`sendToDevs/` 保持未跟踪且未触碰。命令：JDK6 `javac -source 1.6 -target 1.6 ...JavaRngTrace.java`（0）；MinGW `g++ ...cpp_rng_trace.cpp`（0）；MinGW `g++ ...cpp_rng_boundary_check.cpp` + 执行（0）。Steam 启动/退出证据：`C:\Program Files (x86)\Steam\logs\gameprocess_log.txt`。本记录为待用户完成 Play with Mods 启动后继续的状态，不是路线 C GO/NO-GO。
+
+### 2026-10-19：隔离探针版本元数据修正（等待用户重新启动）
+
+- 用户截图中的 MTS 警告根因为探针 JAR 缺少根目录 `ModTheSpire.json`，并非游戏版本不兼容或 RNG 探针运行失败。证据：原探针归档仅有 `META-INF/MANIFEST.MF` 与 `rngprobe/LiveRngProbe.class`；MTS 3.30.3 字节码含 `ModInfo`、`ModVersion` 解析及缺少/无效版本告警；生产 JAR 与已订阅 Random Number Prediction Master 均在 JSON 提供 `version`、`sts_version`、`mts_version`。
+- 最小修正：新增实验专用 `tools/rng-capture-validation/ModTheSpire.json`，为隔离 JAR 打包元数据；README 补入可复现打包命令。JDK 6 编译退出 0；归档检查确认 metadata JSON 有效、包含 probe class、排除所有编译 stub；SHA-256 `8B906A22DD5015F1B32354EAA47923C6C7E271DD8E167790CB2321928D0F590A`。已将修正版部署为临时 `mods/CS1RngProbe.jar`，旧错误版备份至 `%TEMP%\CS1RngProbe.bad-version.jar`。正式 CombatSolver1 JAR、引擎、autosave、通知配置未修改。
+- 尚未验证 MTS 实际重新加载此元数据，也没有真实战斗采样。等待用户从 Steam 手动重新进入 Play with Mods；若启动成功且无版本警告，请进入现有/正常开局的 vanilla Ironclad 战斗，在动作队列稳定、玩家可操作时停下并回复。不得为测试修改存档。六流无推进、双端随机 trace、Sentry 实读、真实随机事件验证仍未完成；当前结论 BLOCKED，路线 C 技术结论待定。

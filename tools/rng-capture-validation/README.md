@@ -2,6 +2,24 @@
 
 This is isolated validation code; it is not part of the production mod or engine protocol.
 
+The live probe JAR must include `ModTheSpire.json` at the archive root. MTS 3.30.3 reads
+its `version`, `sts_version`, and `mts_version` fields during mod discovery; a class-only
+JAR can trigger the “missing or bad version number” warning before patch loading. The
+compile-only API stubs below are used to compile the probe and must not be packaged.
+
+```powershell
+$jdk = 'C:\Program Files\Java\jdk1.6.0_43\bin'
+$classes = Join-Path $env:TEMP 'cs1-rng-probe-classes'
+$jar = Join-Path $env:TEMP 'CS1RngProbe.jar'
+$sources = @(Get-ChildItem tools\rng-capture-validation\stubs -Recurse -File -Filter *.java | ForEach-Object FullName) + @((Resolve-Path tools\rng-capture-validation\LiveRngProbe.java).Path)
+New-Item -ItemType Directory -Force $classes | Out-Null
+& "$jdk\javac.exe" -source 1.6 -target 1.6 -d $classes $sources
+& "$jdk\jar.exe" cf $jar -C $classes rngprobe -C tools\rng-capture-validation ModTheSpire.json
+```
+
+Confirm `jar tf $jar` contains `ModTheSpire.json` and `rngprobe/LiveRngProbe.class`, but
+no `com/megacrit/` or `com/evacipated/` stub classes, before temporary deployment.
+
 `JavaRngTrace` and `cpp_rng_trace` take `seed0`, `seed1` (hex) and `counter` from a real
 STS1 runtime capture. Both initialize independent RNG instances and emit one TSV row per
 operation: operation name, value (float/double as raw IEEE bits), resulting state pair,

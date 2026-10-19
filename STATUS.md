@@ -907,3 +907,10 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - 使用同一真实快照逐流执行 Java 与 C++ trace：Java 8 游戏运行时与 `sts::Random` 对每流 18 次固定调用、共 108 行输出及每步 state/counter 完全一致，首次差异无（零差异）。边界回归重编译并运行通过：`RNG_RANGE_BOUNDARY_OK rejected=INT_MIN,-1,INT_MAX accepted=0,INT_MAX-1`。
 - 真实反射读出三只 Sentry，HP 39/42/43、beamDmg=10、dazedAmt=3、firstMove=false；静态 C++ 模型用 ascension 阈值得到 10/3，并按 encounter index 奇偶确定首招，与 vanilla Sentry 字节码的初始选择规则一致。但当前 probe 把 Java ArrayList moveHistory 当成数组，导致输出的空历史不可信；同时本行 `nextMove=-1` / `intent=DEBUG` 不能作为已初始化招式状态。因此不计 Sentry 完整映射通过。已修复隔离探针：按 Iterable 输出 moveHistory、记录列表 index，并等待 Sentry 招式和意图就绪；Java 6 编译与包检查通过，临时包已更新，SHA-256 `0F0433AD8C429A28ECF5E8FB9ED2C61A25ED445279B5F7967BC5AD0835A997A4`，需用户再次从 Steam 重启后才能采样。
 - 尚无真实随机游戏事件与副本预测的对照。报告 `tools/rng-capture-validation/RUNTIME_RESULT_2026-10-19.md`；本阶段为 **BLOCKED**，不是路线 C GO，也不是 RNG 算法 NO-GO。生产协议/求解器/安全门控/正式 JAR/引擎/玩家存档/通知均未改。
+
+### 2026-10-19：修正探针后完成 Sentry 实读（随机事件对照待定）
+
+- 用户安全重启 Play with Mods 后，修正版探针于 14:30:38 写出第二个真实样本。三只 Sentry 的 groupIndex 0/1/2、`nextMove` 与 `moveHistory` 为 3/4/3、意图为 DEBUFF/ATTACK/DEBUFF；`firstMove=false`、beamDmg=10、dazedAmt=3。STS1 Sentry 字节码及 C++ `MonsterSpecific.cpp` 的首次奇偶索引、后续招式和 ascension 阈值映射一致。第一份样本因探针把 ArrayList 当数组且状态仍 DEBUG 作废，不作结论。
+- 第二份真实样本六流均无推进；针对该样本重跑 6 组 Java8/C++ trace，每组 18 行、108 行全匹配，无首次差异。边界回归通过。详情见 runtime result 报告和 ignored `build/rng-capture-validation/` 日志。
+- 用户未触发可见随机结果，故“真实游戏随机事件与副本预测”尚未验证；此缺项为证据未取得，不代表算法失败。阶段仍标记 **BLOCKED**，不宣称路线 C GO。后续若不再开展本次随机事件测试，则应保留该限制并清理临时探针。正式 JAR SHA-256 仍为 `644E4F0E2457BBDC6A969B94302B317ED0904D91F761E590DFF0A27E1432EC7F`。
+- 已尝试清理临时 `mods/CS1RngProbe.jar`，但 Windows 报告该文件正被当前运行游戏占用；没有强制结束游戏。待游戏正常退出后再删除临时探针。正式 JAR 未被占用或修改，哈希仍为上列值。

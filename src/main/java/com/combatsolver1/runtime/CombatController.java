@@ -200,6 +200,7 @@ public class CombatController {
             if (room == null || room.phase != AbstractRoom.RoomPhase.COMBAT) {
                 return;
             }
+            overlay.setPausedState(paused);
             int uiAction = overlay.handleInput(!AbstractDungeon.isScreenUp);
             if (uiAction == OverlayRenderer.ACTION_RECALCULATE) {
                 recalculate();
@@ -231,7 +232,10 @@ public class CombatController {
             } else if (uiAction == OverlayRenderer.ACTION_EXPAND) {
                 overlay.setCollapsed(false);
             } else if (uiAction == OverlayRenderer.ACTION_PAUSE) {
-                if (!paused) {
+                if (paused) {
+                    recalculate();
+                    CombatLog.info("resumed from overlay stop: recalculation requested");
+                } else {
                     stopAndPause();
                 }
             } else if (uiAction == OverlayRenderer.ACTION_TOGGLE_ROUTE_EXPAND) {

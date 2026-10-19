@@ -74,6 +74,7 @@ public class OverlayRenderer {
     private Rect expandToggleRect;
     // View state only: reset page when the plan changes; settings visibility lasts this session.
     private boolean settingsOpen;
+    private boolean pausedStateForInput;
     private Rect settingsRect, previousPageRect, nextPageRect;
     private int routePage;
     private Plan displayedPlan;
@@ -82,7 +83,6 @@ public class OverlayRenderer {
     private static final float LINE_H = 29f;
 
     private final List<Rect> headerChips = new ArrayList<>();
-    private final List<Rect> buttons = new ArrayList<>();
     private Rect collapseRect;
     private Rect expandRect;
     private Rect resizeRect;
@@ -142,7 +142,6 @@ public class OverlayRenderer {
         float y = panelTop - HEADER_H * s;
         expandToggleRect = null;
         previousPageRect = nextPageRect = null;
-        buttons.clear();
         resizeRect = null;
         renderHeader(sb, model, t, s, left, y, right, bottom);
         if (!collapsed) {
@@ -463,8 +462,6 @@ public class OverlayRenderer {
 
     private void renderFooter(SpriteBatch sb, PanelModel model, Theme t, float s,
                               float left, float bottom, float right) {
-        buttons.clear();
-
         // 分隔线：内容区与操作区的明确视觉边界
         float dividerY = bottom + BTN_H * s + PAD * s + GAP * s / 2f;
         fillRect(sb, left + PAD * s, dividerY, right - left - PAD * s * 2f,
@@ -478,29 +475,25 @@ public class OverlayRenderer {
         float sideW = (totalW - gapSum - execW) / 3f;
         float bx = left + PAD * s;
 
-        Rect autoBtn = button(sb, "自动执行：" + (model.fullAuto ? "开" : "关"), bx, by, sideW,
+        button(sb, "自动执行：" + (model.fullAuto ? "开" : "关"), bx, by, sideW,
                 model.fullAuto, false, t, s);
-        buttons.add(autoBtn);
         bx += sideW + GAP * s;
 
-        Rect execBtn = button(sb, model.paused ? "执行（已暂停）" : "执行本回合", bx, by, execW,
+        button(sb, model.paused ? "执行（已暂停）" : "执行本回合", bx, by, execW,
                 model.executing, true, t, s);
-        buttons.add(execBtn);
         bx += execW + GAP * s;
 
         Rect recalcBtn;
         if (model.searching) {
             recalcBtn = button(sb, "停止搜索", bx, by, sideW, false, false, t, s);
         } else {
-            recalcBtn = button(sb, model.paused ? "继续搜索" : "重新计算", bx, by, sideW,
+            button(sb, model.paused ? "继续搜索" : "重新计算", bx, by, sideW,
                     false, false, t, s);
         }
-        buttons.add(recalcBtn);
         bx += sideW + GAP * s;
 
-        Rect pauseBtn = button(sb, model.paused ? "已停止" : "停止", bx, by, sideW,
-                model.paused, false, t, s);
-        buttons.add(pauseBtn);
+        button(sb, model.paused ? "继续" : "停止", bx, by, sideW,
+                false, false, t, s);
     }
 
     private void renderResizeGrip(SpriteBatch sb, Theme t, float s, float right, float bottom) {
@@ -630,6 +623,10 @@ public class OverlayRenderer {
         return action;
     }
 
+    public void setPausedState(boolean paused) {
+        pausedStateForInput = paused;
+    }
+
     private void beginTitleDrag(float mx, float my) {
         float s = Settings.scale;
         float headerBottom = panelTop - HEADER_H * s;
@@ -641,7 +638,7 @@ public class OverlayRenderer {
     }
 
     private boolean hitButton(float mx, float my) {
-        for (Rect r : buttons) {
+        for (Rect r : footerHitboxes()) {
             if (r.contains(mx, my)) {
                 return true;
             }
@@ -668,22 +665,41 @@ public class OverlayRenderer {
     }
 
     private int buttonAction(float mx, float my) {
-        for (int i = 0; i < buttons.size(); i++) {
-            if (buttons.get(i).contains(mx, my)) {
-                // 顺序即布局顺序：自动执行 / 执行 / 重新计算 / 暂停
-                if (i == 0) {
-                    return ACTION_TOGGLE_AUTO;
-                }
-                if (i == 1) {
-                    return ACTION_EXECUTE_TURN;
-                }
-                if (i == 2) {
-                    return ACTION_RECALCULATE;
-                }
-                return ACTION_PAUSE; // 暂停；已暂停时这个按钮不再触发（按钮文案显示已暂停）
-            }
+        Rect[] hits = footerHitboxes();
+        for (int i = 0; i < hits.length; i++) if (hits[i].contains(mx, my)) {
+            if (i == 3 && pausedStateForInput) return ACTION_RECALCULATE;
+            return footerAction(i);
         }
         return ACTION_NONE;
+    }
+
+    private int footerAction(int index) {
+        if (index == 0) return ACTION_TOGGLE_AUTO;
+        if (index == 1) return ACTION_EXECUTE_TURN;
+        if (index == 2) return ACTION_RECALCULATE;
+        return ACTION_PAUSE;
+    }
+
+    /** Build click regions from the same current layout used for drawing, independent of render order. */
+    private Rect[] footerHitboxes() {
+        float s = Settings.scale;
+        float left = panelX;
+        float right = left + panelW * s;
+        float bottom = panelTop - panelH * s;
+        float yTop = bottom + PAD * s + BTN_H * s;
+        float totalW = right - left - PAD * s * 2f;
+        float gap = GAP * s;
+        float execW = (totalW - gap * 3f) * 0.32f;
+        float sideW = (totalW - gap * 3f - execW) / 3f;
+        float x = left + PAD * s;
+        Rect auto = new Rect(x, yTop, sideW, BTN_H * s);
+        x += sideW + gap;
+        Rect execute = new Rect(x, yTop, execW, BTN_H * s);
+        x += execW + gap;
+        Rect recalculate = new Rect(x, yTop, sideW, BTN_H * s);
+        x += sideW + gap;
+        Rect pause = new Rect(x, yTop, sideW, BTN_H * s);
+        return new Rect[]{auto, execute, recalculate, pause};
     }
 
     private int chipAction(float mx, float my) {

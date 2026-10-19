@@ -10,6 +10,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 /** One-shot, read-only runtime probe. It never invokes an RNG draw method. */
 @SpirePatch(clz = AbstractDungeon.class, method = "update")
@@ -19,6 +20,7 @@ public final class LiveRngProbe {
             "aiRng", "cardRandomRng", "miscRng", "monsterHpRng", "potionRng", "shuffleRng"
     };
     private static boolean captured;
+    private static long lastAttemptMillis;
 
     private static Field field(Class<?> type, String name) throws Exception {
         for (Class<?> c = type; c != null; c = c.getSuperclass()) {
@@ -79,17 +81,30 @@ public final class LiveRngProbe {
         Object members = value(group, "monsters");
         if (!(members instanceof ArrayList)) return "monsters=unavailable";
         StringBuilder out = new StringBuilder("monsters=");
+        int groupIndex = 0;
         for (Object monster : (ArrayList<?>) members) {
-            if (monster == null) continue;
+            if (monster == null) {
+                groupIndex++;
+                continue;
+            }
             String id = String.valueOf(value(monster, "id"));
             if (out.charAt(out.length() - 1) != '=') out.append(';');
-            out.append(id).append("{hp=").append(value(monster, "currentHealth"))
+            out.append(id).append("{groupIndex=").append(groupIndex)
+                    .append(",hp=").append(value(monster, "currentHealth"))
                     .append(",block=").append(value(monster, "currentBlock"))
                     .append(",nextMove=").append(value(monster, "nextMove"))
                     .append(",intent=").append(value(monster, "intent"));
             Object history = value(monster, "moveHistory");
             out.append(",moveHistory=[");
-            if (history != null && history.getClass().isArray()) {
+            if (history instanceof Iterable) {
+                Iterator<?> iterator = ((Iterable<?>) history).iterator();
+                boolean first = true;
+                while (iterator.hasNext()) {
+                    if (!first) out.append(',');
+                    out.append(iterator.next());
+                    first = false;
+                }
+            } else if (history != null && history.getClass().isArray()) {
                 for (int i = 0; i < Array.getLength(history); i++) {
                     if (i > 0) out.append(',');
                     out.append(Array.get(history, i));
@@ -106,15 +121,40 @@ public final class LiveRngProbe {
                 }
             }
             out.append('}');
+            groupIndex++;
         }
         return out.toString();
     }
 
+    private static boolean sentryMovesReady() throws Exception {
+        Class<?> dungeon = Class.forName("com.megacrit.cardcrawl.dungeons.AbstractDungeon");
+        Object group = dungeon.getMethod("getMonsters").invoke(null);
+        if (group == null) return false;
+        Object members = value(group, "monsters");
+        if (!(members instanceof Iterable)) return false;
+        boolean foundSentry = false;
+        for (Object monster : (Iterable<?>) members) {
+            if (monster == null) continue;
+            String id = String.valueOf(value(monster, "id"));
+            if (!id.toLowerCase().contains("sentry")) continue;
+            foundSentry = true;
+            Object nextMove = value(monster, "nextMove");
+            Object intent = value(monster, "intent");
+            if (!(nextMove instanceof Number) || ((Number) nextMove).intValue() == -1
+                    || "DEBUG".equals(String.valueOf(intent))) return false;
+        }
+        return foundSentry;
+    }
+
     private static void capture() throws Exception {
+        long now = System.currentTimeMillis();
+        if (now - lastAttemptMillis < 250L) return;
+        lastAttemptMillis = now;
         Class<?> dungeon = Class.forName("com.megacrit.cardcrawl.dungeons.AbstractDungeon");
         if (staticField(dungeon, "player") == null) return;
         String stable = queuesAreStable();
         if (stable == null) return;
+        if (!sentryMovesReady()) return;
         Object[] rngs = new Object[RNG_FIELDS.length];
         long[][] before = new long[RNG_FIELDS.length][];
         for (int i = 0; i < RNG_FIELDS.length; i++) {
@@ -136,7 +176,7 @@ public final class LiveRngProbe {
         if (!parent.isDirectory() && !parent.mkdirs()) throw new IllegalStateException("cannot create probe output folder");
         FileWriter writer = new FileWriter(output, true);
         try {
-            writer.write("sample=" + System.currentTimeMillis() + "\tstable=" + stable
+            writer.write("sample=" + now + "\tstable=" + stable
                     + "\treadOnlyUnchanged=" + unchanged + "\t" + monsters + "\n");
             for (int i = 0; i < RNG_FIELDS.length; i++) {
                 writer.write("rng=" + RNG_FIELDS[i] + "\tidentity="

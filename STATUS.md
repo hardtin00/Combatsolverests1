@@ -900,3 +900,10 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - 用户截图中的 MTS 警告根因为探针 JAR 缺少根目录 `ModTheSpire.json`，并非游戏版本不兼容或 RNG 探针运行失败。证据：原探针归档仅有 `META-INF/MANIFEST.MF` 与 `rngprobe/LiveRngProbe.class`；MTS 3.30.3 字节码含 `ModInfo`、`ModVersion` 解析及缺少/无效版本告警；生产 JAR 与已订阅 Random Number Prediction Master 均在 JSON 提供 `version`、`sts_version`、`mts_version`。
 - 最小修正：新增实验专用 `tools/rng-capture-validation/ModTheSpire.json`，为隔离 JAR 打包元数据；README 补入可复现打包命令。JDK 6 编译退出 0；归档检查确认 metadata JSON 有效、包含 probe class、排除所有编译 stub；SHA-256 `8B906A22DD5015F1B32354EAA47923C6C7E271DD8E167790CB2321928D0F590A`。已将修正版部署为临时 `mods/CS1RngProbe.jar`，旧错误版备份至 `%TEMP%\CS1RngProbe.bad-version.jar`。正式 CombatSolver1 JAR、引擎、autosave、通知配置未修改。
 - 尚未验证 MTS 实际重新加载此元数据，也没有真实战斗采样。等待用户从 Steam 手动重新进入 Play with Mods；若启动成功且无版本警告，请进入现有/正常开局的 vanilla Ironclad 战斗，在动作队列稳定、玩家可操作时停下并回复。不得为测试修改存档。六流无推进、双端随机 trace、Sentry 实读、真实随机事件验证仍未完成；当前结论 BLOCKED，路线 C 技术结论待定。
+
+### 2026-10-19：首轮真实 RNG 捕获与双端 trace（Sentry 映射待复测）
+
+- 用户从 Steam 启动后已进入稳定 Ironclad 战斗，隔离探针成功输出真实运行快照。状态边界为 COMBAT、玩家回合、currentAction=null，actions/cardQueue/monsterQueue 均为空。六流 aiRng/cardRandomRng/miscRng/monsterHpRng/potionRng/shuffleRng 的 seed0/seed1/counter 在读取前后全部相同，六个对象身份不同；这是本次实机无推进证据。未经脱敏的 RNG 值只保留在被忽略的 `build/rng-capture-validation/live-capture.tsv`。
+- 使用同一真实快照逐流执行 Java 与 C++ trace：Java 8 游戏运行时与 `sts::Random` 对每流 18 次固定调用、共 108 行输出及每步 state/counter 完全一致，首次差异无（零差异）。边界回归重编译并运行通过：`RNG_RANGE_BOUNDARY_OK rejected=INT_MIN,-1,INT_MAX accepted=0,INT_MAX-1`。
+- 真实反射读出三只 Sentry，HP 39/42/43、beamDmg=10、dazedAmt=3、firstMove=false；静态 C++ 模型用 ascension 阈值得到 10/3，并按 encounter index 奇偶确定首招，与 vanilla Sentry 字节码的初始选择规则一致。但当前 probe 把 Java ArrayList moveHistory 当成数组，导致输出的空历史不可信；同时本行 `nextMove=-1` / `intent=DEBUG` 不能作为已初始化招式状态。因此不计 Sentry 完整映射通过。已修复隔离探针：按 Iterable 输出 moveHistory、记录列表 index，并等待 Sentry 招式和意图就绪；Java 6 编译与包检查通过，临时包已更新，SHA-256 `0F0433AD8C429A28ECF5E8FB9ED2C61A25ED445279B5F7967BC5AD0835A997A4`，需用户再次从 Steam 重启后才能采样。
+- 尚无真实随机游戏事件与副本预测的对照。报告 `tools/rng-capture-validation/RUNTIME_RESULT_2026-10-19.md`；本阶段为 **BLOCKED**，不是路线 C GO，也不是 RNG 算法 NO-GO。生产协议/求解器/安全门控/正式 JAR/引擎/玩家存档/通知均未改。

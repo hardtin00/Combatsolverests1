@@ -29,6 +29,7 @@ jobs:
           javac -encoding UTF-8 -d build/solvertest \
             src/main/java/com/combatsolver1/engine/*.java \
             src/main/java/com/combatsolver1/search/*.java \
+            src/main/java/com/combatsolver1/settings/SolverSettings.java \
             tools/solvertest/*.java
 
       - name: 运行全部离线自检

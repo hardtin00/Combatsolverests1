@@ -1,0 +1,72 @@
+{
+  "test_only": "OFFLINE_FIXTURE_NOT_REAL_GAME_STATE",
+  "protocol": "live_battle_state",
+  "version": 1,
+  "character": "IRONCLAD",
+  "capture_id": "12345678-1234-4234-9234-123456789abc",
+  "act": 1,
+  "stage": "PLAYER_NORMAL",
+  "queues_empty": true,
+  "action_queue_size": 0,
+  "card_queue_size": 0,
+  "seed": 123456789,
+  "floor": 7,
+  "ascension": 0,
+  "turn": 1,
+  "encounter": "THREE_SENTRIES",
+  "room_context": {
+    "kind": "MAP_MONSTER",
+    "class": "com.megacrit.cardcrawl.rooms.MonsterRoomElite",
+    "elite_trigger": true,
+    "event_class": null,
+    "event_encounter": null,
+    "event_enemy_index": null
+  },
+  "player": {
+    "hp": 70,
+    "max_hp": 80,
+    "block": 0,
+    "energy": 3,
+    "energy_per_turn": 3,
+    "card_draw_per_turn": 5,
+    "gold": 48,
+    "orb_slots": 0,
+    "last_targeted_monster": 1,
+    "strength": 0,
+    "dexterity": 0,
+    "focus": 0,
+    "artifact": 0,
+    "stance": "NEUTRAL",
+      "statuses": [{"id":"DOUBLE_DAMAGE","amount":2,"just_applied":true},{"id":"DRAW_REDUCTION","amount":1,"just_applied":true},{"id":"FRAIL","amount":2,"just_applied":false},{"id":"INTANGIBLE","amount":1},{"id":"VULNERABLE","amount":3,"just_applied":true},{"id":"WEAK","amount":1,"just_applied":false}],
+    "counters": {"necronomicon_used":false,"combust_hp_loss":0,"deva_energy":0,"echo_doubled":0,"panache":0,"cards_played":0,"attacks_played":0,"skills_played":0,"orange_pellets":[false,false,false],"cards_discarded":0,"last_attack_unblocked":0,"times_damaged":0,"bomb1":0,"bomb2":0,"bomb3":0}
+  },
+  "rng": {
+    "ai": {"stream_id":"aiRng","seed0": "0000000000000001", "seed1": "0000000000000002", "counter": 0},
+    "card": {"stream_id":"cardRandomRng","seed0": "0000000000000003", "seed1": "0000000000000004", "counter": 0},
+    "misc": {"stream_id":"miscRng","seed0": "0000000000000005", "seed1": "0000000000000006", "counter": 0},
+    "monster_hp": {"stream_id":"monsterHpRng","seed0": "0000000000000007", "seed1": "0000000000000008", "counter": 0},
+    "potion": {"stream_id":"potionRng","seed0": "0000000000000009", "seed1": "000000000000000a", "counter": 0},
+    "shuffle": {"stream_id":"shuffleRng","seed0": "000000000000000b", "seed1": "000000000000000c", "counter": 0}
+  },
+  "piles": {
+    "hand": [{"uuid":"00000000-0000-0000-0000-000000000001", "id":"STRIKE_RED", "special_data":0, "cost":1, "cost_for_turn":1, "upgraded":false, "upgrade_count":0, "free_to_play_once":false, "retain":false}],
+    "draw": [{"uuid":"00000000-0000-0000-0000-000000000002", "id":"BASH", "special_data":0, "cost":2, "cost_for_turn":1, "upgraded":true, "upgrade_count":1, "free_to_play_once":false, "retain":false}],
+    "discard": [{"uuid":"00000000-0000-0000-0000-000000000003", "id":"RITUAL_DAGGER", "special_data":7, "cost":1, "cost_for_turn":1, "upgraded":true, "upgrade_count":1, "free_to_play_once":false, "retain":false}],
+    "exhaust": [{"uuid":"00000000-0000-0000-0000-000000000004", "id":"DEFEND_RED", "special_data":0, "cost":1, "cost_for_turn":1, "upgraded":false, "upgrade_count":0, "free_to_play_once":false, "retain":false}],
+    "limbo": [], "stasis": []
+  },
+  "card_counters": {"hand_normality":0,"hand_pain":0,"strikes_in_combat":1,"hand_blood":0,"draw_blood":0,"discard_blood":0},
+  "relics": [{"id":"BURNING_BLOOD"},{"id":"HAPPY_FLOWER"}],
+  "relic_counters": [{"id":"HAPPY_FLOWER","value":2}],
+  "potions": [{"id":"Fire Potion"},{"id":"Potion Slot"},{"id":"Potion Slot"}],
+  "monsters": [
+    {"slot":0,"id":"SENTRY","hp":39,"max_hp":39,"block":0,"escaping":false,"half_dead":false,"escape_next":false,"move_history":["SENTRY_BEAM","INVALID"],"statuses":[{"id":"WEAK","amount":1,"just_applied":true}],"unique_power0":0,"unique_power1":0,"misc_info":0,"beam_damage":9,"dazed_amount":2,"first_move":false},
+    {"slot":1,"id":"SENTRY","hp":42,"max_hp":42,"block":0,"escaping":false,"half_dead":false,"escape_next":false,"move_history":["SENTRY_BOLT","INVALID"],"statuses":[],"unique_power0":0,"unique_power1":0,"misc_info":0,"beam_damage":9,"dazed_amount":2,"first_move":false},
+    {"slot":2,"id":"SENTRY","hp":43,"max_hp":43,"block":0,"escaping":false,"half_dead":false,"escape_next":false,"move_history":["SENTRY_BEAM","INVALID"],"statuses":[],"unique_power0":0,"unique_power1":0,"misc_info":0,"beam_damage":9,"dazed_amount":2,"first_move":false}
+  ],
+  "monster_group": {"extra_roll":[false,false,false],"skip_turn":[false,false,false]},
+  "battle_over": false,
+  "end_turn_queued": false,
+  "turn_has_ended": false,
+  "skip_monster_turn": false
+}

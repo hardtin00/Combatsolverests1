@@ -23,6 +23,7 @@ void BattleContext::init(const GameContext &gc, MonsterEncounter encounterToInit
     undefinedBehaviorEvoked = false;
     haveUsedDiscoveryAction = false;
     seed = gc.seed;
+    act = gc.act;
     floorNum = gc.floorNum;
     encounter = encounterToInit;
 
@@ -932,6 +933,8 @@ void BattleContext::useNoTriggerCard() {
             break;
 
         case CardId::DOUBT:
+            // Vanilla ApplyPowerAction.stackPower adds to an existing WeakPower
+            // without changing its justApplied bit.
             player.debuff<PS::WEAK>(1, true);
             break;
 
@@ -940,7 +943,6 @@ void BattleContext::useNoTriggerCard() {
             break;
 
         case CardId::SHAME:
-            // todo this is fixed just test -> this and doubt are bugged if you are already weak i think. because the apply power action does not create a new power and justapplied is not set to true
             player.debuff<PS::FRAIL>(1, true);
             break;
 

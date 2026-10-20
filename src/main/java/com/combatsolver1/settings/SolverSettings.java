@@ -57,24 +57,27 @@ public class SolverSettings {
         // 墙钟时间预算：预设越深给得越宽；"自定义"不限时，只受节点/回合预算约束
         long[] timeBudgets = {3000L, 8000L, 20000L, 45000L, 0L};
         cfg.timeBudgetMs = timeBudgets[Math.max(0, Math.min(timeBudgets.length - 1, preset))];
+        // 宽度取值来自离线基准的宽度网格与深度成本探测（build/p2-sweep.txt、build/p2-wide.txt）：
+        // 2 回合预算下 within=32/beam=24 可让 12 个场景全部与可穷举参照同分；10 回合预算下该组合
+        // 单场耗时 8-91ms，远低于 8000ms 墙钟。maxNodes 同步上调，避免节点上限先于墙钟截断深度。
         switch (preset) {
             case 0:
-                cfg.beamWidth = 3;
-                cfg.withinTurnWidth = 4;
+                cfg.beamWidth = 8;
+                cfg.withinTurnWidth = 12;
                 cfg.maxTurns = 4;
-                cfg.maxNodes = 1200;
+                cfg.maxNodes = 4000;
                 break;
             case 2:
-                cfg.beamWidth = 14;
-                cfg.withinTurnWidth = 16;
+                cfg.beamWidth = 32;
+                cfg.withinTurnWidth = 48;
                 cfg.maxTurns = 12;
-                cfg.maxNodes = 24000;
+                cfg.maxNodes = 150000;
                 break;
             case 3:
-                cfg.beamWidth = 20;
-                cfg.withinTurnWidth = 20;
+                cfg.beamWidth = 48;
+                cfg.withinTurnWidth = 64;
                 cfg.maxTurns = 14;
-                cfg.maxNodes = 60000;
+                cfg.maxNodes = 400000;
                 break;
             case 4:
                 cfg.beamWidth = customBeamWidth;
@@ -83,10 +86,10 @@ public class SolverSettings {
                 cfg.maxNodes = customMaxNodes;
                 break;
             default:
-                cfg.beamWidth = 8;
-                cfg.withinTurnWidth = 12;
+                cfg.beamWidth = 24;
+                cfg.withinTurnWidth = 32;
                 cfg.maxTurns = 10;
-                cfg.maxNodes = 8000;
+                cfg.maxNodes = 60000;
                 break;
         }
     }

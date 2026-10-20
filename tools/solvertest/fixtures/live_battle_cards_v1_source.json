@@ -1,0 +1,19 @@
+{
+  "test_only": "OFFLINE_CARD_SOURCE_FIXTURE_NOT_REAL_GAME_STATE",
+  "card_counters": {"hand_normality":0,"hand_pain":0,"strikes_in_combat":2,"hand_blood":0,"draw_blood":0,"discard_blood":0},
+  "hand": [
+    {"uuid":"10000000-0000-0000-0000-000000000001","card_id":"Strike_R","upgrades":0,"cost":1,"cost_for_turn":1,"misc":0,"free_to_play_once":false,"retain":false,"ethereal":false},
+    {"uuid":"10000000-0000-0000-0000-000000000002","card_id":"Strike_R","upgrades":0,"cost":1,"cost_for_turn":1,"misc":0,"free_to_play_once":false,"retain":false,"ethereal":false},
+    {"uuid":"10000000-0000-0000-0000-000000000003","card_id":"True Grit","upgrades":1,"cost":1,"cost_for_turn":1,"misc":0,"free_to_play_once":false,"retain":false,"ethereal":false}
+  ],
+  "draw": [
+    {"uuid":"20000000-0000-0000-0000-000000000001","card_id":"Bash","upgrades":1,"cost":2,"cost_for_turn":1,"misc":0,"free_to_play_once":false,"retain":false,"ethereal":false}
+  ],
+  "discard": [
+    {"uuid":"30000000-0000-0000-0000-000000000001","card_id":"RitualDagger","upgrades":1,"cost":1,"cost_for_turn":1,"misc":7,"free_to_play_once":false,"retain":false,"ethereal":false}
+  ],
+  "exhaust": [
+    {"uuid":"40000000-0000-0000-0000-000000000001","card_id":"Defend_R","upgrades":0,"cost":1,"cost_for_turn":1,"misc":0,"free_to_play_once":false,"retain":false,"ethereal":false},
+    {"uuid":"40000000-0000-0000-0000-000000000002","card_id":"Searing Blow","upgrades":1,"cost":2,"cost_for_turn":2,"misc":0,"free_to_play_once":false,"retain":false,"ethereal":false}
+  ]
+}

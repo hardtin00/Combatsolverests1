@@ -22,9 +22,8 @@
 #include <constants/Relics.h>
 #include <constants/PlayerStatusEffects.h>
 
-// powers that use justApplied:
-// Vulnerable, requires isSourceMonster and actionManager turn has ended
-// Frail, requires isSourceMonster
+// End-of-round timing uses justApplied for Weak, Frail, Vulnerable, and
+// Double Damage. Draw Reduction consumes it at the next-turn draw boundary.
 
 namespace sts {
 

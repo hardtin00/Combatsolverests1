@@ -1,3 +1,38 @@
+## 2026-10-20：主工作区成果整合与统一离线复验
+
+- 整合主工作区实时状态协议/采集诊断、C++ 恢复差分、搜索质量基准与终局选择修正，以及卡牌 Worktree 的 Cleave/Bludgeon 映射、导入准入、效果回归和批次文档。保留主工作区状态记录；未纳入 `sendToDevs/`、构建产物、JAR、存档或临时运行材料。
+- 当前 MinGW g++ + Ninja Release 构建退出 0；引擎 `build/engine-mingw-unified-release/combatsolver1-engine.exe`，SHA-256 `C74E62F13A9612960C374AB89E23B8EA02CCAF82190EB96D55E6EFCDEB207A61`。配置与完整构建日志位于 `build/engine-mingw-unified-release/verification/unified-20261020/`。
+- 卡牌 Java→C++ 互操作退出 0：Java 8 class major 52、16/16 卡牌实例匹配、149 路径中 148 MATCH/0 MISMATCH/0 UNAVAILABLE/1 NOT_APPLICABLE；Cleave/Bludgeon 效果回归 4/4。共享协议专项及 Shrug 非法 `special_data` 拒绝测试退出 0。
+- Windows PowerShell 5.1 下 `tools/solvertest/run.ps1 -Command all` 退出 0。运行器增加 UTF-8 BOM 与 javac 原生 stderr 的正确退出码处理。历史 recordings 仍显示既有诊断差异，不能据此宣称实战字段差分通过。最终 `git diff --check` 退出 0（`build/engine-mingw-unified-release/verification/unified-20261020/12-git-diff-check-final.log`）；JBR 21 `SearchQuality --selftest` 60 项通过、0 失败。
+- 证据等级为 L2 离线；本轮没有启动游戏、部署 JAR 或修改存档。Cleave/Bludgeon 和实时快照恢复仍未完成新的 L3/L4 实机验收。批次细节见 `docs/IRONCLAD_CARD_BATCH_1_REPORT.md` 与 manifest。
+
+## 2026-10-20：修复收束口径 finish() 交出死亡路线（P1，用户单独授权）
+
+- 现象/目标：上一轮基准在 Q9「生存下限」报告 beam 交出死亡路线、而同深度存在存活路线，即向玩家虚报必败。本轮只修 `CombatSearch.finish()` 的收束比较，不动宽度截断、评分权重、执行链路或 UI。
+- 实际修改：`src/main/java/com/combatsolver1/search/CombatSearch.java:160-174`——旧实现只要 `best`（搜索期间捕获的任一终局分支）非空就无条件采用；改为把终局分支与预算耗尽时的存活叶子放进同一集合，按同一个 `evaluate` 分数取优。确认胜利（+1000000 级）仍优先于任何叶子，死亡（-1000000 级）低于任何存活叶子。
+- 回归断言：`tools/solvertest/Checks.java:732-780` 新增两条（1 回合预算 8/12 宽度、2 回合预算 48/48 宽度），场景复用 `SearchQuality.corneredCase()` 这一唯一定义（基准与自检不再各写一份），另加「可斩杀时仍优先交出获胜路线」的反向对照防回归。
+- 修复前失败证明：把同一套测试与还原为旧 `finish()` 的源码副本一起编译运行，`Solvertest search` 退出 1、恰好这 2 条失败（旧结果 endHp=-4 / score=-1000018 与 endHp=-2 / score=-1000016），反向对照通过；修复后同命令退出 0。证据 `build/p1-unpatched.txt`、`build/p1-final-all.txt`。
+- 修复后验证（L2 离线，全部实际执行）：`Solvertest search` 退出 0；`Solvertest all` 退出 0，通过 125 项、失败 0，输出含「全部自检通过」；`SearchQuality --selftest` 退出 0（参照求解器 60 项通过、0 失败）。终端为 GBK 时中文乱码，故统计一律按 GBK 解码 `cmd /c ... > 文件` 的原始输出，不靠肉眼判断。完整 Mod 构建、游戏内运行、真实战斗验证均未执行（L3/L4 无）。
+- 纠正上一轮结论（同一轮证据推翻旧归因）：上一轮记为「TERMINAL_PICK + RESIDUAL」，并把 finish() 描述成「不与同深度存活叶子比较」。实测表明：默认宽度 8/12 下修复后 beam 仍交出死亡路线，因为 -11373 的存活叶子被 `withinTurnWidth`/`beamWidth` 剪掉、根本没进最终集合；48/48 下修复后才交出存活路线。因此 finish() 缺陷真实存在且已修（由上面两条断言钉死），但 Q9 在玩家默认宽度下的表现由**宽度剪枝**决定，不是收束比较。基准标签已从误导性的 TERMINAL_PICK 改为 DEAD_OUT 症状描述，并注明「同深度已无存活候选可取时属宽度剪枝」。
+- 修复后基准（`build/p1b-search-quality.txt`，preset「中」不变）：PROVABLE 层级仍 12/12 EXACT、漏优 4、漏优率 33.3%（Q3、Q8、Q9、Q12，归因全为 WITHIN / BEAM / BEAM+WITHIN）；BUDGET 层级参照 EXACT 1 / CAPPED 11、漏优 0；参照已找到可达必胜路线而 beam 未报胜仍为 2 个（Q7 药水时机、Q8 长线）。本轮改动只影响终局/叶子的取优，不改变回合预算内的剪枝宽度，故 PROVABLE 层级漏优率不变符合预期。
+- 待办（本轮未动，等授权）：P1 宽度截断——放宽 withinTurnWidth/beamWidth 即可消除全部 4 个 PROVABLE 漏优，代价是每节点耗时上升，需要与墙钟预算一起调；P1 跨回合存活叶子的宽度剪枝导致 Q9 默认设置仍报必败；P2 Q11 在深度 10 的漏优无法归因（放宽任一层后参照穷举不完，需更大参照预算或迭代加深）。
+- 剩余风险：`measureRobustness` 仍按 cardId 在重放时找牌，本轮未改；收束比较改动会影响「搜索见过死亡分支后仍报告存活叶子」的展示口径，玩家可能看到「预测扣血但不确定能否打赢」的路线（诚实且分数更优，属预期变化）。
+- 用户验收：待确认。未提交、未推送；本轮删除了自己生成的临时副本目录 `build/oldfinish`、`build/probe`，未触碰工作区既有未提交改动。
+
+## 2026-10-20：P0 搜索质量基准（可穷举参照 + 固定题库 + 漏优率）
+
+- 现象/目标：此前无法客观判断内置 Beam Search 是否错过更优合法路线。本轮只建立测量底座，不改搜索算法、不改运行时行为。
+- 新增文件（离线工具，不进 Mod）：`tools/solvertest/Oracle.java`（同模型可穷举参照求解器）、`tools/solvertest/SearchQuality.java`（12 场景固定题库 + 漏优率 + 截断归因）。`tools/solvertest/run.ps1` 自动纳入 `tools/solvertest/*.java`，未改构建脚本与任何 `src/main/java` 文件。
+- 口径：双方共用 `CombatEngine` 结算与 `CombatSearch.evaluate` 打分；合法动作集合、12 步回合上限、药水 spec 门槛、叶子选取规则（终局 ∪ 恰好用满回合预算）全部同构。参照候选集 C(h) 的最大值即 beam 用满 h 时不可能超越的上界。判定按 beam 实际展开深度 d 取 C(d)，避免把“预算没用完”当成搜索缺陷。
+- 参照求解器自检：A1 跨回合记忆化不改变结果、A2 回合内去重与暴力按序枚举得到同一状态集合、B beam 在宽预算下不超过参照、C 可复现、D beam 路线可原样重放且终局一致。命令 `java -cp build\solvertest SearchQuality --selftest`，结果 60 项通过、0 失败（证据 `build/p0-selftest.txt`）。
+- 基准结果（`build/p0-search-quality.txt`，preset「中」beamWidth=8 withinTurnWidth=12 maxTurns=10 maxNodes=8000 timeBudgetMs=8000，Java 21 JBR）：PROVABLE 层级（回合预算 2）12/12 参照 EXACT，漏优 4 个，**漏优率 33.3%**；BUDGET 层级（回合预算 10）参照 EXACT 仅 2 / CAPPED 10，EXACT 子集漏优 1（50.0%）；参照已找到可达必胜路线而 beam 未给出获胜预测 2 个（Q7 药水、Q8 长线）。
+- 归因：Q3-防御时机、Q12-易伤链 = WITHIN（回合内 `turnScore` 排序截断到 withinTurnWidth）；Q8-长线消耗 = BEAM（跨回合 beamWidth 截断）；Q9-生存下限 = TERMINAL_PICK + RESIDUAL；Q11 在深度 10 下各放宽均使参照穷举不完，如实记为「无法归因」。
+- 记录但未修改的缺陷：`CombatSearch.finish()`（src/main/java/com/combatsolver1/search/CombatSearch.java:160-172）只要搜索期间出现过任一终局分支（含玩家死亡，分 -1000000-hpLoss）就无条件采用它，不与同深度存活叶子比较；Q9 中它交出死亡路线（-1000016）而可穷举参照给出存活路线（-11373）。该缺陷会导致“本可存活却报告必败”，属 P1「搜索明显漏掉可验证的优质路线」，等用户单独授权后再修，本轮未改。
+- 证据等级：L2（离线）。实际命令与退出状态：`powershell -ExecutionPolicy Bypass -File tools/solvertest/run.ps1 -Command search` 编译并跑通既有自检（外层 exit 1 仅因 PowerShell 把 javac 的 unchecked 提示写入 stderr，内部自检输出「全部自检通过」）；`java -cp build\solvertest SearchQuality` 退出码 2（含义：存在漏优，参照自检 0 失败）；`--selftest` 退出码 0。终端为 GBK 显示乱码，报告文件本身为 UTF-8。
+- 未执行：完整 Mod 构建、游戏内运行、任何真实战斗验证（L3/L4 均无）。合成场景不是实机记录；模拟器 RNG 非 STS1 真实 RNG，需要玩家选择的牌（军备、燃烧契约、双持、头槌、战吼、掘墓、浩劫、地狱之刃、发现）由引擎启发式代选，这些牌已从题库排除，但仍是全局模型的既有限制。
+- 剩余限制：本基准测的是「该模拟器 + 该目标函数 + 该回合预算」内的相对搜索质量，不是现实游戏的全局最优；BUDGET 层级参照多为 CAPPED，其「未漏优」不构成最优证明；题库 12 个场景规模偏小，参照在 10 回合预算下算力不足（触顶 300000 状态 / 12000ms）。基准运行总耗时约 5–6 分钟，尚未纳入默认 `all` 命令，需按需单独调用。
+- 用户验收：待确认（本轮未提交、未推送；工作区既有未提交改动未触碰）。
+
 ## 2026-10-18：消耗触发的终局黑暗之拥门控
 
 - 本轮审计 `BattleContext::triggerAndMoveToExhaustPile`、`Actions::FiendFireAction`、`Actions::SecondWindAction`、True Grit/Burning Pact/Exhume 分支及动作队列。原版依据为本机 `desktop-1.0.jar` 字节码：`DarkEmbracePower.onExhaust(AbstractCard)` 只在 `MonsterGroup.areMonstersBasicallyDead()` 为 false 时排抽牌；`FeelNoPainPower.onExhaust` 每次都排格挡；原版 `BlockPerNonAttackAction` 对 Second Wind 按非攻击牌逐张排格挡与消耗。STS1 当前代码因此确认存在一项实际差异：C++ 消耗共享入口不检查战斗是否已无存活怪，终局动作链仍可将 Dark Embrace 抽牌排入队列。
@@ -930,3 +965,213 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - 隔离新增 `TrueGritSelectionProbe`，仅在上述 hand、RNG、ExhaustAction 三项同时匹配时，于 `getRandomCard` 入口读取六流和候选实例顺序，返回后记录选择实例及六流状态。没有调用原生 RNG、改返回值或修改战斗状态。增加 Java/C++ 单次有界调用 trace；未接入生产代码。
 - 离线构建：JDK 6 `javac -proc:none -source 1.6 -target 1.6` 编译隔离探针和 Java trace、`jar cf` 打包且排除编译 stub、MinGW `g++ -std=c++17 -O0` 编译事件 trace 均退出 0。首次遗漏 `-proc:none` 时 JDK 6 因 Java 8 注解处理器 major 52 编译失败，禁用 annotation processing 后通过。旧快照单次 trace 的 Java/C++ 匹配不构成事件级验证。
 - 上一场事件已在第 3 回合结束且旧探针已随游戏正常退出后移除；当前无同一事件可采样。新事件级 JAR 未部署，没有本次事件入口/出口记录、实际实例与副本选择对照。保留六流无推进、108/108 trace、Sentry既有证据；最小真实随机事件预测结论 **BLOCKED**，非算法失败。报告见 `tools/rng-capture-validation/RUNTIME_RESULT_2026-10-19.md`。生产协议、求解器、安全门控、正式 JAR、引擎、存档与通知配置未改；`sendToDevs/` 保留。
+
+### 2026-10-19：路线 C 第一阶段状态恢复入口原型（未验收）
+
+- 新增 `docs/LIVE_BATTLE_STATE_V1.md`，记录来源→引擎字段、UUID 与引擎牌号分离、稳定操作边界及未知状态拒绝约束。根据现有源码把第一轮 C++ 原型严格限制为已验证的三只 Sentry vanilla Ironclad 遭遇；不支持其他遭遇时拒绝，不调用 `GameContext::initFromSave` 或 `BattleContext::init`。
+- 新增 `vendor/sts_lightspeed/apps/live_battle_state.h` 与 `mcts_state <json>` 入口。解析版本、职业、阶段/队列、六 RNG 状态和不重复流身份、玩家/牌堆/UUID、遗物/药水、Sentry AI 私有字段、怪物招式/历史与计数器，并直接赋值创建 `BattleContext`。旧 `mcts_save`、`replay_search`、`replay_trace` 分支未改；协议命令说明仍保留版本 2 并追加新命令。
+- 新增合成解析 fixture `tools/solvertest/fixtures/live_battle_state_v1_sentry.json` 及 `tools/solvertest/live-state-v1-check.ps1`。验证有效 fixture 输出 `STATE0 hp=70 max=80 blk=0 en=3 turn=1`，执行中阶段以退出码 3 安全拒绝；这是 L2 parser 验证，fixture 是合成数据，不是实机证据。
+- 构建命令 `tools/build/build-engine.ps1`（显式使用 VS CMake/Ninja 和本机 MinGW 路径）退出 0；`tools/solvertest/live-state-v1-check.ps1` 通过。`tools/solvertest/run.ps1 -Command all` 完成，历史真实差分 70 动作仍为 668/793 匹配、48 个字段差异；未把历史差异计作本次通过。首次构建遇到全局 `Stance` 命名空间及过宽 enum 模板实例化警告，最小修正后构建成功。
+- 尚未实现 Java `live_battle_state` 只读采集器、C++ 规范化 `STATE0_DETAIL` 全字段回读/逐项比较、Java 生成文件→C++ 互操作回归或实机快照；因此本阶段未完成，当前仅为 L2 恢复入口原型。尚不能确认 C++ 原型的整根状态与真实运行一致，不接入搜索、计划采用或自动执行，不部署正式 JAR。下一步先实现 Java 侧严格只读快照与同协议回归，再做字段回读差分；需另行取得稳定真实 Sentry 战斗完成 L4。正式部署、玩家存档、通知配置未改；`sendToDevs/` 保持未跟踪。
+
+### 2026-10-19：实时恢复闭环审查（仍阻断）
+
+- 本轮继续检查现有协议/C++ 恢复原型及 `LiveCapture`。确认 `LiveCapture` 的 `rngState` 是合成值，并会初始化/估算怪物后续行为，不能作为实时协议输入；C++ `CardInstance::uniqueId` 是 16 位 dense ID，现有 parser 仅验证 UUID 唯一性，没有保留 UUID↔dense ID 映射。
+- 当前协议还包含 `loop_count`、`energy_wasted`、`cards_drawn` 和 32 位 `misc_bits`。它们对应引擎内部统计/模拟标记；尚未证明这些字段在本阶段真实根状态有精确 Java 来源，也未定义哪些是重置统计、哪些影响模拟。因此不能从 fixture 的零值推定实机值，也不能判全字段恢复成功。药水槽、所有 power/status 的逐项映射和 Sentry 私有字段的 C++ 原始/恢复逐字段比较也尚无 Java 快照证据。
+- 修复 `tools/solvertest/live-state-v1-check.ps1` 在 Windows PowerShell 5.1 下的预期拒绝路径：引擎把拒绝原因写入 stderr 时，`$ErrorActionPreference='Stop'` 会在检查退出码前终止脚本；现在只对该原生命令临时使用 `Continue`，随后恢复原设置。正向恢复 fixture 与 `EXECUTING_ACTIONS` 退出码 3 拒绝均通过。此为测试脚本修复，不改变引擎行为。
+- 验证：`tools/build/build-engine.ps1` 退出 0（本次 Ninja 显示 no work to do；引擎 SHA-256 `84D130566CF149A8B50BBCA7AA38795A1146E15FF7D3ACD21932E1586FDD6A24`）；`tools/solvertest/live-state-v1-check.ps1` 退出 0；`tools/solvertest/run.ps1 -Command all` 退出 0，真实历史语料仍报告 70 个差异字段、668/793 匹配，属既有诊断结果。没有 Java collector、C++ `STATE0_DETAIL`、真实 Java→文件→C++ 互操作或本轮实机快照；进程检查未发现运行中的 STS1。未运行完整 Mod 构建，没有部署或改存档。
+- 结论：仅合成入口 L2 回归通过；实时状态恢复闭环未达成，不能进入实机验收。首个实质阻断是 Java 真实快照与协议字段源映射未实现/未证明，且 UUID 与模拟器统计映射不完整；本轮未制造伪造样本或扩大支持范围。生产 JAR、安全门控、通知配置和玩家存档未修改；`sendToDevs/` 保留未跟踪。
+
+### 2026-10-19：隔离实时战斗来源采集器（实机快照阻断）
+
+- 新增 `tools/live-state-validation/LiveBattleStateProbe.java`：仅在 COMBAT、WAITING_ON_USER、当前动作为空、无出牌结算、三条动作队列为空且无弹窗的阶段尝试读取；限定 vanilla Ironclad 三只 Sentry。只读取玩家基础字段/powers、四类牌堆中的卡牌 UUID/ID/升级/费用/misc/标志、遗物/药水、怪物槽位/HP/block/状态/意图/招式历史/Sentry 私有字段，以及六条 RNG 流的 state0/state1/counter/对象身份。对六流前后状态及两次完整源读取作一致性检查，不调用 RNG 抽样方法。使用 `Settings.seed`，不读取 autosave。
+- 探针输出版本化 `live_battle_capture_report`，字段来源随报告记录。它不会输出或冒充可被 C++ `mcts_state` 接受的 `live_battle_state`：`loop_count`、`energy_wasted`、`cards_drawn`、`misc_bits` 没有已证明的真实游戏来源；牌 UUID↔C++ dense ID 运行时映射尚未实现。玩家/怪物 power、药水运行时特有字段也尚未完成协议枚举映射。因此现有字段只是第一阶段原始来源观测，不可直接送入引擎。
+- 隔离 JAR 用本机 IntelliJ JBR `javac --release 8 -proc:none` 编译，class major=52，MTS 元数据版本 3.30.3；JAR 不包含 API stub。构建脚本 `tools/live-state-validation/build-probe.ps1` 退出 0。临时部署包 SHA-256 `22A8324DCD2DC231602821F61F0A1DA710AF7BE6E3701D5EB263D989033B2314`；正式 `mods/CombatSolver1.jar` SHA-256 保持 `644E4F0E2457BBDC6A969B94302B317ED0904D91F761E590DFF0A27E1432EC7F`。
+- 两次用户确认的真实启动尝试均没有生成战斗快照。第一次确实运行到稳定边界，但报告错误为误读 `AbstractDungeon.seed`（首轮报告 `build/live-state-validation/first-attempt-error.json`，SHA-256 `69929AFA8E21D85F522C4F42F71389652B2B7FFDAADD2F573DC126C19301483B`）。修正为项目现有 `Settings.seed` 后，第二次加载探针并到达稳定边界，错误为把静态 `actNum` 经普通对象读取，反射目标落到 `java.lang.Class.actNum`（`build/live-state-validation/second-attempt-error.json`，SHA-256 `FF12F1B57940E752DCA025ED72EB4EBF46384517571680C1F744325ACF7D491A`）。随后静态字段访问已在源码修正并离线重新编译，但依照两轮停止规则，没有进行第三次实机重启。两份文件都是错误报告，不是快照，故没有真实快照 SHA 或 RNG 无推进结果。
+- 本轮构建/验证：`tools/live-state-validation/build-probe.ps1` 对最终源码编译退出 0（Java 8 class major 52）；JAR 条目检查确认仅包含 probe class 与 MTS 元数据。旧合成 `mcts_state` 检查未作为本轮实时采集验收依据。未构建/部署正式 CombatSolver1 JAR，未接入生产协议、搜索或执行，未修改玩家存档/通知配置。结论：真实来源读取代码已编码（L1），隔离构建通过（L2），真实快照采集 **未通过/阻断**，没有 RNG 前后实测证据；停止进一步重试。第二版临时 `mods/CS1LiveStateProbe.jar`（SHA-256 `22A8324DCD2DC231602821F61F0A1DA710AF7BE6E3701D5EB263D989033B2314`）仍因当前游戏进程占用而无法删除；第三版只在 workspace 编译，未部署。需游戏正常退出后移除第二版临时 JAR。
+
+### 2026-10-19：实时采集探针离线字节码审计（等待下一次实机采集）
+
+- 审阅两份历史错误 JSON：首次因从 `AbstractDungeon.seed` 读取种子失败；第二次已到 `COMBAT/WAITING_ON_USER` 稳定门槛，因对 `AbstractDungeon.class` 按实例读取静态 `actNum` 而失败。当前源码已分别使用 `Settings.seed` 静态读取及 `AbstractDungeon.actNum` 静态读取。新离线审计从本机 `desktop-1.0.jar` 解析类文件字段描述符/访问标记，确认 `Settings.seed: Long static`、`actNum: int static`，所以这两处访问路径修正有字节码证据。
+- 新增 `FieldBytecodeAudit.java` 与 `audit-fields.ps1`。审计当前探针的反射目标、字段描述符和静态/实例属性；全部实际读取项通过。运行 `powershell -ExecutionPolicy Bypass -File tools/live-state-validation/audit-fields.ps1` 退出 0，报告 `build/live-state-validation/field-audit.txt`。报告列出 `UNAVAILABLE`：`AbstractRoom.name`、`AbstractPower.justApplied`，探针不读取/不填值；对应协议和引擎状态仍不完整。
+- 字节码还确认 `GameActionManager.turn` 是静态 int，已改为静态访问；`AbstractCard.uuid` 为 `java.util.UUID`，保留通过 `String.valueOf` 输出完整 UUID；`AbstractCard.isEthereal` 是实例 boolean 字段，已改用字段读取；怪物 HP/Block/powers/id 的声明在 `AbstractCreature` 父类，逐级继承访问可解析；`moveHistory` 是 `ArrayList`；`AbstractMonster.intent` 是其内部 `Intent` enum。探针对必需对象/字段值为空会报出具体来源错误。探针保持 `live_battle_capture_report`，不是 `live_battle_state`，不生成伪完整协议或 C++ 可导入输入。UUID↔C++ dense ID、power `justApplied`、房间 encounter 名称、engine-only `loop_count/energy_wasted/cards_drawn/misc_bits` 仍未映射。
+- `tools/live-state-validation/build-probe.ps1` 退出 0，探针 class major=52（Java 8）；JAR 仅有探针类和 MTS 元数据，隔离包 SHA-256 `DD93392B71184DFD73AA2AC86DC5B5E710445C94DCB7E238BD627C6F2FFB424C`。`git diff --check` 退出 0。正式 JAR SHA-256 仍为 `644E4F0E2457BBDC6A969B94302B317ED0904D91F761E590DFF0A27E1432EC7F`。进程检查未见 Java/STS 窗口后，已移除游戏 mods 目录中的临时 `CS1LiveStateProbe.jar`；未启动游戏、未改存档和正式部署。
+- 实机采集仍未完成：下一次唯一验收目标是稳定 vanilla Ironclad 三 Sentry 战斗生成一个 `CAPTURED_SOURCE_ONLY` 报告，且 `rng_before == rng_after`、两次 source 快照相等、边界前后仍稳定；若有未料到的缺失字段须输出 `ERROR`/`REJECTED`，不得把报告视作 C++ 输入。该目标不是路线 C 状态恢复或 L4 求解验收。保留 `sendToDevs/`、通知配置和既有 Git 历史。
+
+### 2026-10-19：live_battle_state v1 必填字段与房间来源收窄（L2）
+
+- `loop_count`、`energy_wasted`、`cards_drawn` 从 JSON 输入移除。源码用途已核对：`BattleContext.h` 默认初始化为 0；`BattleContext.cpp` 在动作循环、结束回合及抽牌中更新；`loopCount` 用于循环保护/诊断，`energyWasted` 与 `cardsDrawn` 的搜索评分见 `BattleScumSearcher2.cpp:418-419`。新 `BattleContext` 根状态保留这些 C++ 默认值，模拟实现和评分未改。专项恢复输出确认根值均为 0；现有 Solvertest 全套回归通过。
+- `misc_bits` 不再作为调用者提供的任意 32 位输入。`miscBits[0]` 的设置仅经 `Monster::stealGoldFromPlayer`；该函数当前由 `MonsterSpecific.cpp:913,923,959,970` 的偷窃招式调用，结算奖励由 `BattleContext.cpp:499-508` 读取。仅在遭遇已匹配 THREE_SENTRIES、三只均验证为 SENTRY 后显式 reset。其他遭遇（专项以 TWO_THIEVES 验证）在恢复前拒绝，不能默认清零继续。其余位没有完整游戏字段映射，仍不宣称可恢复。
+- `room_context` 成为必填字段，含 `kind`、具体 room class、`elite_trigger` 及 event class/encounter/enemy index（地图房间要求后三者为空）。只接受地图 `MonsterRoomElite` 的 THREE_SENTRIES。根据现有 STS1 字节码证据，`DeadAdventurer` 的 `enemy` 和 `getMonster()` 可产生“3 Sentries”，并在 `EventRoom` 中安装该遭遇、设置 `eliteTrigger`；C++ 不保存其事件来源/选择上下文，因此 EventRoom 明确拒绝。当前没有 Java 快照生产器，协议新字段尚无本轮实机来源值。
+- 更新合成 fixture、拒绝回归与 `docs/LIVE_BATTLE_STATE_V1.md`。`mcts_save`、replay 分支和旧 `STATE0` 格式未改；此前实验性 mcts_state JSON 若携带 `battle_counters` 现在明确拒绝并需按修订 schema 重生成。
+- 验证：`tools/build/build-engine.ps1` 默认命令因当前 PATH 找不到 cmake 退出 1；使用本机 VS 18 CMake/Ninja 与已有 MinGW g++ 的显式路径重跑退出 0，engine SHA-256 `C638FF2B8FEF3299F17DAC1CD37D42C911D9120CFC4CBE51A8874157B798B9A4`。`tools/solvertest/live-state-v1-check.ps1` 退出 0：有效根状态 1 项、内部初始化 1 项、五种拒绝通过。`tools/solvertest/run.ps1 -Command all` 退出 0；其中既有真实记录差分仍显示 70 个差异字段、668/793 匹配，不代表本协议恢复或实机通过。最终 `git diff --check` 退出 0。未启动游戏、未改存档、未部署或修改正式 JAR；没有 Java→C++ 实时快照、完整状态差分或 L3/L4 证据。
+### 2026-10-19：实时输入闭环实施尝试（尚未闭环，L2 局部）
+
+- 隔离探针增加来源门控：只接受运行时具体类 MonsterRoomElite、IRONCLAD，以及恰为 vanilla Sentry 类/ID 的三只怪物；其他来源会拒绝。来源报告附 room_context，事件房可记录 EventRoom 与 Dead Adventurer 的 event class、enemy index、getMonster() 结果，但事件场景不生成可导入状态。牌堆读取保留 UUID 全字符串，并生成 hand/draw/discard/exhaust 顺序对应的 dense ID 映射；重复或非 36 字符 UUID 拒绝。该文件仍是 live_battle_capture_report，不是 live_battle_state v1。
+- 扩展 FieldBytecodeAudit，使用本机 desktop-1.0.jar 核对 room 来源、玩家计数、GameActionManager 计数、AbstractCreature.lastDamageTaken、DeadAdventurer.enemy/getMonster 等字段。命令 powershell -ExecutionPolicy Bypass -File tools/live-state-validation/audit-fields.ps1 退出 0；报告在忽略目录 build/live-state-validation/field-audit.txt。该静态检查只确认声明/描述符/静态属性，不证明所有字段语义和实机值。
+- C++ mcts_state 新增每张牌的 STATE0_DETAIL_CARD 输出：完整 UUID、dense ID、原始 pile/index、协议卡牌 ID、C++ 规范化卡牌 ID和映射状态。首次测试发现 STRIKE_RED 与 C++ 输出 Strike_R 是别名表示差异；现按同一 CardId 枚举值比较，记录 source_id 和 normalized_id，不是状态不匹配。重复 UUID拒绝用例新增。
+- 构建：引擎通过本机 VS 18 CMake/Ninja 与 MinGW g++ 构建，退出 0，SHA-256 DF80BBA643B9B431B881E13B10102CD5BDB6E97717BC68CF6927A663D77EC4D7。tools/solvertest/live-state-v1-check.ps1 退出 0：合成根 1 项、身份映射 1 项、内部计数初始化 1 项、6 类拒绝通过。tools/solvertest/run.ps1 -Command all 退出 0；历史真实差分保持 70 项差异、668/793 匹配。探针 Java 8 class 编译检查退出 0（只编译到 build 检查目录），git diff --check 退出 0。
+- 阻断：Java 生产器还未转换为 live_battle_state v1，协议中 player counters/status 的精确映射、卡牌的引擎 ID 规范化和若干 C++ 专用战斗 bookkeeping 尚未完整审计/实现；当前 C++ 详细输出只覆盖卡牌身份，不是完整 STATE0_DETAIL，没有逐字段 Java→C++ 比较。故没有 Java 生成协议文件、端到端互操作测试或合法实时快照。本轮不构建/部署隔离探针 JAR，不请求 Steam 实机操作；没有 L3/L4 结果。正式 JAR、存档、通知配置、旧 mcts_save/replay 路径未改。
+### 2026-10-19：Java→C++ 离线互操作（部分完成，L2）
+
+- 增加严格 Java v1 JSON 写入门及 fixture-only 驱动。驱动必须读取带 `OFFLINE_FIXTURE_NOT_REAL_GAME_STATE` 标记的 fixture；缺少协议必需字段、房间来源非法、RNG 流缺失/计数非法、UUID 无效/重复或怪物数量不符时拒绝写文件。Gson 启用 null 序列化，保留协议要求的显式 null 房间来源字段。
+- C++ `mcts_state` 新增 `STATE0_DETAIL_FIELD`：当前实现集覆盖玩家基础数值、六条 RNG、怪物槽位/生命/格挡/标志/招式历史，以及空状态集；卡牌 UUID、dense ID、牌堆次序和卡牌规范化检查沿用 `STATE0_DETAIL_CARD`。这不是协议所有字段的完整差分。
+- 离线互操作实际执行 Java 8（class major 52）读取标记 fixture 并生成 JSON，再由 C++ 引擎读取；当前实现集 49 项 MATCH、0 MISMATCH、0 UNAVAILABLE，首次差异 NONE。证据：`build/live-state-validation/offline-interop-diff.txt`。它仅是 fixture L2，不是真实内存快照。
+- 定向协议测试拒绝 10 类错误输入并通过。`tools/solvertest/run.ps1 -Command all` 本轮退出 0；历史真实记录差分仍是 70 个差异字段、668/793 匹配（不是本协议验收）。C++ 引擎用 VS 18 CMake/Ninja 增量构建退出 0，Java fixture producer 编译为 class major 52；`git diff --check` 退出 0。原生 `STATE0` 和旧入口未有意改动。
+- 发布阻断仍在：实时探针尚未映射/序列化完整协议所需的玩家 powers/状态与计数、卡牌统计、遗物 counter、药水槽完整语义、怪物 powers/AI 与 group 状态、战斗队列字段等；当前未实现字段没有用默认值填充。没有实机采集、全字段差分、C++ 搜索或执行验收。
+### 2026-10-19：全协议字段映射审计（离线，未闭环）
+
+- 新增 `docs/LIVE_BATTLE_STATE_V1_FIELD_AUDIT.md` 和可复跑的 `tools/live-state-validation/write-field-manifest.ps1`。按协议 fixture 的 required schema 展开 155 个规范化路径形状（包含重复数组元素模板和空数组元素结构）：83 VERIFIED、16 UNVERIFIED、56 UNAVAILABLE。VERIFIED 表示来源声明/反射路径有证据，不代表采集器到 C++ 的端到端映射通过。
+- Java probe 为 RNG 记录增加稳定 `stream_id`（对应 `AbstractDungeon` 的六个字段名）；诊断报告列出仍不能形成完整协议的字段及原因。probe 不调用协议 writer，仍只生成 diagnostic report。
+- C++ 离线 detail 报告目前为 49 行已实现字段，全部 MATCH；按 155 path-shapes 计，106 行没有逐项输出/比较，首个未报告项为 `$.act`。差分结果明确是 PARTIAL，未将未比较项算成 MATCH。
+- 主要阻断：无稳定 battle_id；玩家/怪物 status 的 `just_applied` 无可信源；玩家运行计数和 card_counters 尚未实现精确采集/映射；卡牌 ID/special_data 规范化、遗物计数、药水槽、Sentry unique powers/miscInfo、monster group flags/cursor 及战斗队列终态尚未全字段还原。字段细节见审计表。因必需字段不完整，Java 不生成 `live_battle_state`，当前不具备实机采集前提。
+- 验证：`audit-fields.ps1` 退出 0（installed `desktop-1.0.jar` 字段/描述符检查通过）；Java 8 互操作编译和执行退出 0、class major 52；C++ engine build 退出 0（Ninja no work）；`tools/solvertest/live-state-v1-check.ps1` 退出 0（C++ 拒绝 10 项、Java writer 拒绝 5 项）；`tools/solvertest/run.ps1 -Command all` 退出 0；`git diff --check` 退出 0。完整协议差分仍不通过，不能把 49 项子集视为验收。
+- 本轮禁止启动游戏和部署。协议 fixture 仍明确标记为离线，不是实机样本；没有完整 Java 实时协议快照，因此当前不具备实机采集条件。
+
+### 2026-10-19：155 路径分类与逐路径差分修正（L2，仍阻断）
+
+- 将 155 个规范化路径形状逐项分类：REQUIRED 109、CONDITIONAL 36、DERIVABLE 8、INTERNAL 0、UNUSED 0、BLOCKED 2。`INTERNAL/UNUSED=0` 是因为清单只收录协议路径；三个搜索计数器没有协议路径，另列在协议说明中。`battle_id` 无稳定来源；`monster_turn_idx` 的玩家操作边界恢复语义尚无证据，均保持 BLOCKED。
+- 扩展字段审计表，分离字段来源/反射证据与端到端映射；旧 `VERIFIED` 仅表示来源声明或字节码证据，不代表生产采集器接通。新增 `live-state-v1-full-diff.ps1`，将 C++ 输出与全部路径形状对账，未输出项显式 `UNAVAILABLE`，空数组项标 `NOT_APPLICABLE`，不再用 `155 - 输出行数` 推算覆盖率。
+- Java 8 fixture → C++ `mcts_state` 当前逐路径结果：50 MATCH、0 MISMATCH、66 UNAVAILABLE、39 NOT_APPLICABLE；首次差异为 `$.act: UNAVAILABLE`（元数据被解析但没有从恢复根状态回读），并非真实差异。109 项 REQUIRED 中 50 MATCH、27 UNAVAILABLE、32 在该合成 fixture 中因空集合 NOT_APPLICABLE；条件字段 29 UNAVAILABLE、7 NOT_APPLICABLE，派生字段 8 UNAVAILABLE。此结果只证明部分离线恢复路径，实际 Java 实时协议生产仍未实现，故可信实机映射接通数为 0。
+- 仍未解决的必需输入包括 ACT/升格/楼层/种子/回合/角色/遭遇元数据回读，完整 Sentry 属性与 AI 字段，card counters 与完整 UUID 反向身份、stance/last-target、药水和遗物状态等。必需字段不可用即不得采集为完整协议，也不得进入搜索。
+- 验证：`tools/solvertest/live-state-v1-check.ps1` 退出 0（Java 8 class major 52；C++ 导入 1 个离线 fixture；拒绝路径 C++ 10、Java writer 5）；C++ 构建退出 0（Ninja no work）；`tools/solvertest/run.ps1 -Command all` 退出 0（70 个历史差异字段、668/793 匹配）；`git diff --check` 退出 0。无真实快照、无实机测试、未启动游戏或部署 JAR。
+
+### 2026-10-20：battle identity / act / monster cursor 阻断复核（L2，仍阻断）
+
+- `battle_id` 全仓调用链只有 Java diagnostic 的 UNAVAILABLE 标记、Java wire writer 的必填项，以及 C++ `restore()` 的非空检查；不参与 BattleContext、搜索、路线有效性或执行门控。将协议字段改为 `capture_id`，明示其只是事务 UUID。Java serializer 缺省生成 UUID，并写 `.capture.json` sidecar（capture_id + 序列化文件 SHA-256）；C++ 只验证 UUID 并在 STATE0_DETAIL 标 `NOT_APPLICABLE`，不把它作为游戏状态或执行凭证。
+- `act` 已由 Java 源采集器从 `AbstractDungeon.actNum` 静态 int 读取；旧 C++ parser 曾用 `(void)number<int>(j,"act")` 丢弃。新增 `BattleContext.act`，旧 `BattleContext::init(gc)` 从 `GameContext.act` 同步，新 mcts_state 赋值后由 STATE0_DETAIL 读取回比较。离线回归把 act 从 1 改为 3，恢复输出为 3，证明不是输入回显。
+- `monster_turn_idx` 是 C++ `BattleContext` 的内部怪物槽遍历游标，不是 STS1 字段。源码显示初始 sentinel=6、玩家结束回合后重置 0、每个原始怪物槽处理后递增，完整怪物轮次结束时停在 monsterCount。该值依赖引擎控制流程；当前没有经过证实的实时阶段/原生字段映射能无歧义重建，所以保持必需输入阻断，不按 turn 推算、不填默认值。
+- 最新离线差分 155 路径：51 MATCH、0 MISMATCH、64 UNAVAILABLE、40 NOT_APPLICABLE。分类更新为 REQUIRED 109、CONDITIONAL 36、DERIVABLE 8、UNUSED 1（capture_id）、BLOCKED 1（monster_turn_idx）。REQUIRED 内：51 有 C++ fixture 回读、26 未回读、32 仅因合成 fixture 中空集合而 N/A。真实 Java collector 仍只生成 diagnostic report，故真实来源→完整协议→C++ 链路中已接通字段为 0/109。
+- 验证：Java 8 编译/class major 52、capture UUID/SHA-256 sidecar 检查、C++ act 变值回读和 11 类拒绝测试由 `tools/solvertest/live-state-v1-check.ps1` 通过；C++ Release 引擎构建退出 0（VS 18 CMake/Ninja）；`tools/solvertest/run.ps1 -Command all` 退出 0（历史差分仍 70 项、668/793）；`git diff --check` 退出 0。未启动游戏、未部署 JAR、未改存档。
+- 结论：协议生产器及其他必需字段仍未闭环，且 `monster_turn_idx` 来源未解决；不能生成可信完整协议文件，不具备实机采集条件。
+
+### 2026-10-20：受限 Sentry 字段差分与游标初始化复核（L2，实机仍阻断）
+
+- `monster_turn_idx` 从 wire fixture、Java必需字段和 C++输入读取中移除。源码证明原生玩家边界游标不必恒为 6：首轮可为 sentinel 6，三 Sentry 怪物轮结束后可为 3；但 accepted `PLAYER_NORMAL` 且队列空时，该游标在玩家动作阶段不被消费，每条受支持的结束回合动作都先重置为 0，再进入 MonsterGroup 遍历。`mcts_state` 在新根中初始化内部 sentinel 6，不改生产搜索路径。
+- 新增 `live_state_cursor_check`，从同一真实语义模型比较初值 6 与上轮终点 3，运行 `UnnamedEndOfTurnAction`、MonsterStartTurnAction 和实际 `doMonsterTurn` 槽遍历；两者都访问槽位 `0,1,2`，Sentry结果相同。属于 C++离线回归，不是游戏实机证明。
+- 原 26 个 `REQUIRED/UNAVAILABLE` 路径逐一复核：6 个 CardManager计数由 stable piles 精确推导并在恢复时与协议值交叉验证；其余 20 个添加了真实 BattleContext/enum/status读回，或由严格 allowlist/升格约束验证。`docs/LIVE_BATTLE_STATE_V1_FIELD_AUDIT.md` 列出每条路径、推导/读取方式及边界。六计数分类现为 DERIVABLE，不再伪称独立游戏字段。
+- 将协议 fixture 扩为非空 hand/draw/discard/exhaust，并含升级 Bash、`special_data=7` 的 Ritual Dagger、遗物和 Happy Flower 计数、Fire Potion、玩家 WEAK、Sentry WEAK 与 just-applied。状态和卡牌字段通过恢复后的 C++ 对象回读；药水导入支持 `Potion Slot` 原生名，并修正 relic bitset 详细输出不得读取 128 位范围外枚举值。
+- 原 32 个 required N/A 路径中，30 个牌堆字段现由非空 fixture逐项匹配；limbo/stasis两项明确验证稳定三哨卫状态仅接受空集合，并增加非空拒绝回归。当前完整差分为 149 路径：148 MATCH、0 MISMATCH、0 UNAVAILABLE、1 NOT_APPLICABLE（仅 transport `capture_id`）。分类为 REQUIRED=100、DERIVABLE=14、CONDITIONAL=34、UNUSED=1；其中 REQUIRED 100/100 fixture MATCH。
+- 验证：VS 18 CMake/Ninja `cmake --build build/engine --config Release --target combatsolver1-engine` 退出 0；`tools/solvertest/live-state-v1-check.ps1` 退出 0（Java class major 52、Java写入文件→C++恢复，14类C++拒绝、5类Java写入拒绝、非空卡牌/状态/遗物/药水、cursor顺序回归）；`tools/solvertest/run.ps1 -Command all` 退出 0（现有历史记录仍为70个差异、668/793字段匹配）；完整路径差分 `MATCH=148/MISMATCH=0/UNAVAILABLE=0/NOT_APPLICABLE=1`；`git diff --check` 退出 0。
+- 阻断：`LiveBattleStateProbe` 仍只输出 diagnostic report，不产出完整可信实时协议。Field audit中的83 VERIFIED是源码/成员证据，不是Java运行时采集与完整序列化；真实端到端 Java live snapshot 接通仍为0。没有真实快照、没有C++真实战斗恢复、没有L3/L4。本轮未启动游戏、未部署JAR、未改存档；sendToDevs/、通知配置及既有工作区改动保留。结论：尚不具备实机采集条件。
+
+### 2026-10-20：Java 实时协议生产链路接通评估（未达成，保持 fail-closed）
+
+- 用户批准的目标是把实时游戏对象映射到现有 v1 协议；审查确认 `LiveBattleStateProbe.attempt()` 仍只调用 `captureSource()` 并输出 `CAPTURED_SOURCE_ONLY`，生产采集没有调用 `writeProtocol()`。离线 producer 只接受带 `OFFLINE_FIXTURE_NOT_REAL_GAME_STATE` 标记的合成 fixture，不能证明生产映射。
+- 修复 `tools/solvertest/live-state-v1-full-diff.ps1` 的协议清单解析边界：它此前把审计文档附录中的 26 条历史字段行追加到协议差分，报告错误扩成 175 路径并分类成 `BLOCKED=26`。现在只读取 `Protocol path` 主表；专项回归固定检查 149 路径、REQUIRED=100 和分类统计。
+- 生产映射仍有具体缺口，故未把任何诊断对象写成正式协议，也未构建/部署隔离 JAR：探针中的 `AbstractCard.cardID` 和 `misc` 尚无到 C++ `CardId`/`special_data` 的生产转换；Sentry `moveHistory` 数值没有转换为 C++ move enum；玩家 `strength/dexterity/focus/artifact`、状态 timing、部分战斗 counters 及 `last_targeted_monster` 没有完成可信来源或受限场景的无歧义推导。Writer 的 fixture 验证不弥补这些缺口。
+- 本机 `desktop-1.0.jar` 字节码字段审计退出 0：84 个字段、4 个方法匹配，2 个已明确不可用（`AbstractRoom.name`、`AbstractPower.justApplied`）；该审计只覆盖探针实际声明的访问项，不等于 100 个协议字段映射完成。
+- 验证：`tools/solvertest/live-state-v1-check.ps1` 退出 0，Java 8 major=52；合成 Java→文件→C++ 差分为 149 路径、148 MATCH、0 MISMATCH、0 UNAVAILABLE、1 NOT_APPLICABLE（`capture_id`）。`tools/solvertest/run.ps1 -Command all` 退出 0，历史实录诊断为 70 个差异、668/793 字段匹配。`tools/build/build-engine.ps1` 首次因 `cmake` 不在 PATH 失败(exit 1)，显式指定 VS 18 CMake 后退出 0，Ninja 无需重编。未启动游戏、未采集实机状态、未生成候选 JAR；不具备实机采集准备条件。
+
+### 2026-10-20：卡牌身份/实例状态首个端到端切片（L2，非实机）
+
+- Java `LiveBattleStateProbe.cards()` 现在将 STS1 `AbstractCard` 字段转换为协议卡牌实例；明确白名单仅 6 个经本机 `desktop-1.0.jar` 构造器字节码确认的原生 ID：`Strike_R`、`Defend_R`、`Bash`、`True Grit`、`Searing Blow`、`RitualDagger`。其余卡牌 ID fail-closed。`timesUpgraded` 仅接受 0/1；`cost/costForTurn` 做 int8 范围校验；完整 UUID、`freeToPlayOnce`、`retain` 直传。
+- `special_data` 转换有卡牌区分：Searing Blow 取实时 `timesUpgraded` 映射到 C++ 的升级深度（要求 `misc==0`）；Ritual Dagger 将真实 `misc` 保留为 C++ `specialData`；其他白名单卡要求 `misc==0`。Rampage 被明确拒绝：游戏按 UUID 修改卡牌伤害，而当前 C++ `specialData` 的 live-state 等价来源未证实。
+- C++ `RestoredState` 保存完整 UUID→dense ID 顺序关系，按 hand/draw/discard/exhaust 分组顺序恢复 `CardInstance::uniqueId`；`STATE0_DETAIL_CARD` 从恢复结果回读 UUID、card ID、堆位置、升级、special data、费用和费用回合字段。恢复器也拒绝白名单外卡牌、错误颜色、非支持的 special_data 和超范围费用。
+- 新增离线源字段 fixture：7 个实例覆盖四牌堆、同 ID 不同 UUID、升级 Bash/True Grit/Searing Blow、Ritual Dagger 非零 misc。Java 写入协议文件后由 C++恢复并逐实例输出，7/7 卡牌状态 MATCH；完整协议差分149路径为148 MATCH、0 MISMATCH、0 UNAVAILABLE、1 transport capture_id NOT_APPLICABLE。另有 Java 与 C++ 对 unknown ID、Rampage、升级越界、misc 越界、UUID 冲突和非法 special_data 的拒绝回归。所有输入均显式标为离线 fixture。
+- 验证：`tools/build/build-engine.ps1 -CMake '<VS 18 CMake>'` 退出0，engine SHA-256 `8B1824AA6388B4B64794811F92CED31940350A283A8709F29E163CF6E0C26BFE`；`tools/solvertest/live-state-v1-check.ps1` 退出0，Java `--release 8` 且 class major=52；`tools/solvertest/run.ps1 -Command all` 退出0（历史实录仍70差异、668/793字段匹配）。没有启动游戏、构建/部署探针 JAR 或修改存档。
+- 边界：这是离线卡牌序列化与 C++ 根状态回读切片，不是完整实时战斗协议生产链，也不证明六张卡的实机规则全覆盖。其他卡牌、Rampage 动态进度及其他实时字段仍阻断完整快照生成；不得据此进入实机采集或自动执行。
+### 2026-10-20：玩家基础战斗字段映射切片（离线 L2；未实机验收）
+
+- 目标限定为 `live_battle_state v1` 已定义的玩家生命/格挡/能量、回合、可行动阶段与队列字段，不扩展卡牌范围或接入执行。Java 探针新增协议字段切片：`hp`/`max_hp`/`block` 直接读 `AbstractCreature` 整数实例字段，`energy` 调用静态 `EnergyPanel.getCurrentEnergy()`，`energy_per_turn` 读 `EnergyManager.energyMaster`，`card_draw_per_turn` 读 `AbstractPlayer.gameHandSize`；原协议没有单独的 `max_energy` 字段，未新增或重命名。
+- 稳定阶段继续要求房间 `COMBAT`、管理器 `WAITING_ON_USER`、未结束回合、无当前动作/出牌、三队列为空且无弹窗；另明确拒绝 `AbstractRoom.isBattleOver/skipMonsterTurn` 与 `AbstractPlayer.endTurnQueued`。一次采集中两次源快照会比较新增字段。检查实际字节码时发现并修正 `endTurnQueued` 的真实所有者为 `AbstractPlayer`（不是 `GameActionManager`）；ASM 字段审计现在对其及 room 两个边界 flag 执行描述符/实例属性核对。
+- C++ 输入校验拒绝非法 HP、负格挡/能量；`STATE0_DETAIL` 对玩家基础值和回合字段从恢复后的 `BattleContext`/`Player` 回读。边界 `stage` 从实际 `inputState` 导出，动作与卡牌队列长度使用恢复结构的队列长度。native `monsterQueue` 本身不属于 C++ 队列模型，但 Java 端必须读取并确认它为空，传入的协议断言也必须为真。
+- 回归新增正常和边界值、变更 HP/maxHP/block/energy/energy_per_turn/card_draw_per_turn/turn 后从 C++ 恢复结构逐字段回读，以及阶段、回合结束标记、队列非空和非法数值拒绝。player power 的 `just_applied` 仍无 STS1 可信来源；不会填默认值，完整快照仍须拒绝涉及该状态的输入。
+- 证据：`powershell -ExecutionPolicy Bypass -File tools/live-state-validation/audit-fields.ps1` 退出 0，实际游戏 JAR 字段审计 `FIELD_AUDIT_RESULT=PASS failures=0`；`powershell -ExecutionPolicy Bypass -File tools/build/build-engine.ps1 -CMake '<VS CMake path>'` 退出 0，引擎 SHA-256 `7AC3D122924ADFFB5770D0757D963DA2BF7BF9AC6C91DFF6E59D84A50934111B`；`powershell -ExecutionPolicy Bypass -File tools/solvertest/live-state-v1-check.ps1` 退出 0（fixture 仍是合成数据，Java 8 major=52、既有六卡映射回归保持通过）。本段证据为字节码/离线 L2，不是实机采集或 L4。
+- 范围字段计数：15 个协议字段有已确认来源并写入诊断协议切片（玩家 6 个数值、turn、stage、队列/边界 8 个）；其中 14 个恢复到 C++ 字段或可读回的内部状态，`queues_empty` 作为 Java 三队列稳定性断言被 C++ 校验，C++ 没有原生 monsterQueue 成员可单独回读。离线数值/边界测试匹配通过；player statuses 的 `just_applied` 仍不可用，不能计入完整映射。
+- 最终验证：`tools/solvertest/run.ps1 -Command all` 退出 0（测试汇总“全部自检通过”，历史实录诊断仍为70差异、668/793匹配）；`git diff --check` 退出 0。没有游戏启动、候选 JAR、正式部署或存档更改。Java 实时对象未在本轮游戏运行中采样，因此以上是字节码与 L2 fixture 证据，不是 L3/L4；真实玩家 power 状态映射和完整 `live_battle_state` 实时生产仍未通过。
+
+### 2026-10-20：玩家 Power 时序字段审计与协议最小修正（L2，非实机）
+
+- 根因：`justApplied` 不属于通用 `AbstractPower`。本机 STS1 `desktop-1.0.jar` 字节码确认 `WeakPower`、`FrailPower`、`VulnerablePower`、`DoubleDamagePower`、`DrawReductionPower` 各自声明 private instance `boolean justApplied` 并覆写 `atEndOfRound()`；`IntangiblePlayerPower` 无此字段。Power ID 与 C++ canonical status 的映射在探针中显式校验，不按相似名称猜测。
+- C++ 中该位改变结算：`Player::applyAtEndOfRoundPowers()` 对 WEAK/FRAIL/VULNERABLE/DOUBLE_DAMAGE 在 true 时仅清位、跳过一次递减，false 时递减；`BattleContext::afterMonsterTurns()` 对 DRAW_REDUCTION 在 true 时清位并保留状态，false 时移除并恢复每回合抽牌数。INTANGIBLE 按当前 C++ 模型无条件递减，不读取该位。
+- 最小修改：Java 诊断采集器为五种已证实的具体类读取 private 字段并产出 canonical timing status，校验原生 ID；ASM 字节码审计新增 private/non-static/descriptor 检查及 `atEndOfRound()` 覆盖检查，并确认 `IntangiblePlayerPower` 无声明字段。Java writer 与 C++ parser 将 `just_applied` 改为仅对五个会读取该位的 status 必填；其他 status 携带该属性、敏感 status 缺失/类型错误、未知 ID、来源类/ID 不匹配均拒绝。C++ `STATE0_DETAIL` 对 INTANGIBLE 不回显伪造 false。
+- 新增时序正反例回归：五种 Power 的刚施加/已过期分支共 10 例，验证状态是否保留/递减、位清除及抽牌恢复差异。合成 fixture 覆盖五个敏感 status 与不带该属性的 INTANGIBLE；保留六卡映射回归。
+- 验证：`audit-fields.ps1` 退出 0，5 个具体 private instance 字段、5 个 `atEndOfRound()` 方法与 INTANGIBLE 字段缺失检查通过；C++ Release 构建退出 0，engine SHA-256 `B28EEE67532DF60359E04AA521CAA3D880ECAD1322F15B80694C039EA84367B4`；`live-state-v1-check.ps1` 退出 0，Java 8 `--release 8` / class major 52，149 路径离线差分 148 MATCH、0 MISMATCH、0 UNAVAILABLE、1 `capture_id` NOT_APPLICABLE，33 类 C++ 与 7 类 Java writer 拒绝通过，卡牌实例回归 7/7；`tools/solvertest/run.ps1 -Command all` 退出 0（全套自检通过，既有真实记录差异仍为 70 字段、668/793 匹配）；`git diff --check` 退出 0。
+- 证据等级与限制：上述为实际 JAR 字节码静态证据和合成 L2；本轮未启动游戏、未读取真实玩家 Power 实例、未构建或部署 JAR。完整 Java 实时 Power 状态生产、真实 C++ 根恢复仍未验收。无正式部署或存档改动。
+
+### 2026-10-20：Havoc 实时实例映射与卡牌缺口诊断（L2；未实机）
+
+- 根因：旧 `CardIdWireMap` 只有六个条目，`cards()` 在读取每张牌时立即调用严格转换器；遇到 `Havoc` 即抛错，既未保留该卡状态，也中止同一快照剩余牌枚举。此前 17:51:46 报告 `source_snapshot={}`，所以无法从那份实机报告列出其他牌的身份、牌堆或升级情况。
+- Havoc 状态映射：加入 `Havoc`→`HAVOC`。实时来源读完整 UUID、原生 ID、timesUpgraded、当前费用/costForTurn、misc、ethereal、retain/free 标志。只接受升级次数 0/1、`misc==0` 且 `ethereal==false`；协议维持 v1，不加 wire 字段。C++ 白名单加入 HAVOC，保留牌堆顺序、UUID↔dense ID 和现有 CardInstance 的 upgrade/cost 状态。
+- 效果与搜索边界分离：Java 诊断为每张卡记录分类、来源映射结果、effect-model 状态、牌堆及位置；不支持的 ID/状态会被累计记录而非让扫描在第一张牌终止。`protocolFromSource` 和 `writeProtocol` 仍要求捕获映射完整且有显式 C++ 效果实现条目；C++ importer/search 独立白名单仍 fail-closed。Rampage 等不在映射中的牌不能进入搜索。Havoc 的 C++分支和 PlayTopCard/自动消耗路径存在，但本轮未实测真实游戏效果，不标为 L4。
+- 字节码依据：本机 `desktop-1.0.jar` 的 JDK6 `javap -classpath ... -c -private com.megacrit.cardcrawl.cards.red.Havoc` 显示构造器原生 ID 为 `Havoc`、类型 SKILL/颜色 RED/基础费 1；`upgrade()` 调用 `upgradeBaseCost(0)`；`use()` 创建 `PlayTopCardAction(..., true)`，以 `AbstractDungeon.cardRandomRng` 取得随机怪物目标。C++ `BattleContext::playCard(HAVOC)`及 `playTopCardInDrawPile`有对应的随机目标、自动打出、free 与 exhaust 处理。此为静态路径对照，不是真实随机/效果差分。
+- 回归：新增 Havoc 普通/升级实例在 hand/draw/discard/exhaust、同 ID 多 UUID、费用/升级/特殊字段读回、五实例 149 路径差分；非零 special_data、错误 ethereal 等拒绝；Rampage 作为未映射输入在 `mcts_state_search` 入口拒绝；离线诊断枚举 Havoc、未知 ID 与已知 ID 状态非法项，且不会输出协议快照。现有六卡及三 Sentry fixture 均保持通过。
+- 验证：`tools/build/build-engine.ps1 -CMake '<VS 18 CMake>'` 退出0，引擎 SHA-256 `08778DFFD1770F954AB659CF3A840B10BF585C543156DD0FC1ED2F0CD5A17C5D`；`tools/solvertest/live-state-v1-check.ps1` 退出0，Havoc 5/5 实例、四牌堆和全字段离线差分通过，Java class major=52；`tools/live-state-validation/audit-fields.ps1` 退出0，真实 JAR 字段审计 `failures=0`；`tools/solvertest/run.ps1 -Command all` 退出0（历史实录仍70差异、668/793字段匹配）；`build-probe.ps1` 退出0，候选隔离 JAR SHA-256 `A10E14AF0D99BE2B60E3837BE2E7BB352D30196CBBB03E89736B819A940C34A9`；`git diff --check` 退出0，只有换行提示。
+- 未启动游戏、未部署本轮候选探针、未覆盖正式 CombatSolver1.jar、未修改存档。实机快照、其他同时存在卡牌的映射结果、六流无推进及 C++真实根恢复仍未验证。下一次自然采集应能把所有牌的缺口列入报告；可能仍会因未映射的 Ironclad 卡、非零/多级 misc/upgrades、Ethereal 状态、非起始遗物/药水/Power、非空 limbo、Sentry Power/AI、非首回合或事件来源字段而拒绝。正式采集门控不放宽。
+
+### 2026-10-20：三只原版 Sentry 字段映射闭环（L2，非实机）
+
+- Java 实时探针将严格的 Sentry 对象映射接入诊断快照中的 `protocol_monsters`；离线 writer 复用同一转换函数，按原始 MonsterGroup 槽位、Sentry 身份、生命/格挡/逃跑标志、私有 AI 参数、招式历史及允许的 Power 生成协议对象。原版类名/Power ID 不匹配、未知招式或 Power、无效槽位、缺失时序值、`firstMove=true` 和越界数值均拒绝。未修改完整协议的生产发布门控。
+- 实装 `desktop-1.0.jar` 字节码确认 Sentry 原生招式号 3 是 Dazed/Bolt、4 是 Beam；`setMove` 追加历史项，`lastMove` 读取末项。因此 Java 把历史末两项倒序映射到 C++ newest-first 两槽；不足两项时旧槽用显式 `INVALID`。C++ `Monster::setMove` 和 Sentry 的 `getMove`/`takeTurn` 与该顺序相符。
+- Power 白名单为 `ArtifactPower/Artifact`、`WeakPower/Weakened`、`VulnerablePower/Vulnerable`。Weak/Vulnerable 的 `justApplied` 从对应实例读取；Artifact 使用无时序位的规范 false。C++ 对 Sentry 拒绝其他状态、重复状态及非零 unique-power/misc 内部计数；这些计数在受限 Sentry 行为分支中不被读取。已有玩家 Power 严格校验未改。
+- L2 实际输出：Java→协议文件→C++ fixture 回读 Sentry 48 个 scalar/history 字段和 3 个完整 status 数组，合计 51 项 `MATCH`、0 `MISMATCH`、0 `UNAVAILABLE`；总体149路径仍为148 MATCH、0 MISMATCH、0 UNAVAILABLE、1 capture_id NOT_APPLICABLE。源侧拒绝5例、C++ Sentry拒绝5例均通过。报告见 `build/live-state-validation/sentry-instance-interop.txt`、`sentry-bytecode-trace.txt` 和 `sentry-field-diff.txt`。
+- 验证：`audit-fields.ps1` 退出0（含本机游戏 JAR 字段/方法审计）；`build-engine.ps1` 初次因 `cmake` 未在 PATH 退出1，显式指定 VS 18 CMake/Ninja 与既有 MinGW 编译器后构建退出0（engine SHA-256 `4B1EC3F1F348C446E8B77BFC130BF1B4E59D98FE4258FA601FBB31E03D02F13B`）；`live-state-v1-check.ps1` 退出0、Java class major=52；`tools/solvertest/run.ps1 -Command all` 退出0（历史实录诊断70项差异、668/793字段匹配）；`git diff --check` 退出0。
+- 限制：fixture 是离线源形状，不是真实游戏对象采集；未启动游戏、未部署 JAR，也未修改存档。完整实时协议仍未连通，C++真实战斗根恢复及 L3/L4 未验收。本轮只完成 Sentry 切片，不代表整体求解闭环。
+
+### 2026-10-20：实时状态采集器协议生产接线（L2；等待实机验收）
+
+- 修正采集入口：稳定玩家操作阶段的 MTS `Postfix` 原先只采集 Power 时序诊断，未调用 `attempt()`；现接入一次性采集入口。仅在精确 vanilla Ironclad、地图 `MonsterRoomElite`、三只原版 Sentry、首回合未改变状态、队列稳定及所有已实现白名单通过时，才由真实对象组装并写出 `live_battle_state v1`；其他房间/机制明确拒绝，不自动导入或执行路线。
+- 输出分离：诊断 `live-capture-report.json` 记录来源状态、接受/拒绝原因、协议路径、快照 SHA-256、双读一致及六流 RNG 不变标记；独立 `live-battle-state-v1.json` 仅在完整 Java 校验成功后生成。文档已更新；探针不读取 autosave、不调用 RNG 抽取、不修改游戏对象或存档。
+- 协议边界修正：`last_targeted_monster` 改为条件字段，因为 STS1 无可信玩家级来源；无 SURROUNDED 时由 C++ 将其报告为 NOT_APPLICABLE，有 SURROUNDED 却缺字段时拒绝。字段分类当前为 149 路径形状：99 REQUIRED、35 CONDITIONAL、14 DERIVABLE、1 UNUSED。不得将此离线协议装配统计描述为 99 项真实实机映射已验收。
+- 离线验证：`tools/solvertest/live-state-v1-check.ps1` 退出 0；Java 8 class major 52；合成 mock source→Java writer→C++ 恢复差分为 149 paths、142 MATCH、0 MISMATCH、0 UNAVAILABLE、7 NOT_APPLICABLE；完整 fixture 差分为 148 MATCH、0 MISMATCH、0 UNAVAILABLE、1 NOT_APPLICABLE。专项包括卡牌 7/7、Sentry 48 字段及拒绝测试。该 mock source 仅是 L2，不是真实游戏采集。
+- `tools/solvertest/run.ps1 -Command all` 退出 0（历史实录诊断仍为 70 个差异、668/793 匹配）；`tools/live-state-validation/build-probe.ps1` 退出 0，Java 8 major 52，隔离 JAR SHA-256 `3E2FA9640AFDDC656977A53E91D0E266ED9041BE7F4C787B2E6639876BA1D02D`；`git diff --check` 退出 0。曾有 `JsonArray.isEmpty()` 与本机 Gson API 不兼容，改用 `size()!=0` 后专项通过。
+- 未启动游戏、未安装临时探针、未修改存档或正式 JAR。正式 `CombatSolver1.jar` 当前 SHA-256 `644E4F0E2457BBDC6A969B94302B317ED0904D91F761E590DFF0A27E1432EC7F`。真实源对象双读、RNG 无推进、C++ 对真实快照恢复仍未执行；因此 L3/L4 未通过，完整实时状态恢复仍被真实快照验收阻断。
+
+### 2026-10-20：首次候选探针实机尝试（BLOCKED）
+
+- 探针加载：判定未加载。MTS 本次 `sendToDevs/mts_process_launch.log` 的 Mod 初始化清单只列出 `CombatSolver1` 与 `com.combatsolver1.CombatSolver1Mod`，没有 `CS1LiveStateProbe`/`cs1livestateprobe`。探针 JAR 虽存在于 `mods`，但未在 MTS 本次选择/加载清单中；未发现探针执行证据。
+- 遭遇场景：游戏 `sendToDevs/logs/SlayTheSpire.log` 记录 `CombatSolver1 battle start: EventRoom`，确认本场也不符合地图 `MonsterRoomElite` 三 Sentry 白名单。由于探针未加载，不能把这解释成探针拒绝结果；也没有字段采集失败结果。
+- 时间与产物：`live-capture-report.json` 修改时间仍为 2026-10-19 21:52:44、SHA-256 `6C3E8B8B228BCD0D413A8859C47859DEB956D025C83D818F1DFF7659C529CD4D`，内容是历史 `CAPTURED_SOURCE_ONLY`；本次没有生成 `live-battle-state-v1.json`。故无真实快照及 C++ 根状态差分。
+- 正式 `CombatSolver1.jar` SHA-256 `644E4F0E2457BBDC6A969B94302B317ED0904D91F761E590DFF0A27E1432EC7F`。当前 `saves/1_IRONCLAD.autosave` SHA-256 `A61FFF4112AF3511DF01D5712780D194834EC1D4B584BFAD75B542BC7325056B`、修改时间 2026-10-19 14:51:59，早于本次 MTS 启动；本轮未对存档执行写入。临时探针仍在 MTS mods 目录，SHA-256 `3E2FA9640AFDDC656977A53E91D0E266ED9041BE7F4C787B2E6639876BA1D02D`。结论为加载/遭遇阻断，不是字段采集或 RNG 失败。
+
+### 2026-10-20：MTS 探针未选中配置修正（未启动游戏）
+
+- 根因已从 MTS 3.30.3 `sendToDevs/mts_process_launch.log` 与 `%LOCALAPPDATA%\ModTheSpire\mod_lists.json` 交叉确认：启动记录只列出当次所选的 BaseMod、StSLib、CombatSolver1；默认列表也只有 `StSLib.jar`、`BaseMod.jar`、`CombatSolver1.jar`，没有隔离探针。未发现探针元数据错误、版本告警或探针加载异常记录。结论是探针未勾选/未加入当前默认选择列表，而不是坏包。
+- 离线检查探针 JAR：路径为 MTS `mods\CS1LiveStateProbe.jar`，SHA-256 `3E2FA9640AFDDC656977A53E91D0E266ED9041BE7F4C787B2E6639876BA1D02D`；归档含根目录 `ModTheSpire.json`、`rngprobe/LiveBattleStateProbe.class` 和 `rngprobe/CardIdWireMap.class`。元数据的 `modid/name/version/sts_version/mts_version/dependencies` 均有值，版本为 `0.1.0` / STS `12-18-2022` / MTS `3.30.3`。包名 `rngprobe` 与 modid 不同不是已知阻断；历史已加载 RNG 探针同样使用 `rngprobe` 包与 `cs1rngprobe` modid。
+- 最小修复：备份 `%LOCALAPPDATA%\ModTheSpire\mod_lists.json` 至 `.bak-cs1probe-20261020`，将 `CS1LiveStateProbe.jar` 加入原 `<Default>` mod 列表。配置 SHA-256 从 `274E82E12183B35B86B4A878786771AF3ABB61D7AC83F39CC430F3F53A605CD5` 变为 `9B7DD53B4FA29CFDB70C3AE4EA5D127A281986D24FE72C93D37932D815F4C44B`。这证明下次使用默认列表时 MTS 会将它作为已选文件处理；本轮未启动 MTS UI，故没有声称已目视确认选择窗口条目。
+- 正式 JAR 保持 SHA-256 `644E4F0E2457BBDC6A969B94302B317ED0904D91F761E590DFF0A27E1432EC7F`。存档仍为 SHA-256 `A61FFF4112AF3511DF01D5712780D194834EC1D4B584BFAD75B542BC7325056B`、mtime `2026-10-19 14:51:59`；本轮未启动游戏或写存档。探针和 `sendToDevs/` 保留。下一次最小确认是在计划中的正常 MTS 选择界面检查该探针已勾选；只有自然出现地图 `MonsterRoomElite` 三 Sentry 才进行采集。
+
+### 2026-10-20：Dead Adventurer 三哨卫战斗内兼容（离线 L2；真实验收待做）
+
+- 在现有 live-state v1 与 `mcts_state` 上增量加入独立来源标记：地图 `MonsterRoomElite` 与 `EventRoom/DeadAdventurer` 分别保存，不以 `eliteTrigger` 冒充地图精英身份。事件输入严格要求 enemy index 0、遭遇名 `3 Sentries`、原版三只 Sentry；旧地图路径保持原校验。其他房间、事件、索引、遭遇名和阵容拒绝。
+- 新增 `mcts_state_search <file> <budget>` 仅在恢复的 `BattleContext` 上执行现有战斗搜索，不创建 `GameContext`，胜利/失败终态后停止，检查路线无终态后动作；不调用事件回调、奖励或地图精英战后流程。输出明确标识 `COMBAT_ONLY` 和 `event_callback=NOT_INVOKED`。战斗胜利不表示完整路线或事件模拟完成。
+- 离线 L2：`tools/solvertest/live-state-v1-check.ps1` 退出 0。事件源 assembler fixture 的 149 路径为 142 MATCH、0 MISMATCH、0 UNAVAILABLE、7 NOT_APPLICABLE；全部适用 REQUIRED 字段匹配。事件 fixture 搜索到 `PLAYER_VICTORY`，21 个动作、16 次模拟，终态停止且未调用事件回调。地图来源回归和事件/字段/阵容拒绝用例通过。此为合成 fixture，不是实际 Dead Adventurer 战斗快照或真实恢复证据。
+- 构建/测试：显式指定 Visual Studio CMake 的 `tools/build/build-engine.ps1` 退出 0；初次未指定 CMake 的调用因 `cmake` 不在 PATH 退出 1。Java 探针 `tools/live-state-validation/build-probe.ps1` 退出 0，class major=52，隔离 JAR SHA-256 `A622DCEC26EB20853D2FDE2B9D10A0ECEADFF08975F2DD44AC9E1D7827C2F6A5`。`tools/solvertest/run.ps1 -Command all` 退出 0（历史实录仍报告70项差异、668/793字段匹配）；`git diff --check` 退出 0，仅有换行格式提示。
+- 隔离探针已放入 MTS mods 目录，原临时探针备份为 `CS1LiveStateProbe.jar.bak-20261020-event-support`；本轮没有启动游戏，故尚无 MTS 加载证据、真实协议文件、真实 SHA-256 或 C++ 实战差分。正式 `CombatSolver1.jar` SHA-256 保持 `644E4F0E2457BBDC6A969B94302B317ED0904D91F761E590DFF0A27E1432EC7F`；存档 SHA-256 保持 `A61FFF4112AF3511DF01D5712780D194834EC1D4B584BFAD75B542BC7325056B`。未改存档、未接入自动执行、未提交或推送；`sendToDevs/` 保留。
+- 结论分项：离线来源兼容与战斗内终态搜索 L2 通过；真实快照恢复 BLOCKED；真实战斗内搜索未执行。下一步唯一需要的用户操作：从 Steam 正常进入 Play with Mods，确认隔离探针被选中/加载，并在自然出现的 Dead Adventurer（enemy 0，`3 Sentries`）战斗稳定可行动时停下；之后再对新鲜快照做 C++ 真实恢复差分。
+
+### 2026-10-20：真实快照阻断项离线审计（PROTOCOL_REJECTED，等待实现批准）
+
+- 按要求 SHA-256 核验唯一真实样本 **BC7E73EA6C783B115C4BB470E7FE3F7C5F21B9E0FE51658F5ADCA8339680FC36**；状态 PROTOCOL_REJECTED，首发原因是 draw 中七张卡全部 UNSUPPORTED_IDENTITY。C++ CardId/effect 分支存在不等于 live v1 允许。
+- 审计发现后续仍有独立门：C++ v1 ID allowlist；Carnage/AscendersBane 的 ethereal 序列化拒绝；Doubt 已有 Weak 时 justApplied 缺陷；当前 4 个遗物超过协议的单一 Burning Blood 限制；空 Potion Slot 的 -1 槽位与协议索引不兼容。字段诊断 metadata 对 counters/Sentry timing/group cursor 过宽，详见报告。
+- Map Elite 与 Dead Adventurer EventRoom 的来源类型、event class/encounter/index 必须分别保留；本次唯一真实样本是 EventRoom。C++ 结果限 COMBAT_ONLY，不覆盖事件回调/战后奖励；无 Map Elite 实机对照。
+- 详审逐卡分类、源→协议→C++ restore/STATE0_DETAIL/search、字段置信等级及最小修复/验收顺序：[offline-audit-20261020.md](build/live-state-validation/offline-audit-20261020.md#L1)。当前无卡可列 VERIFIED_SUPPORTED。
+- 本轮只读审计并复核报告哈希（Get-FileHash 退出 0）；未运行测试、未启动/干预游戏、未改代码/JAR/存档/生产搜索、未提交/推送。既有 148/149 MATCH 仅为 OFFLINE_FIXTURE L2，不是实机恢复证据；本轮无新增 L2/L3/L4。git 不可用，未独立验证工作区 diff/status。
+- 结论：保持 fail-closed；不实施任何修复，停止并等待用户批准实现计划。
+
+### 2026-10-20：Doubt / Weak 时序核查（原版与 C++ 一致；无需行为修复）
+
+- 根因核实：本机 `desktop-1.0.jar` 字节码显示 `Doubt.triggerOnEndOfTurnForPlayingCard()` 将牌以 no-trigger 路径排入队列；`Doubt.use()` 构造 `WeakPower(player, 1, true)` 并提交 `ApplyPowerAction`。`WeakPower` 构造器只在新实例上按该参数设置 `justApplied=true`；`WeakPower` 没有覆写 `stackPower`，继承的 `AbstractPower.stackPower(int)` 仅执行 `amount += value`。`WeakPower.atEndOfRound()` 若标记为 true 就清标记且跳过衰减，否则减少 1 层/移除。
+- C++ 对照：`callEndOfTurnActions()` 先排入 Doubt no-trigger 卡，`useNoTriggerCard()` 调用 `player.debuff<WEAK>(1, true)`；`Player::debuff` 只在 Weak 原先不存在时设置 just-applied。随后 `afterMonsterTurns()` 调用回合末状态处理，按该标记跳过一次或衰减 1 层。原版与 C++ 在新 Weak、已有 Weak 且标记 false、已有 Weak 且标记 true 三种情况的首次语义没有差异。旧审计将“已有 Weak 时不会刷新标记”判为缺陷，是把原版堆叠语义误读为应刷新。
+- 最小修改：没有改动生产结算行为。删除 `BattleContext.cpp` 中未经证实且与字节码不符的 Doubt/Shame TODO 推测并为 Doubt 路径注明原版堆叠语义；在 `test.cpp` 增加 5 个 Doubt→Weak→回合末分支回归（无 Weak、1/2 层旧 Weak 与 just-applied true/false）；`live-state-v1-check.ps1` 校验新回归摘要。
+- 验证：首次专项调用命中了未重编的旧引擎，因其输出缺少新测试摘要而失败；显式 C++ Release/Ninja 重建后 `live_state_power_timing_check` 退出 0（既有状态时序 10 案例 + Doubt/Weak 5 案例），`live-state-v1-check.ps1` 退出 0（Java 8 major=52；149 路径 fixture 148 MATCH、0 MISMATCH、0 UNAVAILABLE、1 capture_id NOT_APPLICABLE），`tools/solvertest/run.ps1 -Command all` 退出 0，`git diff --check` 退出 0。全套历史实录仍报告 70 个差异、668/793 字段匹配，该统计不是本次缺陷结果。
+- 证据等级/限制：STS1 结论来自本机原版 JAR 静态字节码；回归为 C++ 离线 L2。未启动游戏、未修改存档、未构建或部署 JAR；无本次 L3/L4 验收。Doubt 行为仍受当前卡牌协议白名单限制，本轮未扩大准入范围。
+
+### 2026-10-20：Shrug It Off 单卡 Java→C++ 状态映射（L2）
+
+- 目标选择：对审计中的七张未映射牌比较后选 `Shrug It Off`。本机 STS1 `desktop-1.0.jar` 的 `javap -p -c com.megacrit.cardcrawl.cards.red.ShrugItOff` 确认构造器传入原生 ID `Shrug It Off`、`baseBlock=8`；`upgrade()` 增加 3 格挡；`use()` 依次排入使用实例 `block` 的 `GainBlockAction` 与 `DrawCardAction(1)`。C++ 已有 `useSkillCard` 的 8/11 格挡与抽 1 分支，并列于技能搜索候选。其他候选额外涉及弃牌堆选牌、Ethereal、活动 Power 或 Weak 时序，因此本轮不处理。
+- 最小修改：`CardIdWireMap.java` 新增精确 `Shrug It Off`→`SHRUG_IT_OFF` 映射与效果准入；`apps/live_battle_state.h` 同步允许该 CardId。没有改搜索算法、效果结算或协议结构。通用序列化保留完整 UUID、费用、0/1 升级、`misc`、free-to-play 与 retain；仍拒绝缺字段、重复 UUID、非零 `misc`、Ethereal=true 和不支持升级状态。新增离线源 fixture，包含手牌普通/升级两张同 ID 不同 UUID 实例及抽牌堆第三实例，并在恢复后的 C++ 对象上通过 `STATE0_DETAIL_CARD` 和全路径 diff 比较。
+- 七张卡审计结论：Shrug 本轮接通；Headbutt 有弃牌堆选牌路径；Carnage 与 Ascender's Bane 的源卡为 Ethereal、当前 serializer 拒绝；Metallicize 与 Corruption 的效果依赖当前尚不接入的活动 Power 根状态；Doubt 依赖 Weak/`justApplied` 时序（当前树中有单独的字节码审查和回归）。其余六张未映射牌本轮未改。
+- 验证：Release C++ 构建脚本退出 0，协议 v2 校验通过；构建有既存 `Player::justAppliedBits` 移位告警，本轮未改该无关代码。`tools/solvertest/live-state-v1-check.ps1` 退出 0，Java `--release 8` 编译且 class major=52；Shrug 3/3 实例身份/堆序/升级/费用/特殊数据回读匹配，全协议为 148 MATCH、0 MISMATCH、0 UNAVAILABLE、1 `capture_id` NOT_APPLICABLE；5 种非法源字段及 C++ 非零 `special_data` 均拒绝。`tools/solvertest/run.ps1 -Command all` 退出 0；其中历史实录比较仍报告 70 个差异、668/793 字段匹配，这是既有 corpus 诊断，不是本次 Shrug fixture 失败。`git diff --check` 退出 0。
+- 证据边界：以上为安装 JAR 静态字节码和合成 fixture 的离线 L2；未启动游戏、未部署任何 JAR、未修改存档，Shrug 在真实战斗中的效果与抽牌结果尚未验收。既有 Doubt/Weak、协议及 Sentry 工作区改动和 `sendToDevs/` 均保留；未提交/推送。
+
+### 2026-10-20：Ironclad、药水、遗物与实时状态批量覆盖审计（仅规划）
+
+- 新增 `docs/IRONCLAD_COVERAGE_BATCH_AUDIT_2026-10-20.md`。卡牌清单按 C++ Ironclad 池及起始牌列出 75 个 ID，逐项记录 `CardId`、Java→协议→C++ 状态映射、实例状态边界、C++ 分发分支及特殊机制；75/75 有 C++ 分发分支不代表语义已验证。当前 7/75 Ironclad 卡牌接入状态映射；另有 colorless `RitualDagger`，不计入职业数。映射仅涵盖 0/1 升级及显式 special-data 规则；未映射卡仍由生产器拒绝。没有完整逐卡 L4 效果结论。
+- 分开审计药水与遗物：药水 C++ 有 42 个非哨兵 ID，Ironclad 池 33 个；Java 列表有 9 个职业池外 ID 和 `FearPotion`/`Swift Potion` 字符串不一致，且 `SmokeBomb` 有可被搜索枚举的空 TODO。药水协议只读 ID/槽位，不传 potency/实例状态。遗物有 180 个有效 enum ID，但当前位图/导入仅可表示 0–127，另有 52 个不可恢复；Java 快照生产器仍只接受 Burning Blood，C++ 仅解析七种命名 counter，完整遗物效果与触发顺序未验收。
+- 实时状态独立阻断：149 个路径形状（99 REQUIRED、35 CONDITIONAL、14 DERIVABLE、1 UNUSED）；字段审计的 83/14/52 是源码成员证据标签，非端到端完成数。生产采集器代码已存在但只接受严格窄根（第一回合未行动、稳定队列、无玩家 powers、Burning Blood、支持卡牌/药水及限定遭遇）；当前没有新鲜真实快照通过 C++ 全字段 `STATE0_DETAIL`。历史六流无推进及 108 步 RNG 对照不能替代该闭环。
+- 验证：`powershell -ExecutionPolicy Bypass -File tools/solvertest/live-state-v1-check.ps1` 退出 0（离线合成 fixture；149 路径 148 MATCH、0 MISMATCH、0 UNAVAILABLE、1 `capture_id` NOT_APPLICABLE，包含卡牌实例及 Sentry 回读）；`powershell -ExecutionPolicy Bypass -File tools/solvertest/run.ps1 -Command all` 退出 0，但历史对照仍有 70 项差异、668/793 字段匹配、48 个动作差异，属于既有语料差异。无 L3/L4 新证据。
+- 仅增加审计文档并更新本状态记录；未改生产逻辑、协议、JAR、存档或通知配置，未启动游戏/MTS，未提交或推送。既有工作区修改及 `sendToDevs/` 保留。
+- 建议次序：先做离线能力清单/生成校验（不能由分发分支自动授予效果支持）；再选 `Cleave` 与 `Bludgeon` 做首个 A 类小批次，对照本机 STS1 构造器的普通/升级数值，并完成 Java→C++ 状态回读与效果负例；之后再按共用机制接入 B 类，独立实现 C 类，先解决 D 类状态门控后才扩大输入范围。时间不估算，因无批量吞吐量基线。完成本审计后停止，等待下一项批准。
+- 范围限制：75 行是 C++ 卡牌 ID/分发与协议适配库存，不是对本机 `desktop-1.0.jar` 中 75 个构造器及每个普通/升级数值的完整反汇编；逐卡原版数值核对仍是准入门槛。矩阵明确把分支存在与效果回归、实机正确性分开。

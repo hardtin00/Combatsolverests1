@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <iomanip>
 
 #include "data_structure/fixed_list.h"
 #include "constants/Cards.h"
@@ -35,9 +36,102 @@
 using namespace sts;
 
 #include "choice_protocol.h"
+#include "live_battle_state.h"
 
 static bool applyReplayAction(sts::BattleContext &bc, std::uint32_t bits);
 static void printChoice(std::ostream &os, const sts::BattleContext &bc, const sts::search::Action &a);
+static std::string cardIdJson(sts::CardId id);
+
+template <PlayerStatus S>
+static bool checkPlayerPowerRoundTiming() {
+    Player applied;
+    applied.setStatusValueNoChecks<S>(2);
+    applied.setHasStatus<S>(true);
+    applied.setJustApplied<S>(true);
+    applied.applyAtEndOfRoundPowers();
+    if (applied.getStatusRuntime(S) != 2 || applied.wasJustApplied<S>()) return false;
+
+    Player old;
+    old.setStatusValueNoChecks<S>(2);
+    old.setHasStatus<S>(true);
+    old.setJustApplied<S>(false);
+    old.applyAtEndOfRoundPowers();
+    return old.getStatusRuntime(S) == 1 && old.hasStatus<S>();
+}
+
+static bool doubtWeakTimingCase(int initialWeak, bool justApplied, int expectedWeak) {
+    BattleContext context;
+    context.player.setStatusValueNoChecks<PS::WEAK>(initialWeak);
+    context.player.setHasStatus<PS::WEAK>(initialWeak > 0);
+    context.player.setJustApplied<PS::WEAK>(justApplied);
+    context.cards.cardsInHand = 1;
+    context.cards.hand[0] = CardInstance(CardId::DOUBT);
+
+    // Match the game's end-of-turn card trigger: Doubt is queued as no-trigger,
+    // resolves before the following end-of-round status decay.
+    context.callEndOfTurnActions();
+    if (context.cardQueue.size != 1) return false;
+    const auto queued = context.cardQueue.popFront();
+    if (queued.card.id != CardId::DOUBT || queued.triggerOnUse) return false;
+    context.playCardQueueItem(queued);
+
+    const int stackedWeak = initialWeak + 1;
+    const bool expectedAppliedAfterStack = initialWeak == 0 ? true : justApplied;
+    if (context.player.getStatus<PS::WEAK>() != stackedWeak
+            || context.player.wasJustApplied<PS::WEAK>() != expectedAppliedAfterStack) {
+        return false;
+    }
+
+    context.applyEndOfRoundPowers();
+    return context.player.getStatus<PS::WEAK>() == expectedWeak
+            && context.player.hasStatus<PS::WEAK>() == (expectedWeak > 0)
+            && !context.player.wasJustApplied<PS::WEAK>();
+}
+
+static bool doubtWeakTimingCheck() {
+    // Vanilla WeakPower: a new power starts justApplied; stacking an existing
+    // power only increments amount and preserves its prior justApplied value.
+    return doubtWeakTimingCase(0, false, 1)
+            && doubtWeakTimingCase(1, false, 1)
+            && doubtWeakTimingCase(1, true, 2)
+            && doubtWeakTimingCase(2, false, 2)
+            && doubtWeakTimingCase(2, true, 3);
+}
+
+static int liveStatePowerTimingCheck() {
+    if (!checkPlayerPowerRoundTiming<PS::DOUBLE_DAMAGE>()
+            || !checkPlayerPowerRoundTiming<PS::FRAIL>()
+            || !checkPlayerPowerRoundTiming<PS::VULNERABLE>()
+            || !checkPlayerPowerRoundTiming<PS::WEAK>()) {
+        std::cerr << "LIVE_STATE_POWER_TIMING_CHECK_FAILED reason=end_of_round_status_transition\n";
+        return 1;
+    }
+    if (!doubtWeakTimingCheck()) {
+        std::cerr << "LIVE_STATE_POWER_TIMING_CHECK_FAILED reason=doubt_weak_stack_order\n";
+        return 1;
+    }
+    auto drawReductionCase = [](bool justApplied) {
+        BattleContext context;
+        context.turn = 1;
+        context.inputState = InputState::PLAYER_NORMAL;
+        context.player.cardDrawPerTurn = 5;
+        context.player.setStatusValueNoChecks<PS::DRAW_REDUCTION>(1);
+        context.player.setHasStatus<PS::DRAW_REDUCTION>(true);
+        context.player.setJustApplied<PS::DRAW_REDUCTION>(justApplied);
+        context.afterMonsterTurns();
+        const bool remains = context.player.hasStatus<PS::DRAW_REDUCTION>();
+        if (justApplied)
+            return remains && context.player.wasJustApplied<PS::DRAW_REDUCTION>() == false
+                    && context.player.cardDrawPerTurn == 5;
+        return !remains && context.player.cardDrawPerTurn == 6;
+    };
+    if (!drawReductionCase(true) || !drawReductionCase(false)) {
+        std::cerr << "LIVE_STATE_POWER_TIMING_CHECK_FAILED reason=draw_reduction_start_turn_transition\n";
+        return 1;
+    }
+    std::cout << "LIVE_STATE_POWER_TIMING_CHECK_OK powers=DOUBLE_DAMAGE,FRAIL,VULNERABLE,WEAK,DRAW_REDUCTION applied_and_expired_cases=10 doubt_weak_cases=5\n";
+    return 0;
+}
 
 static int ascendersBaneCostSentinelCheck() {
     auto fail = [](const char *reason) {
@@ -216,6 +310,54 @@ static int blockModifierCheck() {
     }
 
     std::cout << "BLOCK_MODIFIER_CHECK_OK cases=9 fields=block,monster_hp,energy,hand,discard upgraded=true invalid_action=true search_action=true\n";
+    return 0;
+}
+
+static int cardBatchEffectCheck() {
+    auto run = [](CardId id, bool upgraded, int expectedCost, int expectedFirstHp,
+            int expectedSecondHp) {
+        BattleContext bc;
+        bc.inputState = InputState::PLAYER_NORMAL;
+        bc.player.curHp = bc.player.maxHp = 80;
+        bc.player.energy = 3;
+        bc.cards.cardsInHand = 1;
+        CardInstance card(id, upgraded);
+        card.setUniqueId(71);
+        bc.cards.hand[0] = card;
+        bc.monsters.monsterCount = 2;
+        bc.monsters.monstersAlive = 2;
+        for (int i = 0; i < 2; ++i) {
+            bc.monsters.arr[i].id = MonsterId::JAW_WORM;
+            bc.monsters.arr[i].idx = i;
+            bc.monsters.arr[i].curHp = bc.monsters.arr[i].maxHp = 100;
+        }
+
+        const search::Action play(search::ActionType::CARD, 0, 0);
+        if (card.costForTurn != expectedCost || !play.isValidAction(bc)) return false;
+        play.execute(bc);
+        return bc.monsters.arr[0].curHp == expectedFirstHp
+                && bc.monsters.arr[1].curHp == expectedSecondHp
+                && bc.player.energy == 3 - expectedCost
+                && bc.cards.cardsInHand == 0
+                && bc.cards.discardPile.size() == 1
+                && bc.cards.discardPile[0].id == id
+                && bc.cards.discardPile[0].upgraded == upgraded
+                && bc.cards.discardPile[0].getUniqueId() == 71;
+    };
+
+    const bool cleaveBase = run(CardId::CLEAVE, false, 1, 92, 92);
+    const bool cleaveUpgraded = run(CardId::CLEAVE, true, 1, 89, 89);
+    const bool bludgeonBase = run(CardId::BLUDGEON, false, 3, 68, 100);
+    const bool bludgeonUpgraded = run(CardId::BLUDGEON, true, 3, 58, 100);
+    if (!cleaveBase || !cleaveUpgraded || !bludgeonBase || !bludgeonUpgraded) {
+        std::cerr << "CARD_BATCH_EFFECT_CHECK_FAIL cleave_base=" << cleaveBase
+                  << " cleave_upgraded=" << cleaveUpgraded
+                  << " bludgeon_base=" << bludgeonBase
+                  << " bludgeon_upgraded=" << bludgeonUpgraded << '\n';
+        return 1;
+    }
+    std::cout << "CARD_BATCH_EFFECT_CHECK_OK card=CLEAVE variants=2 base_damage=8 upgraded_damage=11 all_enemies=true\n"
+              << "CARD_BATCH_EFFECT_CHECK_OK card=BLUDGEON variants=2 base_damage=32 upgraded_damage=42 cost=3 single_target=true\n";
     return 0;
 }
 
@@ -580,6 +722,352 @@ static void printStateLine(std::ostream &os, const BattleContext &bc, const char
     os << ' ';
     printMonsterHpList(os, bc);
     os << '\n';
+}
+
+static const sts::CardInstance &liveCardByDenseId(const sts::BattleContext &bc, int denseId) {
+    if (denseId < bc.cards.cardsInHand) return bc.cards.hand[denseId];
+    denseId -= bc.cards.cardsInHand;
+    if (denseId < static_cast<int>(bc.cards.drawPile.size())) return bc.cards.drawPile[denseId];
+    denseId -= static_cast<int>(bc.cards.drawPile.size());
+    if (denseId < static_cast<int>(bc.cards.discardPile.size())) return bc.cards.discardPile[denseId];
+    denseId -= static_cast<int>(bc.cards.discardPile.size());
+    if (denseId < static_cast<int>(bc.cards.exhaustPile.size())) return bc.cards.exhaustPile[denseId];
+    throw std::out_of_range("live card dense id outside restored piles");
+}
+
+static void printLiveCardIdentityDetails(std::ostream &os, const live_state_v1::json &state,
+                                         const sts::BattleContext &bc,
+                                         const std::vector<std::string> &uuidByDenseId) {
+    const auto &piles = state.at("piles");
+    int denseId = 0;
+    for (const char *pileName : {"hand", "draw", "discard", "exhaust"}) {
+        const auto &pile = piles.at(pileName);
+        const std::size_t restoredCount = std::string(pileName) == "hand" ? static_cast<std::size_t>(bc.cards.cardsInHand)
+                : std::string(pileName) == "draw" ? bc.cards.drawPile.size()
+                : std::string(pileName) == "discard" ? bc.cards.discardPile.size() : bc.cards.exhaustPile.size();
+        os << "STATE0_DETAIL_PILE path=piles." << pileName << " source_count=" << pile.size()
+           << " restored_count=" << restoredCount
+           << " status=" << (pile.size() == restoredCount ? "MATCH" : "MISMATCH") << '\n';
+        for (std::size_t i = 0; i < pile.size(); ++i, ++denseId) {
+            const auto &source = pile[i];
+            const auto &restored = liveCardByDenseId(bc, denseId);
+            const std::string sourceUuid = source.at("uuid").get<std::string>();
+            const std::string uuid = denseId < static_cast<int>(uuidByDenseId.size()) ? uuidByDenseId[denseId] : "UNAVAILABLE";
+            const std::string sourceId = source.at("id").get<std::string>();
+            const auto sourceCardId = sts::SimHelpers::getCardIdForString(sourceId);
+            const bool match = restored.getUniqueId() == denseId
+                    && sourceCardId != sts::CardId::INVALID && restored.id == sourceCardId
+                    && restored.specialData == source.at("special_data").get<std::int16_t>()
+                    && restored.cost == source.at("cost").get<std::int8_t>()
+                    && restored.costForTurn == source.at("cost_for_turn").get<std::int8_t>()
+                    && restored.upgraded == source.at("upgraded").get<bool>()
+                    && restored.freeToPlayOnce == source.at("free_to_play_once").get<bool>()
+                    && restored.retain == source.at("retain").get<bool>()
+                    && restored.getUpgradeCount() == source.at("upgrade_count").get<int>()
+                    && uuid == sourceUuid;
+            os << "STATE0_DETAIL_CARD uuid=" << uuid << " dense_id=" << denseId
+               << " pile=" << pileName << " pile_index=" << i
+               << " source_id=" << sourceId << " normalized_id=" << cardIdJson(restored.id)
+               << " status=" << (match ? "MATCH" : "MISMATCH")
+               << " special_data_source=" << source.at("special_data").get<int>()
+               << " special_data_restored=" << restored.specialData
+               << " upgrade_count_source=" << source.at("upgrade_count").get<int>()
+               << " upgrade_count_restored=" << restored.getUpgradeCount()
+               << " cost_source=" << source.at("cost").get<int>() << " cost_restored=" << static_cast<int>(restored.cost)
+               << " cost_for_turn_source=" << source.at("cost_for_turn").get<int>()
+               << " cost_for_turn_restored=" << static_cast<int>(restored.costForTurn) << '\n';
+        }
+    }
+}
+
+static int liveStateCursorCheck(const std::string &statePath) {
+            const auto restored = live_state_v1::restore(live_state_v1::readFile(statePath));
+            const auto &root = restored.context;
+    if (root.inputState != sts::InputState::PLAYER_NORMAL || root.monsterTurnIdx != 6
+            || root.monsters.monsterCount != 3) {
+        std::cerr << "LIVE_STATE_CURSOR_CHECK_FAILED reason=invalid_restored_root" << '\n';
+        return 1;
+    }
+    struct Result {
+        std::vector<int> slots;
+        std::array<int, 3> moves;
+        int hp;
+        int cursor;
+        int queuedActions;
+    };
+    const auto runMonsterBoundary = [&root](int cursor) {
+        auto bc = root;
+        bc.monsterTurnIdx = cursor;
+        sts::Actions::UnnamedEndOfTurnAction().actFunc(bc);
+        // Execute the queued MonsterStartTurnAction before iterating, matching
+        // BattleContext::executeActions ordering at end of turn.
+        bc.actionQueue.popFront()(bc);
+        Result result;
+        while (bc.monsterTurnIdx < bc.monsters.monsterCount) {
+            result.slots.push_back(bc.monsterTurnIdx);
+            bc.monsters.doMonsterTurn(bc);
+        }
+        result.moves = {{static_cast<int>(bc.monsters.arr[0].moveHistory[0]),
+                         static_cast<int>(bc.monsters.arr[1].moveHistory[0]),
+                         static_cast<int>(bc.monsters.arr[2].moveHistory[0])}};
+        result.hp = bc.player.curHp;
+        result.cursor = bc.monsterTurnIdx;
+        result.queuedActions = bc.actionQueue.size;
+        return result;
+    };
+    const auto sentinel = runMonsterBoundary(6);
+    const auto terminal = runMonsterBoundary(3);
+    const std::vector<int> expectedSlots{0, 1, 2};
+    if (sentinel.slots != expectedSlots || terminal.slots != expectedSlots
+            || sentinel.moves != terminal.moves || sentinel.hp != terminal.hp
+            || sentinel.cursor != terminal.cursor || sentinel.queuedActions != terminal.queuedActions) {
+        std::cerr << "LIVE_STATE_CURSOR_CHECK_FAILED reason=boundary_cursor_changed_monster_semantics" << '\n';
+        return 1;
+    }
+    std::cout << "LIVE_STATE_CURSOR_CHECK_OK root=6 alternate_terminal=3 reset=0 slot_order=0,1,2 sentry_state=equal\n";
+    return 0;
+}
+
+static std::string hex64(std::uint64_t value) {
+    std::ostringstream out;
+    out << std::hex << std::setfill('0') << std::setw(16) << value;
+    return out.str();
+}
+
+static bool playerJustApplied(const sts::Player &p, int id) {
+    if (!live_state_v1::playerStatusUsesJustApplied(id)) return false;
+    return (p.justAppliedBits & (1U << id)) != 0;
+}
+
+static bool monsterJustApplied(const sts::Monster &m, int id) {
+    if (id == static_cast<int>(sts::MS::VULNERABLE)) return m.wasJustApplied<sts::MS::VULNERABLE>();
+    if (id == static_cast<int>(sts::MS::WEAK)) return m.wasJustApplied<sts::MS::WEAK>();
+    if (id == static_cast<int>(sts::MS::RITUAL)) return m.wasJustApplied<sts::MS::RITUAL>();
+    return false;
+}
+
+static live_state_v1::json restoredPlayerStatuses(const live_state_v1::json &source, const sts::Player &p) {
+    auto restored = live_state_v1::json::array();
+    for (const auto &entry : source) {
+        const std::string id = entry.at("id").get<std::string>();
+        const int enumId = static_cast<int>(sts::SimHelpers::getPlayerStatusForString(id));
+        live_state_v1::json item = live_state_v1::json::object();
+        item["id"] = playerStatusEnumStrings[enumId];
+        item["amount"] = p.getStatusRuntime(static_cast<PlayerStatus>(enumId));
+        if (live_state_v1::playerStatusUsesJustApplied(enumId))
+            item["just_applied"] = playerJustApplied(p, enumId);
+        restored.push_back(std::move(item));
+    }
+    return restored;
+}
+
+static live_state_v1::json restoredMonsterStatuses(const live_state_v1::json &source, const sts::Monster &m) {
+    auto restored = live_state_v1::json::array();
+    for (const auto &entry : source) {
+        const std::string id = entry.at("id").get<std::string>();
+        const int enumId = static_cast<int>(sts::SimHelpers::getMonsterStatusForString(id));
+        live_state_v1::json item = live_state_v1::json::object();
+        item["id"] = sts::monsterStatusEnumStrings[enumId];
+        item["amount"] = m.getStatusInternal(static_cast<sts::MS>(enumId));
+        item["just_applied"] = monsterJustApplied(m, enumId);
+        restored.push_back(std::move(item));
+    }
+    return restored;
+}
+
+static void printLiveStateField(std::ostream &os, const std::string &path,
+                                const live_state_v1::json &source,
+                                const live_state_v1::json &restored) {
+    const bool match = source == restored;
+    os << "STATE0_DETAIL_FIELD path=" << path << " source=" << source.dump()
+       << " restored=" << restored.dump() << " status=" << (match ? "MATCH" : "MISMATCH") << '\n';
+}
+
+// These are values read back from the restored BattleContext, not an echo of
+// the input JSON. Fields without a canonical reverse mapping remain explicitly
+// unavailable and are not implied to have passed by this diagnostic subset.
+static void printLiveStateDetail(std::ostream &os, const live_state_v1::json &state,
+                                 const sts::BattleContext &bc) {
+    // Provenance is reconstructed from the typed origin stored in BattleContext,
+    // not echoed from the input room_context object.
+    printLiveStateField(os, "protocol", state.at("protocol"), std::string("live_battle_state"));
+    printLiveStateField(os, "version", state.at("version"), 1);
+    printLiveStateField(os, "character", state.at("character"), sts::characterClassEnumNames[static_cast<int>(bc.player.cc)]);
+    printLiveStateField(os, "act", state.at("act"), bc.act);
+    printLiveStateField(os, "seed", state.at("seed"), bc.seed);
+    printLiveStateField(os, "floor", state.at("floor"), bc.floorNum);
+    printLiveStateField(os, "ascension", state.at("ascension"), bc.ascension);
+    printLiveStateField(os, "turn", state.at("turn"), bc.turn);
+    printLiveStateField(os, "encounter", state.at("encounter"), sts::monsterEncounterEnumNames[static_cast<int>(bc.encounter)]);
+    const auto &room = state.at("room_context");
+    const bool eventOrigin = bc.liveBattleOrigin == sts::LiveBattleOrigin::DEAD_ADVENTURER_EVENT;
+    const bool mapOrigin = bc.liveBattleOrigin == sts::LiveBattleOrigin::MAP_MONSTER_ELITE;
+    printLiveStateField(os, "room_context.kind", room.at("kind"), std::string(eventOrigin ? "EVENT" : "MAP_MONSTER"));
+    printLiveStateField(os, "room_context.class", room.at("class"), std::string(eventOrigin
+            ? "com.megacrit.cardcrawl.rooms.EventRoom" : "com.megacrit.cardcrawl.rooms.MonsterRoomElite"));
+    printLiveStateField(os, "room_context.elite_trigger", room.at("elite_trigger"), bc.liveEliteTrigger);
+    printLiveStateField(os, "room_context.event_class", room.at("event_class"), eventOrigin
+            ? live_state_v1::json("com.megacrit.cardcrawl.events.exordium.DeadAdventurer") : live_state_v1::json(nullptr));
+    printLiveStateField(os, "room_context.event_encounter", room.at("event_encounter"), eventOrigin
+            ? live_state_v1::json("3 Sentries") : live_state_v1::json(nullptr));
+    printLiveStateField(os, "room_context.event_enemy_index", room.at("event_enemy_index"), eventOrigin
+            ? live_state_v1::json(bc.liveEventEnemyIndex) : live_state_v1::json(nullptr));
+    if (!eventOrigin && !mapOrigin)
+        os << "STATE0_DETAIL_FIELD path=room_context.origin source=" << room.dump()
+           << " restored=null status=UNAVAILABLE reason=unknown_live_battle_origin\n";
+    const char *restoredStage = bc.inputState == sts::InputState::PLAYER_NORMAL ? "PLAYER_NORMAL" : "EXECUTING_ACTIONS";
+    printLiveStateField(os, "stage", state.at("stage"), restoredStage);
+    const bool restoredQueuesEmpty = bc.actionQueue.size == 0 && bc.cardQueue.size == 0
+            && !bc.isBattleOver && !bc.endTurnQueued && !bc.turnHasEnded && !bc.skipMonsterTurn;
+    printLiveStateField(os, "queues_empty", state.at("queues_empty"), restoredQueuesEmpty);
+    printLiveStateField(os, "action_queue_size", state.at("action_queue_size"), bc.actionQueue.size);
+    printLiveStateField(os, "card_queue_size", state.at("card_queue_size"), bc.cardQueue.size);
+    printLiveStateField(os, "battle_over", state.at("battle_over"), bc.isBattleOver);
+    printLiveStateField(os, "end_turn_queued", state.at("end_turn_queued"), bc.endTurnQueued);
+    printLiveStateField(os, "turn_has_ended", state.at("turn_has_ended"), bc.turnHasEnded);
+    printLiveStateField(os, "skip_monster_turn", state.at("skip_monster_turn"), bc.skipMonsterTurn);
+    os << "STATE0_DETAIL_FIELD path=capture_id source=" << state.at("capture_id").dump()
+       << " restored=null status=NOT_APPLICABLE reason=transport_metadata_not_part_of_BattleContext\n";
+    const auto &p = state.at("player");
+    printLiveStateField(os, "player.hp", p.at("hp"), bc.player.curHp);
+    printLiveStateField(os, "player.max_hp", p.at("max_hp"), bc.player.maxHp);
+    printLiveStateField(os, "player.block", p.at("block"), bc.player.block);
+    printLiveStateField(os, "player.energy", p.at("energy"), bc.player.energy);
+    printLiveStateField(os, "player.orb_slots", p.at("orb_slots"), bc.player.orbSlots);
+    if (p.contains("last_targeted_monster") && !p.at("last_targeted_monster").is_null())
+        printLiveStateField(os, "player.last_targeted_monster", p.at("last_targeted_monster"), bc.player.lastTargetedMonster);
+    else
+        os << "STATE0_DETAIL_FIELD path=player.last_targeted_monster source=null restored=" << static_cast<int>(bc.player.lastTargetedMonster)
+           << " status=NOT_APPLICABLE reason=surrounded_absent_internal_sentinel\n";
+    const char *stanceName = bc.player.stance == Stance::NEUTRAL ? "NEUTRAL"
+            : bc.player.stance == Stance::CALM ? "CALM"
+            : bc.player.stance == Stance::WRATH ? "WRATH" : "DIVINITY";
+    printLiveStateField(os, "player.stance", p.at("stance"), stanceName);
+    printLiveStateField(os, "player.energy_per_turn", p.at("energy_per_turn"), bc.player.energyPerTurn);
+    printLiveStateField(os, "player.card_draw_per_turn", p.at("card_draw_per_turn"), bc.player.cardDrawPerTurn);
+    printLiveStateField(os, "player.gold", p.at("gold"), bc.player.gold);
+    printLiveStateField(os, "player.strength", p.at("strength"), bc.player.strength);
+    printLiveStateField(os, "player.dexterity", p.at("dexterity"), bc.player.dexterity);
+    printLiveStateField(os, "player.focus", p.at("focus"), bc.player.focus);
+    printLiveStateField(os, "player.artifact", p.at("artifact"), bc.player.artifact);
+    const auto &pc = p.at("counters");
+    printLiveStateField(os, "player.counters.necronomicon_used", pc.at("necronomicon_used"), bc.player.haveUsedNecronomiconThisTurn);
+    printLiveStateField(os, "player.counters.combust_hp_loss", pc.at("combust_hp_loss"), bc.player.combustHpLoss);
+    printLiveStateField(os, "player.counters.deva_energy", pc.at("deva_energy"), bc.player.devaFormEnergyPerTurn);
+    printLiveStateField(os, "player.counters.echo_doubled", pc.at("echo_doubled"), bc.player.echoFormCardsDoubled);
+    printLiveStateField(os, "player.counters.panache", pc.at("panache"), bc.player.panacheCounter);
+    printLiveStateField(os, "player.counters.cards_played", pc.at("cards_played"), bc.player.cardsPlayedThisTurn);
+    printLiveStateField(os, "player.counters.attacks_played", pc.at("attacks_played"), bc.player.attacksPlayedThisTurn);
+    printLiveStateField(os, "player.counters.skills_played", pc.at("skills_played"), bc.player.skillsPlayedThisTurn);
+    printLiveStateField(os, "player.counters.cards_discarded", pc.at("cards_discarded"), bc.player.cardsDiscardedThisTurn);
+    printLiveStateField(os, "player.counters.last_attack_unblocked", pc.at("last_attack_unblocked"), bc.player.lastAttackUnblockedDamage);
+    printLiveStateField(os, "player.counters.times_damaged", pc.at("times_damaged"), bc.player.timesDamagedThisCombat);
+    printLiveStateField(os, "player.counters.bomb1", pc.at("bomb1"), bc.player.bomb1);
+    printLiveStateField(os, "player.counters.bomb2", pc.at("bomb2"), bc.player.bomb2);
+    printLiveStateField(os, "player.counters.bomb3", pc.at("bomb3"), bc.player.bomb3);
+    live_state_v1::json restoredPellets = live_state_v1::json::array();
+    for (int i = 0; i < 3; ++i) restoredPellets.push_back(bc.player.orangePelletsCardTypesPlayed.test(i));
+    printLiveStateField(os, "player.counters.orange_pellets", pc.at("orange_pellets"), restoredPellets);
+    const auto &sourceCounters = state.at("card_counters");
+    printLiveStateField(os, "card_counters.hand_normality", sourceCounters.at("hand_normality"), bc.cards.handNormalityCount);
+    printLiveStateField(os, "card_counters.hand_pain", sourceCounters.at("hand_pain"), bc.cards.handPainCount);
+    printLiveStateField(os, "card_counters.strikes_in_combat", sourceCounters.at("strikes_in_combat"), bc.cards.strikeCount);
+    printLiveStateField(os, "card_counters.hand_blood", sourceCounters.at("hand_blood"), bc.cards.handBloodCardCount);
+    printLiveStateField(os, "card_counters.draw_blood", sourceCounters.at("draw_blood"), bc.cards.drawPileBloodCardCount);
+    printLiveStateField(os, "card_counters.discard_blood", sourceCounters.at("discard_blood"), bc.cards.discardPileBloodCardCount);
+
+    const auto &sourcePotions = state.at("potions");
+    live_state_v1::json restoredPotions = live_state_v1::json::array();
+    for (int i = 0; i < bc.potionCapacity; ++i) {
+        restoredPotions.push_back({{"id", sts::potionToJsonString(bc.potions[i])}});
+    }
+    printLiveStateField(os, "potions", sourcePotions, restoredPotions);
+    std::vector<std::string> sourceRelics, restoredRelics;
+    for (const auto &r : state.at("relics")) sourceRelics.push_back(r.at("id").get<std::string>());
+    for (int i = 0; i < 128 && i < static_cast<int>(sts::RelicId::INVALID); ++i) {
+        if (bc.player.hasRelicRuntime(static_cast<sts::RelicId>(i))) restoredRelics.push_back(sts::relicEnumNames[i]);
+    }
+    std::sort(sourceRelics.begin(), sourceRelics.end());
+    std::sort(restoredRelics.begin(), restoredRelics.end());
+    printLiveStateField(os, "relics", sourceRelics, restoredRelics);
+    const auto &sourceRelicCounters = state.at("relic_counters");
+    live_state_v1::json restoredRelicCounters = live_state_v1::json::array();
+    const std::pair<const char *, int> relicCounterValues[] = {
+        {"HAPPY_FLOWER", bc.player.happyFlowerCounter}, {"INCENSE_BURNER", bc.player.incenseBurnerCounter},
+        {"INK_BOTTLE", bc.player.inkBottleCounter}, {"INSERTER", bc.player.inserterCounter},
+        {"NUNCHAKU", bc.player.nunchakuCounter}, {"PEN_NIB", bc.player.penNibCounter},
+        {"SUNDIAL", bc.player.sundialCounter}
+    };
+    for (const auto &counter : relicCounterValues) {
+        const auto found = std::find_if(sourceRelicCounters.begin(), sourceRelicCounters.end(),
+                [&counter](const live_state_v1::json &entry) { return entry.at("id").get<std::string>() == counter.first; });
+        if (found != sourceRelicCounters.end()) restoredRelicCounters.push_back({{"id", counter.first}, {"value", counter.second}});
+    }
+    printLiveStateField(os, "relic_counters", sourceRelicCounters, restoredRelicCounters);
+
+    const auto &rng = state.at("rng");
+    const std::pair<const char *, const sts::Random *> streams[] = {
+        {"ai", &bc.aiRng}, {"card", &bc.cardRandomRng}, {"misc", &bc.miscRng},
+        {"monster_hp", &bc.monsterHpRng}, {"potion", &bc.potionRng}, {"shuffle", &bc.shuffleRng}
+    };
+    for (const auto &entry : streams) {
+        const auto &source = rng.at(entry.first);
+        live_state_v1::json restored = {{"seed0", hex64(entry.second->seed0)},
+                                        {"seed1", hex64(entry.second->seed1)},
+                                        {"counter", entry.second->counter},
+                                        {"stream_id", source.at("stream_id")}};
+        printLiveStateField(os, std::string("rng.") + entry.first, source, restored);
+    }
+    for (int i = 0; i < bc.monsters.monsterCount; ++i) {
+        const auto &source = state.at("monsters").at(i);
+        const auto &m = bc.monsters.arr[i];
+        const std::string prefix = "monsters[" + std::to_string(i) + "].";
+        printLiveStateField(os, prefix + "id", source.at("id"), sts::monsterIdStrings[static_cast<int>(m.id)]);
+        printLiveStateField(os, prefix + "slot", source.at("slot"), m.idx);
+        printLiveStateField(os, prefix + "hp", source.at("hp"), m.curHp);
+        printLiveStateField(os, prefix + "max_hp", source.at("max_hp"), m.maxHp);
+        printLiveStateField(os, prefix + "block", source.at("block"), m.block);
+        printLiveStateField(os, prefix + "beam_damage", source.at("beam_damage"), bc.ascension >= 3 ? 10 : 9);
+        printLiveStateField(os, prefix + "dazed_amount", source.at("dazed_amount"), bc.ascension >= 18 ? 3 : 2);
+        // The parser admits only the initialized Sentry model (first_move=false);
+        // the C++ Monster model has no firstMove member to restore.
+        printLiveStateField(os, prefix + "first_move", source.at("first_move"), false);
+        printLiveStateField(os, prefix + "misc_info", source.at("misc_info"), m.miscInfo);
+        printLiveStateField(os, prefix + "unique_power0", source.at("unique_power0"), m.uniquePower0);
+        printLiveStateField(os, prefix + "unique_power1", source.at("unique_power1"), m.uniquePower1);
+        printLiveStateField(os, prefix + "escaping", source.at("escaping"), m.isEscapingB);
+        printLiveStateField(os, prefix + "half_dead", source.at("half_dead"), m.halfDead);
+        printLiveStateField(os, prefix + "escape_next", source.at("escape_next"), m.escapeNext);
+        for (int h = 0; h < 2; ++h) {
+            const int move = static_cast<int>(m.moveHistory[h]);
+            const std::string normalized = move >= 0
+                    && move < static_cast<int>(sizeof(monsterMoveStrings) / sizeof(monsterMoveStrings[0]))
+                    ? monsterMoveStrings[move] : "INVALID";
+            printLiveStateField(os, prefix + "move_history[" + std::to_string(h) + "]",
+                                source.at("move_history").at(h), normalized);
+        }
+    }
+    live_state_v1::json restoredExtraRoll = live_state_v1::json::array();
+    live_state_v1::json restoredSkipTurn = live_state_v1::json::array();
+    for (int i = 0; i < bc.monsters.monsterCount; ++i) {
+        restoredExtraRoll.push_back(bc.monsters.extraRollMoveOnTurn.test(i));
+        restoredSkipTurn.push_back(bc.monsters.skipTurn.test(i));
+    }
+    printLiveStateField(os, "monster_group.extra_roll", state.at("monster_group").at("extra_roll"), restoredExtraRoll);
+    printLiveStateField(os, "monster_group.skip_turn", state.at("monster_group").at("skip_turn"), restoredSkipTurn);
+    for (const char *pileName : {"limbo", "stasis"}) {
+        const auto &sourcePile = state.at("piles").at(pileName);
+        os << "STATE0_DETAIL_PILE path=piles." << pileName << " source_count=" << sourcePile.size()
+           << " restored_count=0 status=" << (sourcePile.empty() ? "MATCH" : "MISMATCH") << '\n';
+    }
+    const auto playerStatuses = restoredPlayerStatuses(p.at("statuses"), bc.player);
+    printLiveStateField(os, "player.statuses", p.at("statuses"), playerStatuses);
+    for (int i = 0; i < bc.monsters.monsterCount; ++i) {
+        const auto &source = state.at("monsters").at(i).at("statuses");
+        const auto &m = bc.monsters.arr[i];
+        printLiveStateField(os, "monsters[" + std::to_string(i) + "].statuses",
+                            source, restoredMonsterStatuses(source, m));
+    }
 }
 
 // Detailed read-only root diagnostics for pairing a real combat root with the
@@ -986,6 +1474,38 @@ static bool applyReplayAction(BattleContext &bc, std::uint32_t bits) {
     return true;
 }
 
+static int searchRestoredLiveBattle(const char *statePath, const char *budgetArg) {
+    const auto simulationCount = std::stoll(budgetArg);
+    if (simulationCount < 1 || simulationCount > 1000000)
+        throw std::runtime_error("live battle search budget must be in 1..1000000");
+    const auto state = live_state_v1::readFile(statePath);
+    const auto restored = live_state_v1::restore(state);
+    const auto &root = restored.context;
+    search::BattleScumSearcher2 searcher(root);
+    searcher.search(simulationCount);
+
+    BattleContext terminal = root;
+    for (const auto &action : searcher.bestActionSequence) {
+        if (terminal.outcome != Outcome::UNDECIDED)
+            throw std::runtime_error("search returned actions beyond a battle terminal state");
+        if (!applyReplayAction(terminal, action.bits))
+            throw std::runtime_error("search route cannot be replayed from its restored root");
+    }
+    if (terminal.outcome == Outcome::UNDECIDED)
+        throw std::runtime_error("search route did not reach a battle terminal state");
+
+    const char *origin = root.liveBattleOrigin == LiveBattleOrigin::DEAD_ADVENTURER_EVENT
+            ? "DEAD_ADVENTURER_EVENT" : "MAP_MONSTER_ELITE";
+    std::cout << "LIVE_BATTLE_SEARCH_RESULT scope=COMBAT_ONLY origin=" << origin
+              << " status=TERMINAL outcome=" << battleOutcomeStrings[static_cast<int>(terminal.outcome)]
+              << " actions=" << searcher.bestActionSequence.size()
+              << " simulations=" << simulationCount << " event_callback=NOT_INVOKED\n";
+    for (std::size_t i = 0; i < searcher.bestActionSequence.size(); ++i)
+        std::cout << "LIVE_BATTLE_ACTION index=" << i << " bits=0x" << std::hex
+                  << searcher.bestActionSequence[i].bits << std::dec << '\n';
+    return 0;
+}
+
 // 从存档开战，先按动作文件回放（十六进制 action bits，每行一个），
 // 再在回放后的状态上重新搜索。动作文件由 Java 侧记录（含自动执行与手动出牌）。
 int replaySearch(int argc, const char *argv[]) {
@@ -1073,6 +1593,10 @@ int main(int argc, const char* argv[]) {
         return blockModifierCheck();
     }
 
+    if (command == "card_batch_effect_check") {
+        return cardBatchEffectCheck();
+    }
+
     if (command == "exhaust_trigger_check") {
         return exhaustTriggerCheck();
     }
@@ -1081,8 +1605,21 @@ int main(int argc, const char* argv[]) {
         return exhumeCheck();
     }
 
+    if (command == "live_state_cursor_check") {
+        if (argc < 3) return 2;
+        try { return liveStateCursorCheck(argv[2]); }
+        catch (const std::exception &e) {
+            std::cerr << "LIVE_STATE_CURSOR_CHECK_FAILED reason=" << e.what() << '\n';
+            return 1;
+        }
+    }
+
+    if (command == "live_state_power_timing_check") {
+        return liveStatePowerTimingCheck();
+    }
+
     if (command == "protocol") {
-        std::cout << "COMBATSOLVER1_PROTOCOL version=2 commands=mcts_save,replay_search,replay_trace,json,json_to_save" << std::endl;
+        std::cout << "COMBATSOLVER1_PROTOCOL version=2 commands=mcts_save,replay_search,replay_trace,mcts_state,mcts_state_search,json,json_to_save" << std::endl;
         return 0;
     }
 
@@ -1144,6 +1681,37 @@ int main(int argc, const char* argv[]) {
 
     } else if (command == "mcts_save") {
         return mcts(argc, argv);
+    } else if (command == "mcts_state") {
+        if (argc < 3) return 2;
+        try {
+            const auto state = live_state_v1::readFile(argv[2]);
+            const auto restored = live_state_v1::restore(state);
+            const auto &bc = restored.context;
+            printStateLine(std::cout, bc, "STATE0");
+            printLiveStateDetail(std::cout, state, bc);
+            printLiveCardIdentityDetails(std::cout, state, bc, restored.cardUuidByDenseId);
+            const char *origin = bc.liveBattleOrigin == sts::LiveBattleOrigin::DEAD_ADVENTURER_EVENT
+                    ? "DEAD_ADVENTURER_EVENT" : "MAP_MONSTER_ELITE";
+            std::cout << "LIVE_BATTLE_ORIGIN origin=" << origin << " search_scope=COMBAT_ONLY\n";
+            std::cout << "LIVE_STATE_RESTORED version=1 cards=" << bc.cards.nextUniqueCardId
+                      << " monsters=" << bc.monsters.monsterCount << '\n';
+            std::cout << "LIVE_STATE_INTERNAL loop_count=" << bc.loopCount
+                      << " energy_wasted=" << bc.energyWasted
+                      << " cards_drawn=" << bc.cardsDrawn
+                      << " monster_turn_idx=" << bc.monsterTurnIdx
+                      << " stolen_gold_check=" << bc.requiresStolenGoldCheck() << '\n';
+            return 0;
+        } catch (const std::exception &e) {
+            std::cerr << "LIVE_STATE_REJECTED reason=" << e.what() << '\n';
+            return 3;
+        }
+    } else if (command == "mcts_state_search") {
+        if (argc < 4) return 2;
+        try { return searchRestoredLiveBattle(argv[2], argv[3]); }
+        catch (const std::exception &e) {
+            std::cerr << "LIVE_BATTLE_SEARCH_REJECTED reason=" << e.what() << '\n';
+            return 4;
+        }
     } else if (command == "replay_search" || command == "replay_trace") {
         if (argc < 5) return 2;
         return replaySearch(argc, argv);

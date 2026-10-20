@@ -1,0 +1,13 @@
+{
+  "test_only": "OFFLINE_CARD_SOURCE_FIXTURE_NOT_REAL_GAME_STATE",
+  "card_counters": {"hand_normality":0,"hand_pain":0,"strikes_in_combat":0,"hand_blood":0,"draw_blood":0,"discard_blood":0},
+  "hand": [
+    {"uuid":"61000000-0000-0000-0000-000000000001","card_id":"Shrug It Off","upgrades":0,"cost":1,"cost_for_turn":1,"misc":0,"free_to_play_once":false,"retain":false,"ethereal":false},
+    {"uuid":"61000000-0000-0000-0000-000000000002","card_id":"Shrug It Off","upgrades":1,"cost":1,"cost_for_turn":1,"misc":0,"free_to_play_once":false,"retain":false,"ethereal":false}
+  ],
+  "draw": [
+    {"uuid":"62000000-0000-0000-0000-000000000001","card_id":"Shrug It Off","upgrades":0,"cost":1,"cost_for_turn":1,"misc":0,"free_to_play_once":false,"retain":false,"ethereal":false}
+  ],
+  "discard": [],
+  "exhaust": []
+}

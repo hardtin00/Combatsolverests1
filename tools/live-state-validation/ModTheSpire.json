@@ -1,0 +1,10 @@
+{
+  "modid": "cs1livestateprobe",
+  "name": "CombatSolver1 Live State Validation Probe",
+  "author_list": ["CombatSolver1 validation"],
+  "description": "Isolated read-only observation of vanilla player Power timing fields.",
+  "version": "0.1.0",
+  "sts_version": "12-18-2022",
+  "mts_version": "3.30.3",
+  "dependencies": ["basemod"]
+}

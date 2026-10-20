@@ -24,6 +24,26 @@ CI（`.github/workflows/ci.yml`）会在每次提交时跑同一套命令。
 | `gamedata <cards.json>` | 用游戏自带卡牌文本核对「打出即消耗」等标记 |
 | `all` | 前三条 + fixtures 里的差分重放 |
 
+## 搜索质量基准（漏优率）
+
+`Oracle.java` + `SearchQuality.java` 用来客观回答「内置 Beam Search 有没有错过更优的合法路线」。
+`Oracle` 与 `CombatSearch` 共用 `CombatEngine` 结算和 `evaluate` 打分，只把搜索方式换成
+回合内穷举 + 跨回合记忆化，因此参照值是同模型、同目标、同回合预算下的上界，也是可达值。
+
+```powershell
+# 编译（与自检同一条命令，新增工具会被自动纳入）
+powershell -ExecutionPolicy Bypass -File tools/solvertest/run.ps1 -Command search
+# 先证明参照求解器自身可信（5 条断言），退出码 0 才可读漏优数字
+java -cp build\solvertest SearchQuality --selftest
+# 12 场景两个层级的漏优率与截断归因（约 5-6 分钟；--verbose 附路线与耗时）
+java -cp build\solvertest SearchQuality --verbose --out build\p0-search-quality.txt
+```
+
+口径与限制：漏优判定按 beam **实际展开深度 d** 取参照 C(d)，避免把「预算没用完」当成搜索缺陷；
+参照触顶时结果只是下界（标 CAPPED），其「未漏优」不构成最优证明。本基准度量的是模拟器模型内
+的质量，不等于现实全局最优：模拟器 RNG 非真实 RNG，需要玩家选择的牌由引擎启发式代选（这类牌
+已从题库排除）。退出码 0=无漏优、1=参照自检失败（数字作废）、2=存在漏优。
+
 ## 实机记录从哪里来
 
 游戏内每次出牌与回合切换，`runtime/CombatRecorder` 会把

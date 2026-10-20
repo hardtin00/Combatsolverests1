@@ -32,10 +32,18 @@ New-Item -ItemType Directory -Force -Path $out | Out-Null
 $sources = @()
 $sources += (Get-ChildItem (Join-Path $root 'src\main\java\com\combatsolver1\engine') -Filter *.java).FullName
 $sources += (Get-ChildItem (Join-Path $root 'src\main\java\com\combatsolver1\search') -Filter *.java).FullName
+$sources += (Get-ChildItem (Join-Path $root 'src\main\java\com\combatsolver1\settings') -Filter *.java).FullName
 $sources += (Get-ChildItem $PSScriptRoot -Filter *.java).FullName
 
-& $javac -encoding UTF-8 -d $out $sources
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+try {
+    & $javac -encoding UTF-8 -d $out $sources 2>&1 | ForEach-Object { Write-Output $_ }
+    $javacExitCode = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+}
+if ($javacExitCode -ne 0) { exit $javacExitCode }
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 if ($Command -eq 'diff') {

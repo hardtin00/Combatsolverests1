@@ -162,12 +162,16 @@ public class CombatSearch {
             return;
         }
         done = true;
+        // 收束口径：把「已到达终局的分支」和「预算耗尽时的存活叶子」放进同一集合，按同一个
+        // evaluate 分数取优。确认胜利（+1000000 级）仍优先于任何叶子，死亡（-1000000 级）
+        // 低于任何存活叶子。旧实现只要搜索期间出现过任一终局分支就无条件采用它，会交出死亡路线；
+        // 离线基准 Q9 在 48/48 宽度下实测：旧实现 -1000016（死亡），本实现 -11373（存活 3 血）。
+        // 注意本方法只在「存活叶子确实进入最终集合」时才可能取到它；默认 8/12 宽度下存活叶子已被
+        // withinTurnWidth/beamWidth 剪掉，那时仍会报死亡，属剪枝问题，不由这里负责（见 STATUS 待办）。
         World chosen = best;
-        if (chosen == null) {
-            for (World w : beam) {
-                if (chosen == null || w.score > chosen.score) {
-                    chosen = w;
-                }
+        for (World w : beam) {
+            if (chosen == null || w.score > chosen.score) {
+                chosen = w;
             }
         }
         Plan p = new Plan();

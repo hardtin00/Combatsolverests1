@@ -1,0 +1,29 @@
+{
+  "test_only": "OFFLINE_SENTRY_SOURCE_FIXTURE_NOT_REAL_GAME_STATE",
+  "monsters": [
+    {
+      "slot": 0, "id": "Sentry", "currentHealth": 39, "maxHealth": 39, "currentBlock": 0,
+      "isEscaping": false, "halfDead": false, "escapeNext": false, "firstMove": false,
+      "beamDmg": 9, "dazedAmt": 2, "move_history": [3],
+      "powers": [{"class_name":"com.megacrit.cardcrawl.powers.ArtifactPower","id":"Artifact","amount":1}]
+    },
+    {
+      "slot": 1, "id": "Sentry", "currentHealth": 42, "maxHealth": 42, "currentBlock": 4,
+      "isEscaping": false, "halfDead": false, "escapeNext": false, "firstMove": false,
+      "beamDmg": 9, "dazedAmt": 2, "move_history": [4, 3],
+      "powers": [
+        {"class_name":"com.megacrit.cardcrawl.powers.ArtifactPower","id":"Artifact","amount":1},
+        {"class_name":"com.megacrit.cardcrawl.powers.WeakPower","id":"Weakened","amount":2,"just_applied":true}
+      ]
+    },
+    {
+      "slot": 2, "id": "Sentry", "currentHealth": 40, "maxHealth": 40, "currentBlock": 0,
+      "isEscaping": false, "halfDead": false, "escapeNext": false, "firstMove": false,
+      "beamDmg": 9, "dazedAmt": 2, "move_history": [3, 4],
+      "powers": [
+        {"class_name":"com.megacrit.cardcrawl.powers.ArtifactPower","id":"Artifact","amount":1},
+        {"class_name":"com.megacrit.cardcrawl.powers.VulnerablePower","id":"Vulnerable","amount":1,"just_applied":false}
+      ]
+    }
+  ]
+}

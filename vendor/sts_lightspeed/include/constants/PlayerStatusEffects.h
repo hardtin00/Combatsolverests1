@@ -9,7 +9,9 @@
 
 enum class PlayerStatus : std::uint8_t {
 
-    // *********    Statuses that use JustApplied  ************
+    // *********    Statuses with modeled just-applied storage (C++ reads it for
+    //              DOUBLE_DAMAGE, DRAW_REDUCTION, FRAIL, VULNERABLE, and WEAK;
+    //              INTANGIBLE expires unconditionally in the current model) ************
     INVALID=0,
     DOUBLE_DAMAGE,
     DRAW_REDUCTION,

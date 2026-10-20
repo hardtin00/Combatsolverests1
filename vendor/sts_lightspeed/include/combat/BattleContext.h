@@ -34,6 +34,15 @@ namespace sts {
         PLAYER_LOSS,
     };
 
+    // Provenance attached only to roots restored from the live-state protocol.
+    // It is deliberately separate from MonsterEncounter: an EventRoom fight
+    // must never be relabeled as a map elite merely because eliteTrigger is set.
+    enum class LiveBattleOrigin : std::uint8_t {
+        NONE = 0,
+        MAP_MONSTER_ELITE,
+        DEAD_ADVENTURER_EVENT,
+    };
+
     static constexpr const char * battleOutcomeStrings[] {
             "UNDECIDED",
             "PLAYER_VICTORY",
@@ -51,8 +60,12 @@ namespace sts {
         bool haveUsedDiscoveryAction = false; // for tracking undefined behavior resulting from using the action
         bool undefinedBehaviorEvoked = false; // some cards cause inconsistent outcomes in games
         std::uint64_t seed = 0;
+        int act = 1; // run metadata retained by live-state restoration; simulation uses derived combat state.
         int floorNum = 0;
         MonsterEncounter encounter = MonsterEncounter::INVALID;
+        LiveBattleOrigin liveBattleOrigin = LiveBattleOrigin::NONE;
+        int liveEventEnemyIndex = -1;
+        bool liveEliteTrigger = false;
         int loopCount = 0;
         int energyWasted = 0;
         int cardsDrawn = 0;

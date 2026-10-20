@@ -728,6 +728,57 @@ public final class Checks {
                 deadlyPlan == null || !deadlyPlan.predictedWin || deadlyPlan.predictedHpLoss > 0,
                 deadlyPlan == null ? "无结果" : "win=" + deadlyPlan.predictedWin
                         + " loss=" + deadlyPlan.predictedHpLoss);
+
+        // ── 收束口径回归（对应离线基准 Q9「生存下限」）──
+        // 残血被两只哨卫夹击，预算内所有分支都杀不完，但搜索里同时存在「少掉血的存活叶子」
+        // 和「被打死的终局分支」。evaluate 给死亡分支 -1000000 级、存活叶子 -10000 级，
+        // 所以交出死亡路线等于向玩家虚报必败。旧实现只要搜索期间出现过任一终局分支就无条件采用它。
+        // 场景构造复用 SearchQuality.corneredCase()，避免同一战斗出现两份建模。
+        SimState cornered = SearchQuality.corneredCase();
+
+        // 用例 1：1 个回合预算，beam 中确有存活叶子（实测存活 -8372 / 6hp，旧实现 -1000018 / -4hp）
+        CombatSearch.Config oneTurn = new CombatSearch.Config();
+        oneTurn.beamWidth = 8;
+        oneTurn.withinTurnWidth = 12;
+        oneTurn.maxTurns = 1;
+        oneTurn.maxNodes = 8000;
+        oneTurn.timeBudgetMs = 8000;
+        Plan dead1 = run(cornered.fork(), oneTurn);
+        check("收束口径：1 回合预算下有存活叶子时不得交出死亡路线",
+                dead1 != null && dead1.endHp > 0 && dead1.score > -100000.0,
+                dead1 == null ? "无结果" : "endHp=" + dead1.endHp + " score=" + dead1.score);
+
+        // 用例 2：2 个回合预算 + 足够宽度，beam 中确有 -11373/3hp 的存活叶子（旧实现 -1000016 / -2hp）
+        CombatSearch.Config wide = new CombatSearch.Config();
+        wide.beamWidth = 48;
+        wide.withinTurnWidth = 48;
+        wide.maxTurns = 2;
+        wide.maxNodes = 400000;
+        wide.timeBudgetMs = 0;
+        Plan dead2 = run(cornered.fork(), wide);
+        check("收束口径：2 回合预算下有存活叶子时不得交出死亡路线",
+                dead2 != null && dead2.endHp > 0 && dead2.score > -100000.0,
+                dead2 == null ? "无结果" : "endHp=" + dead2.endHp + " score=" + dead2.score);
+
+        // 已知未修限制（不写成断言，避免为通过而放宽预期）：默认宽度 8/12 下 2 回合预算仍会交出
+        // 死亡路线，因为存活叶子被 withinTurnWidth/beamWidth 剪掉，属剪枝缺陷，已记入 STATUS 待办。
+
+        // 反向对照：确认胜利必须仍优先于存活叶子，不能被上面的改动带偏
+        SimState lethal = scenario(80, 80,
+                new String[]{"Strike_R", "Strike_R", "Strike_R", "Defend_R"}, "Sentry");
+        lethal.mobs.get(0).hp = 18;
+        CombatSearch.Config lethalCfg = new CombatSearch.Config();
+        lethalCfg.beamWidth = 8;
+        lethalCfg.withinTurnWidth = 12;
+        lethalCfg.maxTurns = 2;
+        lethalCfg.maxNodes = 8000;
+        lethalCfg.timeBudgetMs = 8000;
+        Plan lethalPlan = run(lethal, lethalCfg);
+        check("可斩杀时仍优先交出获胜路线",
+                lethalPlan != null && lethalPlan.predictedWin && lethalPlan.turnsToWin == 1,
+                lethalPlan == null ? "无结果" : "win=" + lethalPlan.predictedWin
+                        + " turnsToWin=" + lethalPlan.turnsToWin
+                        + " loss=" + lethalPlan.predictedHpLoss);
     }
 
     private static Plan run(SimState root, CombatSearch.Config cfg) {

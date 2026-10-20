@@ -1,0 +1,237 @@
+{
+  "schema": "combatsolver1.ironclad-card-batch",
+  "version": 1,
+  "batch": "2026-10-20-a",
+  "evidence_level": "L2_OFFLINE_ONLY",
+  "entries": [
+    {
+      "native_id": "Cleave",
+      "native_class": "com.megacrit.cardcrawl.cards.red.Cleave",
+      "engine_id": "CLEAVE",
+      "cost": 1,
+      "upgraded_cost": 1,
+      "base_damage": 8,
+      "upgraded_damage": 11,
+      "target": "ALL_ENEMIES",
+      "special_fields": {
+        "misc": 0,
+        "special_data": 0,
+        "magic_number": "UNUSED",
+        "ethereal": false
+      },
+      "mechanisms": {
+        "rng": false,
+        "dynamic_choice": false,
+        "power_dependency": "VIGOR supported by existing model",
+        "target_selection": "ALL_ENEMIES"
+      },
+      "identity_mapping": "IMPLEMENTED",
+      "serialization_recovery": "IMPLEMENTED",
+      "effect_validation": "L2_OFFLINE_REGRESSION_PASSED",
+      "source_evidence": [
+        "desktop-1.0.jar: Cleave.<init>/upgrade/use",
+        "vendor/sts_lightspeed/src/combat/BattleContext.cpp: CLEAVE",
+        "tools/solvertest/card_batch_effect_check"
+      ],
+      "latest_restore": {
+        "instances": 8,
+        "matched": 8,
+        "mismatches": 0,
+        "piles": [
+          "hand",
+          "draw",
+          "discard",
+          "exhaust"
+        ],
+        "variants": [
+          "base",
+          "upgraded"
+        ]
+      }
+    },
+    {
+      "native_id": "Bludgeon",
+      "native_class": "com.megacrit.cardcrawl.cards.red.Bludgeon",
+      "engine_id": "BLUDGEON",
+      "cost": 3,
+      "upgraded_cost": 3,
+      "base_damage": 32,
+      "upgraded_damage": 42,
+      "target": "SINGLE_ENEMY",
+      "special_fields": {
+        "misc": 0,
+        "special_data": 0,
+        "magic_number": "UNUSED",
+        "ethereal": false
+      },
+      "mechanisms": {
+        "rng": false,
+        "dynamic_choice": false,
+        "power_dependency": "standard damage modifiers",
+        "target_selection": "SINGLE_ENEMY"
+      },
+      "identity_mapping": "IMPLEMENTED",
+      "serialization_recovery": "IMPLEMENTED",
+      "effect_validation": "L2_OFFLINE_REGRESSION_PASSED",
+      "source_evidence": [
+        "desktop-1.0.jar: Bludgeon.<init>/upgrade/use",
+        "vendor/sts_lightspeed/src/combat/BattleContext.cpp: BLUDGEON",
+        "tools/solvertest/card_batch_effect_check"
+      ],
+      "latest_restore": {
+        "instances": 8,
+        "matched": 8,
+        "mismatches": 0,
+        "piles": [
+          "hand",
+          "draw",
+          "discard",
+          "exhaust"
+        ],
+        "variants": [
+          "base",
+          "upgraded"
+        ]
+      }
+    }
+  ],
+  "latest_verification": {
+    "date": "2026-10-20",
+    "evidence": "L2_OFFLINE_SYNTHETIC_FIXTURE",
+    "verified_at": "2026-10-20 unified main-worktree verification (Asia/Shanghai)",
+    "engine_path": "C:\\Users\\3476\\Documents\\Codex\\2026-10-15\\jie\\outputs\\combatsolver1\\build\\engine-mingw-unified-release\\combatsolver1-engine.exe",
+    "engine_sha256": "C74E62F13A9612960C374AB89E23B8EA02CCAF82190EB96D55E6EFCDEB207A61",
+    "engine_default_path": "build/engine-mingw-unified-release/combatsolver1-engine.exe",
+    "engine_override_verified": true,
+    "build": {
+      "configure_exit_code": 0,
+      "full_release_exit_code": 0,
+      "generator": "Ninja",
+      "compiler": "C:/Users/3476/Documents/Codex/2026-10-15/jie/work/mingw64/mingw64/bin/g++.exe",
+      "sha256": "C74E62F13A9612960C374AB89E23B8EA02CCAF82190EB96D55E6EFCDEB207A61",
+      "configure_log": "build/engine-mingw-unified-release/verification/unified-20261020/00-configure.log",
+      "full_release_log": "build/engine-mingw-unified-release/verification/unified-20261020/01-release-build.log",
+      "identity_log": "build/engine-mingw-unified-release/verification/unified-20261020/02-engine-identity.txt"
+    },
+    "java8": {
+      "exit_code": 0,
+      "class_major": 52,
+      "serialized_instances": 16,
+      "java_refusal_cases": 5,
+      "log": "build/engine-mingw-unified-release/verification/unified-20261020/07-card-batch-interop-final.log"
+    },
+    "java_cpp_restore": {
+      "exit_code": 0,
+      "restored_instances": 16,
+      "matched_instances": 16,
+      "mismatches": 0,
+      "path_diff": {
+        "paths": 149,
+        "match": 148,
+        "mismatch": 0,
+        "unavailable": 0,
+        "not_applicable": 1
+      },
+      "java_refusal_cases": 5,
+      "cpp_refusal_cases": 4,
+      "log": "build/engine-mingw-unified-release/verification/unified-20261020/07-card-batch-interop-final.log"
+    },
+    "effect_regression": {
+      "exit_code": 0,
+      "cases": 4,
+      "passed": 4,
+      "failed": 0,
+      "log": "build/engine-mingw-unified-release/verification/unified-20261020/08-card-batch-manifest-final.log"
+    },
+    "shared_live_state_regression": {
+      "exit_code": 0,
+      "result": "SHRUG_INVALID_SPECIAL_DATA_REJECTED",
+      "log": "build/engine-mingw-unified-release/verification/unified-20261020/09-live-state-v1-final.log"
+    },
+    "solvertest_all": {
+      "exit_code": 0,
+      "host": "Windows PowerShell 5.1",
+      "log": "build/engine-mingw-unified-release/verification/unified-20261020/11-solvertest-all-final.log"
+    },
+    "diff_check": {
+      "exit_code": 0,
+      "log": "build/engine-mingw-unified-release/verification/unified-20261020/12-git-diff-check-final.log"
+    },
+    "real_game_effect_validation": "NOT_RUN",
+    "search_quality_selftest": {
+      "exit_code": 0,
+      "passed": 60,
+      "failed": 0,
+      "java": "JetBrains JBR 21",
+      "log": "build/engine-mingw-unified-release/verification/unified-20261020/10-search-quality-selftest-jbr.log"
+    }
+  },
+  "previous_worktree_verification": {
+    "date": "2026-10-20",
+    "evidence": "L2_OFFLINE_SYNTHETIC_FIXTURE",
+    "verified_at": "2026-10-20 22:47:06-22:47:32 Asia/Shanghai",
+    "engine_path": "C:\\Users\\3476\\Documents\\Codex\\2026-10-15\\jie\\outputs\\combatsolver1-card-batch\\build\\engine-mingw-card-batch\\combatsolver1-engine.exe",
+    "engine_sha256": "500450B121218CE902C325A20129773F194FD7663E4CACE4830886C45F19B281",
+    "engine_default_path": "build/engine-mingw-card-batch/combatsolver1-engine.exe",
+    "engine_override_verified": true,
+    "build": {
+      "configure_exit_code": 0,
+      "full_release_exit_code": 0,
+      "incremental_recheck_exit_code": 0,
+      "generator": "Ninja",
+      "compiler": "C:\\Users\\3476\\Documents\\Codex\\2026-10-15\\jie\\work\\mingw64\\mingw64\\bin\\g++.exe",
+      "sha256": "500450B121218CE902C325A20129773F194FD7663E4CACE4830886C45F19B281",
+      "full_release_log": "build/engine-mingw-card-batch/release-build.log",
+      "incremental_recheck_log": "build/engine-mingw-card-batch/verification/final-audit-20261020/00-release-build.log"
+    },
+    "java8": {
+      "exit_code": 0,
+      "class_major": 52,
+      "serialized_instances": 16,
+      "java_refusal_cases": 5,
+      "log": "build/engine-mingw-card-batch/verification/final-audit-20261020/01-java8-mapping.log"
+    },
+    "java_cpp_restore": {
+      "exit_code": 0,
+      "restored_instances": 16,
+      "matched_instances": 16,
+      "mismatches": 0,
+      "path_diff": {
+        "paths": 149,
+        "match": 148,
+        "mismatch": 0,
+        "unavailable": 0,
+        "not_applicable": 1
+      },
+      "java_refusal_cases": 5,
+      "cpp_refusal_cases": 4,
+      "log": "build/engine-mingw-card-batch/verification/final-audit-20261020/02-java-protocol-cpp-interop.log"
+    },
+    "effect_regression": {
+      "exit_code": 0,
+      "cases": 4,
+      "passed": 4,
+      "failed": 0,
+      "log": "build/engine-mingw-card-batch/verification/final-audit-20261020/03-card-effect-regression.log"
+    },
+    "solvertest_all": {
+      "exit_code": 0,
+      "log": "build/engine-mingw-card-batch/verification/final-audit-20261020/04-solvertest-all.log"
+    },
+    "diff_check": {
+      "exit_code": 0,
+      "log": "build/engine-mingw-card-batch/verification/final-audit-20261020/07-final-document-diff-check.log"
+    },
+    "shared_script_anomaly": {
+      "script": "tools/solvertest/live-state-v1-check.ps1",
+      "historical_anomaly": "Shrug invalid special_data assertion reportedly said C++ accepted while diagnostic showed rejection",
+      "historical_original_exit_code": "UNVERIFIED",
+      "historical_log": "build/engine-mingw-card-batch/verification/04-live-state-regression.log",
+      "current_reproduction_exit_code": 0,
+      "current_result": "NOT_REPRODUCED_INVALID_SPECIAL_DATA_REJECTED",
+      "current_log": "build/engine-mingw-card-batch/verification/final-audit-20261020/06-shared-live-state-regression.log",
+      "included_in_card_batch_acceptance": false
+    },
+    "real_game_effect_validation": "NOT_RUN"
+  }
+}

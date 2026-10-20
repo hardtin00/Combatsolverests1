@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "scenario_id": "ironclad-single-monster-v1",
+  "automation_enabled": true,
+  "seed": 3141592653589793,
+  "character": "IRONCLAD",
+  "room_class": "com.megacrit.cardcrawl.rooms.MonsterRoom",
+  "target_monster_count": 1,
+  "expected_monster_class": "com.megacrit.cardcrawl.monsters.exordium.JawWorm",
+  "accepted_vanilla_monster_classes": [
+    "com.megacrit.cardcrawl.monsters.exordium.JawWorm"
+  ],
+  "test_root": "D:\\CS1AutomationVM",
+  "steam_root": "D:\\CS1AutomationVM\\Steam",
+  "steam_exe": "D:\\CS1AutomationVM\\Steam\\steam.exe",
+  "steam_userdata_dir": "D:\\CS1AutomationVM\\Steam\\userdata",
+  "game_dir": "D:\\CS1AutomationVM\\Steam\\steamapps\\common\\SlayTheSpire",
+  "mod_dir": "D:\\CS1AutomationVM\\Steam\\steamapps\\common\\SlayTheSpire\\mods",
+  "mts_jar": "D:\\CS1AutomationVM\\Steam\\steamapps\\workshop\\content\\646570\\1605060445\\ModTheSpire.jar",
+  "basemod_jar": "D:\\CS1AutomationVM\\Steam\\steamapps\\workshop\\content\\646570\\1605833019\\BaseMod.jar",
+  "probe_jar": "D:\\CS1AutomationVM\\Steam\\steamapps\\common\\SlayTheSpire\\mods\\CS1LiveStateProbe.jar",
+  "test_mod_jar": "D:\\CS1AutomationVM\\Steam\\steamapps\\common\\SlayTheSpire\\mods\\CS1AutomationTestMod.jar",
+  "engine_path": "D:\\CS1AutomationVM\\combatsolver1-engine.exe",
+  "save_dir": "D:\\CS1AutomationVM\\Steam\\steamapps\\common\\SlayTheSpire\\saves",
+  "preferences_dir": "D:\\CS1AutomationVM\\Steam\\steamapps\\common\\SlayTheSpire\\preferences",
+  "logs_dir": "D:\\CS1AutomationVM\\Steam\\steamapps\\common\\SlayTheSpire\\logs",
+  "output_dir": "D:\\CS1AutomationVM\\outputs",
+  "steam_launch_arguments": [ "-applaunch", "646570" ],
+  "launcher_mode": "STEAM_PLAY_WITH_MODS",
+  "timeout_seconds": 600,
+  "isolation_attestation": "D:\\CS1AutomationVM\\isolation-attestation-v1.json"
+}

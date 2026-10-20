@@ -1,7 +1,7 @@
 param(
-    [string]$GameDir = 'C:\Program Files (x86)\Steam\steamapps\common\SlayTheSpire',
-    [string]$JavaHome = 'C:\Program Files\JetBrains\IntelliJ IDEA 2025.3.1\jbr',
-    [string]$AsmJar = 'C:\Program Files\JetBrains\IntelliJ IDEA 2025.3.1\plugins\maven\lib\maven3\lib\asm-9.8.jar'
+    [Parameter(Mandatory=$true)][string]$GameDir,
+    [Parameter(Mandatory=$true)][string]$JavaHome,
+    [Parameter(Mandatory=$true)][string]$AsmJar
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path

@@ -16,7 +16,6 @@ $out = Join-Path $root 'build\solvertest'
 function Find-Tool([string]$name) {
     $candidates = @()
     if ($env:JAVA_HOME) { $candidates += (Join-Path $env:JAVA_HOME "bin\$name.exe") }
-    $candidates += "C:\Program Files\JetBrains\IntelliJ IDEA 2025.3.1\jbr\bin\$name.exe"
     foreach ($c in $candidates) {
         if ($c -and (Test-Path $c)) { return $c }
     }

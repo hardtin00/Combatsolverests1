@@ -1,4 +1,25 @@
-## 2026-10-20：主工作区成果整合与统一离线复验
+## 2026-10-21：修复 Actions 离线自检编译依赖遗漏
+
+- 现象/证据：Actions run `39446815484` 在提交 `2a96145dcefbdc2b5287908e12413ff35c1cfc83` 的离线编译步骤失败；`SearchQuality.java:458` 引用 `SolverSettings`，而 `.github/workflows/ci.yml` 的 `javac` 输入未包含设置包，导致后续自检被跳过。
+- 修改：CI 离线编译命令加入 `src/main/java/com/combatsolver1/settings/SolverSettings.java`，与已有 `tools/solvertest/run.ps1` 的编译输入保持一致；不改变游戏运行逻辑。
+- 验证等级：L2 离线。Windows JBR 21.0.9 使用 `javac --release 8` 编译模拟层、设置类和自检工具，`Solvertest all` 退出 0；`ExtractMonsterFacts.java` 编译退出 0。GitHub Actions run `39457706140`（提交 `8f93ae6d9cfb7e53d86ee25defb9d521adc4225c`）使用 JDK 8，离线编译、自检和 ID 提取工具编译步骤全部成功。
+- 限制：旧 run `39446815484` 保持历史失败。新 run 的完整 Mod 构建因仓库缺少游戏依赖，明确为 `FULL_MOD_BUILD=not_run`；没有 L3/L4 实机验证。
+
+## 2026-10-20：P1 宽度剪枝（搜索参数策略，用户单独授权）
+
+- 现象/目标：Q9 等局面在默认档下报告必败、PROVABLE 层级漏优 33.3%。本轮只调 `SolverSettings` 的档位宽度/节点预算，不改搜索算法结构、评分权重、执行链路或 UI。
+- 实测依据（宽度网格 `--sweep`，2 回合预算、放开节点与墙钟，`build/p3-sweep.txt`）：每个场景的帕累托前沿里 within 最大 32（Q9、Q12），beam 最小可到 3；即 `within=32` 是关键维度，beam 需求低。中档取 `within=32/beam=24` 已由基准实证为 12/12 同分，单场景 ≤91ms。
+- 逐档取值（`src/main/java/com/combatsolver1/settings/SolverSettings.java:56-95`，顺序一律 within/beam）：低 12/8/maxNodes 4000；中 32/24/maxNodes 60000（原 12/8/8000）；高 48/32/150000；极高 64/48/400000。自定义档默认值未动（6/8/8/4000），避免静默改写用户自选参数。墙钟预算 `timeBudgets` 未改。
+- 修正测量缺陷：`SearchQuality` 原来自带一份档位数字且只在传 `--preset` 时生效，导致上一轮「已加宽」实际测的还是旧 8/12、数字毫无变化。现改为无条件调用 `SolverSettings.applyTo()`（与 `CombatController:383` 同一权威来源），报告头标明档位来源；`run.ps1` 增设编译 settings 包。
+- 结果（同模型同目标）：档位 1 PROVABLE 漏优 **33.3% → 0%（0/12）**，BUDGET 层级漏优 1 → 0；档位 2、3 均 0 漏优；档位 0 保持 33.3%（省预算档，按设计不追最优）。Q9 在 2 回合深度已与参照同分（-11373，存活）；10 回合深度下参照本身穷举判定「不存在必胜路线」，此时报必败是模型内经验证结论，不再是搜索假象。参照存在必胜路线而 beam 未报胜：中档仍 2 个（Q7 药水、Q8 长线，两者的参照值都是 CAPPED 下界，只说明参照「找到过」一条可达必胜路线，不等于该预算内必然必胜）；高档与极高档降为 1 个（`build/p3-bench-preset2.txt`、`build/p3-bench-preset3.txt`）。
+- 时间代价（`--wide`，BIG 真实规模：10 张手牌/15 张牌堆/3 敌，`build/p3-wide.txt`）：按帧调用 `step()` 时最慢一帧 旧档 8-9ms → 新「中」档 67-71ms（两次运行有 JIT 抖动），整场搜索总耗时 30ms → 154ms；真实预算下深度仍用满 10/10、未被墙钟或节点截断。极端局面（更多牌/更多敌）单帧成本会继续上升，最高档可达约 200ms/帧。
+- 验证等级：L2 离线 —— `Solvertest all` 退出 0，通过 125 项 / 失败 0（含上一轮两条收束口径回归与「可斩杀仍优先交出获胜路线」对照）；`SearchQuality --selftest` 退出 0（参照 60/0）；`build/final-all.txt`、`build/p3-benchmark.txt`、`build/p3-bench-preset0/2/3.txt`、`build/p3-wide.txt`。
+- 新达到的等级：**完整 Mod 编译 L3 前置已具备**——`tools/build/build-release.ps1` 用本机 `desktop-1.0.jar` + 创意工坊 ModTheSpire/BaseMod 编译通过，字节码 major=52（Java 8）校验通过、133 个 jar 条目全用正斜杠；脚本随后的 `git rev-parse` 因本机 PATH 无 git 而失败（BUILD_EXIT=1，与本轮改动无关）。**未部署、未启动游戏、无真实战斗记录**，不得据此宣称 L3/L4。
+- 纠正上一轮结论：我上一轮说「宽度是 Q9 默认档报必败的直接原因」。实测推翻：在 10 回合真实深度下，加宽到 64/48 也不改变 Q7/Q9 的结果；Q9 之所以在 2 回合深度漏优才由宽度决定。宽度本轮消除的是 PROVABLE 层 4 个漏优，以及 Q8/Q11 的长线取舍（Q8 预测扣血 56 → 42，即结束生命 24 → 38；Q11 结束生命 42 → 50）。
+- 待办（未动，等授权）：Q7 药水机会成本仍是固定 15 分（参照 10 回合内可胜而 beam 判负）；Q11 在深度 10 的漏优无法归因（放宽后参照穷举不完）；全局 `visited` 永久关闭、12 步回合硬上限、玩家真实 RNG 未克隆、选牌启发式代选等既有限制不变。
+- 用户验收：需要你在游戏内确认「中」档是否卡顿可接受——按 L 键切档观察面板搜索进度；若掉帧明显，告诉我，我把中档回退到 within=24/beam=16 或把墙钟降到 4000ms（数据已在 `build/p3-wide.txt`；宽度取值依据 `build/p3-sweep.txt`）。本轮未提交、未推送、未部署到游戏 mods/；已删除本轮自建的临时探针目录（`build/stress`、`build/probe`、`build/oldfinish`）。
+
+## 2026-10-20：修复收束口径 finish() 交出死亡路线（P1，用户单独授权）
 
 - 整合主工作区实时状态协议/采集诊断、C++ 恢复差分、搜索质量基准与终局选择修正，以及卡牌 Worktree 的 Cleave/Bludgeon 映射、导入准入、效果回归和批次文档。保留主工作区状态记录；未纳入 `sendToDevs/`、构建产物、JAR、存档或临时运行材料。
 - 当前 MinGW g++ + Ninja Release 构建退出 0；引擎 `build/engine-mingw-unified-release/combatsolver1-engine.exe`，SHA-256 `C74E62F13A9612960C374AB89E23B8EA02CCAF82190EB96D55E6EFCDEB207A61`。配置与完整构建日志位于 `build/engine-mingw-unified-release/verification/unified-20261020/`。
@@ -1175,3 +1196,36 @@ javac --release 8 -encoding UTF-8 -cp "<游戏>/desktop-1.0.jar;<MTS>/ModTheSpir
 - 仅增加审计文档并更新本状态记录；未改生产逻辑、协议、JAR、存档或通知配置，未启动游戏/MTS，未提交或推送。既有工作区修改及 `sendToDevs/` 保留。
 - 建议次序：先做离线能力清单/生成校验（不能由分发分支自动授予效果支持）；再选 `Cleave` 与 `Bludgeon` 做首个 A 类小批次，对照本机 STS1 构造器的普通/升级数值，并完成 Java→C++ 状态回读与效果负例；之后再按共用机制接入 B 类，独立实现 C 类，先解决 D 类状态门控后才扩大输入范围。时间不估算，因无批量吞吐量基线。完成本审计后停止，等待下一项批准。
 - 范围限制：75 行是 C++ 卡牌 ID/分发与协议适配库存，不是对本机 `desktop-1.0.jar` 中 75 个构造器及每个普通/升级数值的完整反汇编；逐卡原版数值核对仍是准入门槛。矩阵明确把分支存在与效果回归、实机正确性分开。
+
+### 2026-10-21：自动化真实状态验收第一阶段（L2 部分完成；L3 阻断）
+
+- 将探针诊断输出独立为 `live_battle_diagnostic_snapshot v1`，保留源快照、卡牌原生 ID/完整 UUID/牌堆位置和字段状态；独立报告 `capture_supported`、`restore_supported`、`effect_supported`、`search_supported`。正式 `live_battle_state v1` writer 与 C++ 白名单未放宽。新增 `CS1_LIVE_STATE_OUTPUT_DIR`，可将探针产物写入单独测试目录。
+- 增加离线拒绝回归：诊断成功仍不能作为生产协议或 C++ 搜索输入；未知卡牌保留原始字段但 `restore_supported` 标记为不支持。诊断 fixture 明确标记为离线证据。
+- 验证：`powershell -ExecutionPolicy Bypass -File tools/solvertest/live-state-v1-check.ps1 -Engine build/engine/combatsolver1-engine.exe` 退出 0；149 路径 148 MATCH、0 MISMATCH、0 UNAVAILABLE、1 NOT_APPLICABLE。`powershell -ExecutionPolicy Bypass -File tools/solvertest/run.ps1 -Command all` 退出 0，历史录制语料仍有 70 项差异（668/793 字段匹配），与本次 fixture 结果分开。`tools/live-state-validation/build-probe.ps1` 退出 0、class major=52；`audit-fields.ps1` 退出 0、failures=0；`git diff --check` 退出 0。
+- 未运行游戏、未部署探针、未改正式 JAR或存档。当前 MTS 运行目录包含玩家 `saves/`，并存在 `steam_autocloud.vdf`；在没有隔离 Steam 用户/云存档的可验证测试根目录前，不启动自动新战斗。故自动化场景创建、真实快照、真实 C++ 根恢复及 L3/L4 均未验收。`sendToDevs/` 和原有未提交改动保留。
+- Release 引擎复核：专项脚本最终显式使用 `build/engine-mingw-unified-release/combatsolver1-engine.exe`（SHA-256 `C74E62F13A9612960C374AB89E23B8EA02CCAF82190EB96D55E6EFCDEB207A61`）重跑，退出 0；前一次使用 `build/engine/combatsolver1-engine.exe` 的成功结果不作为当前 Release 验收依据。
+
+### 2026-10-21：自动化测试环境隔离预检（Stage A BLOCKED）
+
+- 工作区基线保持：`main` / `8f93ae6d9cfb7e53d86ee25defb9d521adc4225c`。本次只读系统盘点，未触碰既有未提交源码和 `sendToDevs/`。
+- 系统信息：注册表报告 `Windows 10 Home China`、`24H2`、build `26100.4946`；该 ProductName 与 build 标签不一致，且 WMI/CIM 查询拒绝访问，无法进一步确认固件虚拟化状态。`WindowsSandbox.exe`、Hyper-V 管理二进制、VirtualBox、VMware、Docker 均未发现。Sandbox/Hyper-V Windows 功能查询因需要提升权限而未能确认；本机只有 `wsl.exe`，不足以证明可运行隔离的 Windows Steam/MTS 游戏实例。
+- 安装与写入路径：STS1 根目录为 `C:\Program Files (x86)\Steam\steamapps\common\SlayTheSpire`；游戏存在 `saves/`、`preferences/`、`runs/`、`logs/`、`sendToDevs/`。MTS、BaseMod、StSLib 来自 Steam Workshop `steamapps\workshop\content\646570\{1605060445,1605833019,1609158507}`；正式 Mod 与探针位于游戏 `mods/`。Steam userdata 中存在 app id `646570` 子目录；游戏 `saves/` 与 `preferences/` 均有 `steam_autocloud.vdf`。MTS `%LOCALAPPDATA%\ModTheSpire\mod_lists.json` 可见文件元数据，但读取/哈希因访问拒绝而未完成。
+- 当前 Steam 客户端进程运行中，但没有 STS1/Java 游戏进程。本次未启动游戏、未创建新测试根目录、未部署 JAR、未修改 Steam Cloud 或玩家数据。正式 `CombatSolver1.jar` SHA-256 仍为 `644E4F0E2457BBDC6A969B94302B317ED0904D91F761E590DFF0A27E1432EC7F`；四份 Ironclad autosave 与 `steam_autocloud.vdf` 的 SHA-256 均与本轮只读基线复核一致。
+- 阶段结论：A 隔离 BLOCKED；B 自动启动 BLOCKED；C 真实采集 BLOCKED。没有隔离写保护和独立 Steam/Cloud 状态前，复制游戏目录、设置输出环境变量或仅切换 Windows 用户均不足以证明安全。未执行游戏测试、RNG 检查或 C++ 真实恢复。
+- 最小后续前置条件：提供或启用一个独立 Windows 虚拟机/受支持的 Windows Sandbox 环境，使用有合法 STS1 授权的 Steam 客户端，游戏与用户数据置于独立虚拟磁盘，不映射宿主机可写目录，并在该隔离 Steam 环境内处理 Cloud（不改宿主机设置）。满足并验证前不自动启动游戏。
+
+### 2026-10-21：自动化验收控制器离线实现（L2；L3/L4 BLOCKED）
+
+- 新增 `tools/live-state-validation/automation/`：版本化 Ironclad/Jaw Worm 场景配置、Fail-Closed PowerShell 控制器和路径/VM 校验模块、独立 MTS 测试模组源码与 MTS 元数据、Java 8 构建脚本、VM 测试资产部署脚本及隔离部署说明。测试模组只通过原生新游戏/角色确认/Neow/地图房间生命周期推进；目标房间须是原版 `MonsterRoom` 且实际生成一个原版 Jaw Worm。未在真实游戏运行验证该导航链路，不宣称自动战斗已成功。
+- 控制器支持 `DryRun`；`Run` 要求显式配置和隔离 attestation、VM 识别、独立固定磁盘、无映射/网络盘、无可见共享、Steam 与 userdata/game/mod/save/preferences/log/output/engine 全部位于显式测试根目录、空测试存档目录、无已运行 Steam 进程，并拒绝正式 `CombatSolver1.jar` 出现在测试 Mod 目录。配置或控制器脚本在测试根之外时拒绝运行。只将新鲜 `PROTOCOL_CAPTURED` 的完整 v1 快照送入 C++ `mcts_state`；诊断快照不会进入恢复或搜索。该阶段不调用搜索或自动出牌。
+- 验证：4 个 PowerShell 文件解析通过；控制器自测 12/12 PASS；DryRun 退出 0；宿主机 `Run` 退出 3（预期 BLOCKED，无进程启动）；部署脚本拒绝仓库外测试 JAR 源（退出 3，无复制）。独立测试模组构建退出 0，Java class major 52，JAR SHA-256 `4bc5a1847767161ce26792f0f6b77ec72a4c0b062e9bf915163668b1370cbb55`。探针构建退出 0、major 52；STS1 字节码审计 76 项匹配、0 failure。
+- 当前 Release 引擎 `build/engine-mingw-unified-release/combatsolver1-engine.exe` SHA-256 `c74e62f13a9612960c374ab89e23b8ea02ccaf82190eb96d55e6efcdeb207a61`。`tools/solvertest/live-state-v1-check.ps1 -Engine <该引擎>` 退出 0：离线协议路径形状 149 项，148 MATCH、0 MISMATCH、0 UNAVAILABLE、1 NOT_APPLICABLE；`tools/solvertest/run.ps1 -Command all` 退出 0，历史录制语料仍报告 70 项差异（668/793 字段匹配、48 个动作差异）；`git diff --check` 退出 0。以上均为离线证据，不代表真实游戏状态恢复或战斗验证。
+- 未启动 Steam/STS1、未加载或部署候选 JAR、未修改游戏存档、正式 JAR 或 Steam 设置。正式 `CombatSolver1.jar` 前后 SHA-256 均为 `644e4f0e2457bbdc6a969b94302b317ed0904d91f761e590dff0a27e1432ec7f`。测试 JAR 仅位于仓库 `build/` 输出目录。`sendToDevs/` 及此前全部工作区改动保留。
+- 当前结论：隔离阶段 A 仍 BLOCKED；自动启动阶段 B 和真实状态采集阶段 C 未执行。VM 配置、Steam Cloud 隔离、测试模组加载、原生地图导航、真实快照、真实 RNG 检查及 C++ 实机差分均待隔离 Windows 来宾环境验证。没有 L3/L4 证据。
+
+### 2026-10-21：自动化验收基础设施提交前复验
+
+- 为避免提交开发机路径，探针默认输出改为 `%USERPROFILE%\\.combatsolver1\\live-state-validation`；探针/测试模组构建、字节码审计和实时协议专项均改为显式接收游戏/JDK/ASM 路径或使用 `JAVA_HOME`/`PATH`。VM 配置仍只引用 `D:\\CS1AutomationVM` 来宾模板路径。
+- 本轮命令：`build-probe.ps1`（退出 0，major 52）；`audit-fields.ps1 -GameDir ... -JavaHome ... -AsmJar ...`（退出 0，76 matches / 0 failures）；`automation/build-testmod.ps1`（退出 0，major 52）；控制器 `-SelfTest`（12/12）；`-Mode DryRun`（退出 0，`process_launched=false`）；宿主机 `-Mode Run` 输出 `BLOCKED` / `process_launched=false`；VM 部署拒绝根目录外 JAR 源；`live-state-v1-check.ps1` 指向统一 Release 引擎（退出 0，149 paths: 148 MATCH / 0 MISMATCH / 0 UNAVAILABLE / 1 NOT_APPLICABLE）；`run.ps1 -Command all`（退出 0）；`git diff --check`（退出 0）。
+- 静态复核发现地图状态机缺少从原生 `MonsterRoom` 转入稳定战斗检查阶段的返回路径，已在隔离测试模组中补齐；重新编译退出 0、major 52，控制器自测仍为 12/12。独立测试模组仅在 `build/` 构建，最近一次 SHA-256 `72BD57E7A77D4AA55C03865AD379DBD119C4F8AEE462C2B7BCDF7A435FF4E61D`；没有部署到宿主机 MTS。正式 JAR SHA-256 仍为 `644E4F0E2457BBDC6A969B94302B317ED0904D91F761E590DFF0A27E1432EC7F`。本机路径/凭据扫描未发现自动化与协议工具中的开发者用户目录或凭据字符串；`sendToDevs/` 未纳入候选提交。
+- `Solvertest all` 历史语料仍有 70 个字段差异（668/793 匹配）和 48 个动作差异，保持为未修复诊断。未启动游戏，未修改存档；L3/L4 仍 BLOCKED。提交与推送结果以本条后续更新为准。

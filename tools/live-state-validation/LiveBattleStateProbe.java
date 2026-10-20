@@ -29,9 +29,10 @@ import java.util.UUID;
 /** Isolated, read-only runtime capture. A protocol file is emitted only after strict v1 validation. */
 @SpirePatch(clz = AbstractDungeon.class, method = "update")
 public final class LiveBattleStateProbe {
-    private static final String OUTPUT = "C:\\Users\\3476\\Documents\\Codex\\2026-10-15\\jie\\outputs\\combatsolver1\\build\\live-state-validation\\live-capture-report.json";
-    private static final String PROTOCOL_OUTPUT = "C:\\Users\\3476\\Documents\\Codex\\2026-10-15\\jie\\outputs\\combatsolver1\\build\\live-state-validation\\live-battle-state-v1.json";
-    private static final String POWER_TIMING_OUTPUT = "C:\\Users\\3476\\Documents\\Codex\\2026-10-15\\jie\\outputs\\combatsolver1\\build\\live-state-validation\\player-power-timing-observations.jsonl";
+    private static final String OUTPUT = outputPath("live-capture-report.json");
+    private static final String DIAGNOSTIC_OUTPUT = outputPath("live-battle-diagnostic-v1.json");
+    private static final String PROTOCOL_OUTPUT = outputPath("live-battle-state-v1.json");
+    private static final String POWER_TIMING_OUTPUT = outputPath("player-power-timing-observations.jsonl");
     private static final String[] RNG_FIELDS = {"aiRng", "cardRandomRng", "miscRng", "monsterHpRng", "potionRng", "shuffleRng"};
     private static final Gson GSON = new GsonBuilder().serializeNulls().disableHtmlEscaping().setPrettyPrinting().create();
     private static boolean finished;
@@ -44,8 +45,18 @@ public final class LiveBattleStateProbe {
     private static int nextPowerInstanceId = 1;
     private static long lastPowerObservation;
     private static boolean powerTimingFailed;
+    private static String lastDiagnosticPath;
+    private static String lastDiagnosticSha256;
+    private static String lastCaptureId;
 
     private LiveBattleStateProbe() { }
+
+    private static String outputPath(String fileName) {
+        String directory=System.getenv("CS1_LIVE_STATE_OUTPUT_DIR");
+        if(directory==null || directory.trim().isEmpty())
+            directory=new File(System.getProperty("user.home"),".combatsolver1/live-state-validation").getPath();
+        return new File(directory,fileName).getAbsolutePath();
+    }
 
     private static Field field(Class<?> type, String name) throws Exception {
         for (Class<?> c = type; c != null; c = c.getSuperclass()) {
@@ -158,7 +169,94 @@ public final class LiveBattleStateProbe {
             }
         }
         entry.add("mapping_diagnostic", diagnostic);
+        boolean rawFieldsCaptured = !readFailed
+                && source.has("uuid") && source.get("uuid").isJsonPrimitive()
+                && source.getAsJsonPrimitive("uuid").isString()
+                && source.has("card_id") && source.get("card_id").isJsonPrimitive()
+                && source.getAsJsonPrimitive("card_id").isString()
+                && source.has("upgrades") && source.get("upgrades").isJsonPrimitive()
+                && source.has("cost") && source.get("cost").isJsonPrimitive()
+                && source.has("cost_for_turn") && source.get("cost_for_turn").isJsonPrimitive()
+                && source.has("misc") && source.get("misc").isJsonPrimitive()
+                && source.has("free_to_play_once") && source.get("free_to_play_once").isJsonPrimitive()
+                && source.has("retain") && source.get("retain").isJsonPrimitive()
+                && source.has("ethereal") && source.get("ethereal").isJsonPrimitive();
+        diagnostic.addProperty("capture_supported", rawFieldsCaptured ? "RAW_FIELDS_CAPTURED" : "RAW_FIELDS_INCOMPLETE");
+        diagnostic.addProperty("restore_supported", entry.has("protocol_card")
+                ? "V1_FIELDS_MAPPED_CXX_RESTORE_NOT_RUN" : "UNSUPPORTED_OR_UNMAPPED");
+        diagnostic.addProperty("effect_supported", "CXX_IMPLEMENTATION_PRESENT_NOT_L4_VERIFIED".equals(
+                diagnostic.get("effect_status").getAsString()) ? "IMPLEMENTATION_PRESENT_NOT_L4_VERIFIED" : "UNSUPPORTED_OR_UNVERIFIED");
+        // A diagnostic record is never an engine/search input, even when an
+        // individual card has a known wire mapping and C++ implementation.
+        diagnostic.addProperty("search_supported", "NO_DIAGNOSTIC_ONLY");
         return entry;
+    }
+
+    /** Separate, versioned observation artifact. It deliberately has a protocol
+     * name that the production mcts_state parser rejects. */
+    static JsonObject diagnosticSnapshot(JsonObject source, String protocolValidation, String protocolError,
+                                         boolean sourceStateStable, boolean rngUnchanged,
+                                         String captureId, String evidence, long capturedAt) {
+        JsonObject result=object();
+        result.addProperty("protocol", "live_battle_diagnostic_snapshot");
+        result.addProperty("version", 1);
+        result.addProperty("evidence", evidence);
+        result.addProperty("capture_id", captureId == null ? UUID.randomUUID().toString() : captureId);
+        result.addProperty("captured_at_epoch_ms", capturedAt);
+        result.addProperty("source_state_stable", sourceStateStable);
+        result.addProperty("rng_unchanged", rngUnchanged);
+        result.addProperty("protocol_v1_validation", protocolValidation);
+        put(result, "protocol_v1_error", protocolError);
+        JsonObject capabilities=object();
+        capabilities.addProperty("capture_supported", "PASSED".equals(protocolValidation)
+                ? "FORMAL_V1_JAVA_VALIDATION_PASSED" : "PARTIAL_DIAGNOSTIC_ONLY");
+        capabilities.addProperty("restore_supported", "NOT_RUN");
+        capabilities.addProperty("effect_supported", "PARTIAL_OR_UNVERIFIED");
+        capabilities.addProperty("search_supported", "NO_DIAGNOSTIC_SNAPSHOT_IS_SEARCH_INPUT");
+        result.add("capabilities",capabilities);
+        JsonObject mappings=source.has("protocol_mapping_status") && source.get("protocol_mapping_status").isJsonObject()
+                ? source.getAsJsonObject("protocol_mapping_status") : object();
+        result.add("field_mapping_status",GSON.fromJson(mappings,JsonObject.class));
+        JsonArray cards=array();
+        if(source.has("piles") && source.get("piles").isJsonObject()) {
+            JsonObject piles=source.getAsJsonObject("piles");
+            for(String pile:new String[]{"hand","draw","discard","exhaust","limbo"}) {
+                if(!piles.has(pile) || !piles.get(pile).isJsonArray()) continue;
+                JsonArray entries=piles.getAsJsonArray(pile);
+                for(int i=0;i<entries.size();i++) {
+                    JsonObject item=GSON.fromJson(entries.get(i),JsonObject.class);
+                    if(!item.has("mapping_diagnostic")) item=diagnoseSourceCard(item);
+                    JsonObject cap=item.has("mapping_diagnostic") && item.get("mapping_diagnostic").isJsonObject()
+                            ? item.getAsJsonObject("mapping_diagnostic") : object();
+                    cap.addProperty("pile",pile); cap.addProperty("pile_index",i);
+                    cards.add(cap);
+                }
+            }
+        } else {
+            for(String pile:new String[]{"hand","draw","discard","exhaust","limbo"}) {
+                if(!source.has(pile) || !source.get(pile).isJsonArray()) continue;
+                JsonArray entries=source.getAsJsonArray(pile);
+                for(int i=0;i<entries.size();i++) {
+                    JsonObject item=diagnoseSourceCard(entries.get(i).getAsJsonObject());
+                    JsonObject cap=item.getAsJsonObject("mapping_diagnostic");
+                    cap.addProperty("pile",pile); cap.addProperty("pile_index",i); cards.add(cap);
+                }
+            }
+        }
+        result.add("card_capabilities",cards);
+        result.add("source_snapshot",GSON.fromJson(source,JsonObject.class));
+        return result;
+    }
+
+    private static void writeDiagnosticSnapshot(JsonObject source, String protocolValidation, String protocolError,
+                                                boolean sourceStateStable, boolean rngUnchanged,
+                                                String captureId, String evidence, long capturedAt) throws Exception {
+        File f=new File(DIAGNOSTIC_OUTPUT); File parent=f.getParentFile();
+        if(parent!=null && !parent.isDirectory() && !parent.mkdirs()) throw new IllegalStateException("cannot create diagnostic output directory");
+        JsonObject diagnostic=diagnosticSnapshot(source,protocolValidation,protocolError,sourceStateStable,rngUnchanged,captureId,evidence,capturedAt);
+        OutputStreamWriter w=new OutputStreamWriter(new FileOutputStream(f,false),StandardCharsets.UTF_8);
+        try { GSON.toJson(diagnostic,w); } finally { w.close(); }
+        lastDiagnosticPath=f.getAbsolutePath(); lastDiagnosticSha256=sha256(f);
     }
 
     private static String cardMappingFailures(JsonObject source) {
@@ -665,6 +763,10 @@ public final class LiveBattleStateProbe {
      * still lacks trusted mappings for their live counters/effects.
      */
     static JsonObject protocolFromSource(JsonObject source) {
+        return protocolFromSource(source,UUID.randomUUID().toString());
+    }
+
+    static JsonObject protocolFromSource(JsonObject source, String captureId) {
         if (!"IRONCLAD".equals(requiredString(source, "character")))
             throw new IllegalStateException("unsupported character");
         if (!source.has("room_context") || !source.get("room_context").isJsonObject())
@@ -699,7 +801,7 @@ public final class LiveBattleStateProbe {
         JsonObject protocol = object();
         protocol.addProperty("protocol", "live_battle_state");
         protocol.addProperty("version", 1);
-        protocol.addProperty("capture_id", UUID.randomUUID().toString());
+        protocol.addProperty("capture_id", captureId);
         protocol.addProperty("character", "IRONCLAD");
         protocol.addProperty("act", requiredCardInt(source, "act"));
         protocol.addProperty("stage", "PLAYER_NORMAL");
@@ -924,6 +1026,9 @@ public final class LiveBattleStateProbe {
         JsonObject report=object(); report.addProperty("protocol","live_battle_capture_report"); report.addProperty("version",1); report.addProperty("status",status);
         report.addProperty("capture_time_epoch_ms",System.currentTimeMillis()); report.addProperty("stable_boundary",stableBoundaryObserved);
         report.addProperty("boundary_evidence",boundaryEvidence);
+        put(report,"capture_id",lastCaptureId);
+        put(report,"diagnostic_snapshot_file",lastDiagnosticPath);
+        put(report,"diagnostic_snapshot_sha256",lastDiagnosticSha256);
         report.add("source_snapshot",data); report.addProperty("error",error);
         FileWriter w=new FileWriter(f,false); try{GSON.toJson(report,w);}finally{w.close();}
     }
@@ -1087,16 +1192,25 @@ public final class LiveBattleStateProbe {
         if(!(roster instanceof List) || ((List<?>)roster).size()!=3) {finished=true;writeReport("REJECTED",object(),"expected exactly three original monster slots");return;}
         for(Object m:(List<?>)roster) if(m==null || !"com.megacrit.cardcrawl.monsters.exordium.Sentry".equals(m.getClass().getName())
                 || !"Sentry".equals(String.valueOf(get(m,"id")))) {finished=true;writeReport("REJECTED",object(),"encounter is not three exact vanilla Sentry instances");return;}
+        lastCaptureId=UUID.randomUUID().toString();
         JsonObject before=rngs(); JsonObject source=captureSource(); JsonObject after=rngs(); JsonObject sourceAfter=captureSource();
         if(!before.equals(after)){finished=true;writeReport("REJECTED",source,"RNG changed during read-only capture");return;}
         if(!source.equals(sourceAfter)){finished=true;writeReport("REJECTED",source,"source state changed while snapshot was being read");return;}
         Object manager=stat(AbstractDungeon.class,"actionManager");
         if(!stable() || room!=AbstractDungeon.getCurrRoom() || manager!=stat(AbstractDungeon.class,"actionManager")) {finished=true;writeReport("REJECTED",source,"battle identity or stable boundary changed during capture");return;}
         source.add("rng_before",before); source.add("rng_after",after);
+        JsonObject protocol=null;
         try {
-            JsonObject protocol=protocolFromSource(source);
+            protocol=protocolFromSource(source,lastCaptureId);
+        } catch(Throwable t) {
+            String protocolError=t.getClass().getName()+": "+String.valueOf(t.getMessage());
+            writeDiagnosticSnapshot(source,"REJECTED",protocolError,true,true,lastCaptureId,"REAL_GAME_RUNTIME",now);
+            finished=true; writeReport("PROTOCOL_REJECTED",source,protocolError); return;
+        }
+        try {
             File protocolFile=new File(PROTOCOL_OUTPUT);
             writeProtocol(protocol,protocolFile);
+            writeDiagnosticSnapshot(source,"PASSED",null,true,true,lastCaptureId,"REAL_GAME_RUNTIME",now);
             JsonObject result=object();
             result.add("protocol_snapshot",protocol);
             result.addProperty("protocol_file",protocolFile.getAbsolutePath());
@@ -1105,7 +1219,9 @@ public final class LiveBattleStateProbe {
             result.addProperty("rng_unchanged",true);
             finished=true; writeReport("PROTOCOL_CAPTURED",result,"complete v1 snapshot passed Java validation; C++ recovery remains a separate required check");
         } catch (Throwable t) {
-            finished=true; writeReport("PROTOCOL_REJECTED",source,t.getClass().getName()+": "+String.valueOf(t.getMessage()));
+            String protocolError=t.getClass().getName()+": "+String.valueOf(t.getMessage());
+            writeDiagnosticSnapshot(source,"REJECTED",protocolError,true,true,lastCaptureId,"REAL_GAME_RUNTIME",now);
+            finished=true; writeReport("PROTOCOL_REJECTED",source,protocolError);
         }
     }
     private static String sha256(File file) throws Exception {

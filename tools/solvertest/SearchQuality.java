@@ -615,12 +615,14 @@ public final class SearchQuality {
      */
     static int runWideProbe(List<Case> cases, StringBuilder report) {
         int[][] cands = {
-                {12, 8}, {16, 12}, {24, 16}, {32, 24}, {48, 32}, {64, 48}
+                {12, 8}, {32, 24}, {48, 32}, {64, 48}
         };
+        List<Case> all = new ArrayList<Case>(cases);
+        all.add(new Case("BIG-真实规模", "10 张手牌 / 15 张牌堆 / 3 个敌人：题库场景偏小，需要真实规模下的单步代价", bigCase()));
         say(report, "══ 深度成本探测（回合预算 " + maxTurns + "，maxNodes 放开、墙钟关闭）══");
-        say(report, "列含义：ms=beam 耗时，节点=progressNodes，回合=路线长度，分数=Plan.score，");
-        say(report, "       HP=预测结束生命（<=0 即报必败），胜=beam 是否预测获胜");
-        for (Case c : cases) {
+        say(report, "列含义：总ms=整场搜索耗时，单步最大ms=逐帧调用 step() 时最慢的一帧（游戏内卡顿依据），");
+        say(report, "       节点=progressNodes，路线=回合数，分数=Plan.score，HP=预测结束生命（<=0 即报必败）");
+        for (Case c : all) {
             say(report, "");
             say(report, c.id + "  " + c.intent);
             for (int[] cand : cands) {
@@ -630,13 +632,22 @@ public final class SearchQuality {
                 cfg.maxTurns = maxTurns;
                 cfg.maxNodes = CHECK_MAX_NODES;
                 cfg.timeBudgetMs = 0L;
-                long t0 = System.currentTimeMillis();
+                // 逐帧模拟 CombatController.update 的用法：每帧只调一次 step()，
+                // 因此单步最大耗时才是游戏内卡顿的直接依据，总耗时不是。
                 CombatSearch s = newSearch(c.root.fork(), cfg);
-                Plan p = drive(s);
+                long t0 = System.currentTimeMillis();
+                long worstStepMs = 0;
+                int steps = 0;
+                while (!s.isDone() && steps++ < 4000) {
+                    long a0 = System.nanoTime();
+                    s.step();
+                    worstStepMs = Math.max(worstStepMs, (System.nanoTime() - a0) / 1000000L);
+                }
+                Plan p = s.result();
                 long ms = System.currentTimeMillis() - t0;
                 totalWideMs += ms;
-                say(report, String.format("   within=%-3d beam=%-3d %6dms 节点=%-7d 路线=%-3d 分数=%-11s HP=%-5s 胜=%s 深度=%d/%d",
-                        cand[0], cand[1], ms,
+                say(report, String.format("   within=%-3d beam=%-3d 总%6dms 单步最大%5dms 步数=%-3d 节点=%-7d 路线=%-3d 分数=%-11s HP=%-5s 胜=%s 深度=%d/%d",
+                        cand[0], cand[1], ms, worstStepMs, steps - 1,
                         p == null ? 0 : p.nodesSearched,
                         p == null ? 0 : p.turns.size(),
                         p == null ? "-" : Oracle.fmt(p.score),
@@ -644,6 +655,25 @@ public final class SearchQuality {
                         p != null && p.predictedWin ? "是" : "否",
                         s.progressDepth(), maxTurns));
             }
+            // 再用当前档位的真实预算（含 maxNodes 与墙钟）跑一次：
+            // 上面各组为隔离剪枝成本而放开预算，这里回答「游戏内实际会不会被墙钟/节点截断」。
+            CombatSearch.Config real = budget(maxTurns);
+            CombatSearch rs = newSearch(c.root.fork(), real);
+            long rt0 = System.currentTimeMillis();
+            long rworst = 0;
+            int rsteps = 0;
+            while (!rs.isDone() && rsteps++ < 4000) {
+                long b0 = System.nanoTime();
+                rs.step();
+                rworst = Math.max(rworst, (System.nanoTime() - b0) / 1000000L);
+            }
+            Plan rp = rs.result();
+            say(report, String.format("   【当前档位真实预算 within=%d beam=%d maxNodes=%d 墙钟=%dms】总%6dms 单步最大%5dms 深度=%d/%d 节点=%-7d HP=%-5s 胜=%s",
+                    real.withinTurnWidth, real.beamWidth, real.maxNodes, real.timeBudgetMs,
+                    System.currentTimeMillis() - rt0, rworst, rs.progressDepth(), maxTurns,
+                    rp == null ? 0 : rp.nodesSearched,
+                    rp == null ? "-" : Integer.toString(rp.endHp),
+                    rp != null && rp.predictedWin ? "是" : "否"));
         }
         say(report, "");
         say(report, "总探测耗时 " + totalWideMs + "ms（" + cases.size() + " 场景 × " + cands.length + " 组配置）");
@@ -930,6 +960,27 @@ public final class SearchQuality {
      * 共用这一构造，避免同一场景出现两份实现。该场景在 2 回合预算内所有分支都杀不完，
      * 但既存在「少掉血的存活叶子」，也存在「被打死的终局分支」。
      */
+    /**
+     * 真实规模场景（诊断用）：10 张手牌、15 张牌堆、3 个敌人，78 血 3 能量。
+     * 题库里的场景手牌只有 3-4 张，会低估回合内展开的分支因子，因此单列一个大场景。
+     */
+    static SimState bigCase() {
+        SimState s = twoMobScene(78, 78, 3,
+                cards("Strike_R:1:6:0", "Strike_R:1:6:0", "Defend_R:1:0:5", "Defend_R:1:0:5",
+                        "Bash:2:8:0", "Cleave:1:8:0:aoe", "Pommel Strike:1:9:0", "Twin Strike:1:5:0",
+                        "Shrug It Off:1:0:5", "Heavy Blade:2:14:0"),
+                mob("Sentry", "哨卫", 40, 40, 9, 1),
+                mob("Sentry", "哨卫", 40, 40, 9, 1),
+                cards("Strike_R:1:6:0", "Defend_R:1:0:5", "Bash:2:8:0", "Cleave:1:8:0:aoe",
+                        "Twin Strike:1:5:0", "Strike_R:1:6:0", "Defend_R:1:0:5", "Pommel Strike:1:9:0",
+                        "Heavy Blade:2:14:0", "Strike_R:1:6:0", "Defend_R:1:0:5", "Bash:2:8:0",
+                        "Twin Strike:1:5:0", "Cleave:1:8:0:aoe", "Strike_R:1:6:0"));
+        SimState.Mob third = mob("Cultist", "邪教徒", 52, 52, 0, 1);
+        s.mobs.add(third);
+        CombatEngine.initMonsters(s);
+        return s;
+    }
+
     static SimState corneredCase() {
         return twoMobScene(14, 80, 3,
                 cards("Strike_R:1:6:0", "Defend_R:1:0:5", "Defend_R:1:0:5"),

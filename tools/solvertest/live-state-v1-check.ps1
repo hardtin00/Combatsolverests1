@@ -1,11 +1,19 @@
-param([string]$Engine = '')
+param(
+    [string]$Engine = '',
+    [Parameter(Mandatory=$true)][string]$GameDir,
+    [string]$Javac = 'javac',
+    [string]$Java = 'java'
+)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 if (-not $Engine) { $Engine = Join-Path $root 'build\engine\combatsolver1-engine.exe' }
 $fixture = Join-Path $PSScriptRoot 'fixtures\live_battle_state_v1_sentry.json'
-$gameJar = 'C:\Program Files (x86)\Steam\steamapps\common\SlayTheSpire\desktop-1.0.jar'
-$javac = 'C:\Program Files\JetBrains\IntelliJ IDEA 2025.3.1\jbr\bin\javac.exe'
-$java = 'C:\Program Files\JetBrains\IntelliJ IDEA 2025.3.1\jbr\bin\java.exe'
+$gameJar = Join-Path $GameDir 'desktop-1.0.jar'
+$javacCommand = Get-Command $Javac -ErrorAction Stop
+$javaCommand = Get-Command $Java -ErrorAction Stop
+$javac = $javacCommand.Source
+$java = $javaCommand.Source
+foreach ($path in @($Engine,$fixture,$gameJar,$javac,$java)) { if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "required protocol test input is missing: $path" } }
 $classes = Join-Path $root 'build\live-state-validation\interop-classes'
 $generated = Join-Path ([System.IO.Path]::GetTempPath()) ('cs1-live-state-v1-java-' + [guid]::NewGuid().ToString('N') + '.json')
 New-Item -ItemType Directory -Force $classes | Out-Null
@@ -316,6 +324,37 @@ try {
                 $diag.piles.hand[0].mapping_diagnostic.engine_card_id -ne 'HAVOC') {
             throw "diagnostic did not enumerate/classify all card mapping outcomes: $($diagRun -join ' | ')"
         }
+        if ($diag.piles.hand[0].mapping_diagnostic.capture_supported -ne 'RAW_FIELDS_CAPTURED' -or
+                $diag.piles.hand[0].mapping_diagnostic.restore_supported -ne 'V1_FIELDS_MAPPED_CXX_RESTORE_NOT_RUN' -or
+                $diag.piles.hand[0].mapping_diagnostic.effect_supported -ne 'IMPLEMENTATION_PRESENT_NOT_L4_VERIFIED' -or
+                $diag.piles.hand[0].mapping_diagnostic.search_supported -ne 'NO_DIAGNOSTIC_ONLY') {
+            throw 'card diagnostics collapsed capture, restore, effect, and search support levels'
+        }
+        $diagStateOut = Join-Path ([System.IO.Path]::GetTempPath()) ('cs1-live-diagnostic-state-' + [guid]::NewGuid().ToString('N') + '.json')
+        try {
+            $diagStateRun = & $java -cp ($classes + ';' + $gameJar) rngprobe.LiveBattleStateV1OfflineProducer --diagnose-state $diagIn $diagStateOut 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "versioned diagnostic snapshot generation failed: $($diagStateRun -join ' | ')" }
+            $diagState = Get-Content -Raw -LiteralPath $diagStateOut | ConvertFrom-Json
+            if ($diagState.protocol -ne 'live_battle_diagnostic_snapshot' -or $diagState.version -ne 1 -or
+                    $diagState.evidence -ne 'OFFLINE_FIXTURE_NOT_REAL_GAME_STATE' -or
+                    $diagState.capabilities.capture_supported -ne 'PARTIAL_DIAGNOSTIC_ONLY' -or
+                    $diagState.capabilities.restore_supported -ne 'NOT_RUN' -or
+                    $diagState.capabilities.search_supported -ne 'NO_DIAGNOSTIC_SNAPSHOT_IS_SEARCH_INPUT' -or
+                    $diagState.source_state_stable -or $diagState.rng_unchanged -or
+                    $diagState.card_capabilities.Count -ne 5 -or
+                    $diagState.source_snapshot.draw[0].card_id -ne 'Rampage' -or
+                    $diagState.card_capabilities[2].restore_supported -ne 'UNSUPPORTED_OR_UNMAPPED') {
+                throw 'diagnostic snapshot lost raw identity or conflated support levels'
+            }
+            $savedPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            $diagnosticSearch = & $Engine mcts_state_search $diagStateOut 16 2>&1
+            $diagnosticSearchExit = $LASTEXITCODE
+            $ErrorActionPreference = $savedPreference
+            if ($diagnosticSearchExit -eq 0 -or ($diagnosticSearch -join "`n") -notmatch 'wrong protocol') {
+                throw "C++ search entry accepted or misclassified diagnostic-only snapshot: $($diagnosticSearch -join ' | ')"
+            }
+        } finally { $ErrorActionPreference = 'Stop'; Remove-Item -LiteralPath $diagStateOut -Force -ErrorAction SilentlyContinue }
         $diagProtocolOut = Join-Path ([System.IO.Path]::GetTempPath()) ('cs1-card-diagnostic-protocol-' + [guid]::NewGuid().ToString('N') + '.json')
         try {
             $previousPreference = $ErrorActionPreference
@@ -331,7 +370,7 @@ try {
         Remove-Item -LiteralPath $diagIn -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $diagOut -Force -ErrorAction SilentlyContinue
     }
-    Write-Output 'JAVA_CPP_HAVOC_INTEROP evidence=OFFLINE_SOURCE_FIELDS_NOT_REAL_GAME_STATE instances=5 piles=4 same_id_distinct_uuid=PASS upgrade_0_1=PASS effect_gate=PASS diagnostics_all_cards=PASS protocol_fail_closed=PASS'
+    Write-Output 'JAVA_CPP_HAVOC_INTEROP evidence=OFFLINE_SOURCE_FIELDS_NOT_REAL_GAME_STATE instances=5 piles=4 same_id_distinct_uuid=PASS upgrade_0_1=PASS effect_gate=PASS diagnostics_all_cards=PASS diagnostic_snapshot_v1=PASS diagnostic_search_rejected=PASS protocol_fail_closed=PASS'
 } finally {
     Remove-Item -LiteralPath $havocInteropFile -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath ($havocInteropFile + '.capture.json') -Force -ErrorAction SilentlyContinue

@@ -1,7 +1,8 @@
 # Live state read-only source probe
 
-This isolated ModTheSpire probe writes two distinct artifacts after its first
-stable player-action boundary:
+This isolated ModTheSpire probe writes a diagnostic report and a separate,
+versioned diagnostic snapshot after its first stable player-action boundary.
+The production protocol remains a third, independently gated artifact:
 
 - `build/live-state-validation/live-capture-report.json` records source-state
   diagnostics, acceptance/rejection reason, per-card identity/state/effect
@@ -9,6 +10,15 @@ stable player-action boundary:
 - `build/live-state-validation/live-battle-state-v1.json` is emitted only when
   the strict `live_battle_state v1` checks pass. It is the file consumed by the
   C++ `mcts_state` command; the diagnostic report itself is never importable.
+- `build/live-state-validation/live-battle-diagnostic-v1.json` preserves raw
+  observed card IDs, UUIDs, pile positions, field mappings and the source
+  snapshot when v1 rejects an unsupported card. Its protocol name is
+  intentionally different; it is never a C++ root or search input. The four
+  support dimensions are reported separately, while C++ restore/search remain
+  unverified or denied until a production snapshot passes the strict writer.
+  At runtime, `CS1_LIVE_STATE_OUTPUT_DIR` can redirect all four probe outputs
+  to a dedicated test-artifact directory; when unset, artifacts go to
+  `%USERPROFILE%\.combatsolver1\live-state-validation`.
 
 The currently supported live slice is deliberately narrow: exact vanilla
 Ironclad in either a map `MonsterRoomElite` or the single allowlisted
@@ -39,16 +49,37 @@ The existing real capture report is a rejected diagnostic and no real EventRoom
 protocol snapshot has yet passed C++ state recovery. A Java `PROTOCOL_CAPTURED`
 report alone is not an end-to-end acceptance result.
 
-Build the isolated JAR with:
+Build the isolated JAR with explicit guest paths and Java tools:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools/live-state-validation/build-probe.ps1
+powershell -ExecutionPolicy Bypass -File tools/live-state-validation/build-probe.ps1 `
+  -GameDir '<guest Steam library>\steamapps\common\SlayTheSpire' `
+  -Javac (Join-Path $env:JAVA_HOME 'bin\javac.exe') `
+  -JarTool (Join-Path $env:JAVA_HOME 'bin\jar.exe')
 ```
 
 It writes `build/live-state-validation/CS1LiveStateProbe.jar` and checks Java 8
-class major 52. Before loading it, run
-`powershell -ExecutionPolicy Bypass -File tools/live-state-validation/audit-fields.ps1`.
+class major 52. Before loading it, run the bytecode audit with explicit game,
+JDK, and ASM locations:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/live-state-validation/audit-fields.ps1 `
+  -GameDir '<guest game directory>' `
+  -JavaHome '<guest JDK directory>' `
+  -AsmJar '<guest ASM jar>'
+```
 To collect a real sample, close the game normally, temporarily put only this
 probe JAR in the MTS `mods` directory, launch via Steam **Play with Mods**, and
 enter a naturally occurring qualifying fight. Do not create or edit a save to
 force an encounter. Remove the probe after normal game exit.
+
+## Isolated automated acceptance prototype
+
+For a disposable Windows VM workflow with a separate Steam profile, a native
+menu/map test mod, and a fail-closed controller, see
+[`automation/README_VM_DEPLOYMENT.md`](automation/README_VM_DEPLOYMENT.md).
+The safe host command is the controller's `-Mode DryRun`; it never starts a
+game or writes to the configured paths. `-Mode Run` requires the VM checks,
+explicit guest paths, an empty test save folder, and both isolated test mods.
+The automation mod and controller have only offline build/component evidence
+until the complete workflow is run inside a disposable guest.

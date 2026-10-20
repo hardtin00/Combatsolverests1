@@ -1,0 +1,10 @@
+{
+  "modid": "cs1automationtest",
+  "name": "CombatSolver1 Isolated Automation Test",
+  "author_list": ["CombatSolver1 validation"],
+  "description": "Isolated native-flow test harness; no production solver or auto-play.",
+  "version": "0.1.0",
+  "sts_version": "12-18-2022",
+  "mts_version": "3.30.3",
+  "dependencies": ["basemod"]
+}

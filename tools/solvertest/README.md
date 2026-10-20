@@ -36,13 +36,30 @@ powershell -ExecutionPolicy Bypass -File tools/solvertest/run.ps1 -Command searc
 # 先证明参照求解器自身可信（5 条断言），退出码 0 才可读漏优数字
 java -cp build\solvertest SearchQuality --selftest
 # 12 场景两个层级的漏优率与截断归因（约 5-6 分钟；--verbose 附路线与耗时）
+# 预算一律取自 SolverSettings.applyTo（档位 0/1/2/3 = 低/中/高/极高），基准不再自带参数
 java -cp build\solvertest SearchQuality --verbose --out build\p0-search-quality.txt
+# 宽度网格：在 2 回合预算下扫描 (withinTurnWidth, beamWidth)，标出与参照同分的最小宽度组合
+java -cp build\solvertest SearchQuality --sweep
+# 深度成本 + 逐帧单步耗时（含 BIG 真实规模场景）：调宽前必看，因为它才是卡顿依据
+java -cp build\solvertest SearchQuality --wide
 ```
 
 口径与限制：漏优判定按 beam **实际展开深度 d** 取参照 C(d)，避免把「预算没用完」当成搜索缺陷；
 参照触顶时结果只是下界（标 CAPPED），其「未漏优」不构成最优证明。本基准度量的是模拟器模型内
 的质量，不等于现实全局最优：模拟器 RNG 非真实 RNG，需要玩家选择的牌由引擎启发式代选（这类牌
 已从题库排除）。退出码 0=无漏优、1=参照自检失败（数字作废）、2=存在漏优。
+
+## 实时协议离线互操作
+
+该专项需要本机游戏 JAR 作为编译期 API，但不会启动游戏。显式传入游戏目录、当前 Release 引擎和 Java 工具；脚本不回退到固定宿主机安装路径：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/solvertest/live-state-v1-check.ps1 `
+  -GameDir '<STS1 game directory>' `
+  -Engine 'build/engine-mingw-unified-release/combatsolver1-engine.exe' `
+  -Javac (Join-Path $env:JAVA_HOME 'bin\javac.exe') `
+  -Java (Join-Path $env:JAVA_HOME 'bin\java.exe')
+```
 
 ## 实机记录从哪里来
 

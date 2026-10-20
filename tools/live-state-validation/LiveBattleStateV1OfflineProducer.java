@@ -14,6 +14,20 @@ public final class LiveBattleStateV1OfflineProducer {
     private LiveBattleStateV1OfflineProducer() { }
 
     public static void main(String[] args) throws Exception {
+        if (args.length == 3 && "--diagnose-state".equals(args[0])) {
+            JsonObject source = readObject(args[1]);
+            if (!source.has("test_only") || !"OFFLINE_CARD_SOURCE_FIXTURE_NOT_REAL_GAME_STATE".equals(source.get("test_only").getAsString()))
+                throw new IllegalArgumentException("diagnostic input must be explicitly marked as an offline card source fixture");
+            source.remove("test_only");
+            JsonObject diagnostic = LiveBattleStateProbe.diagnosticSnapshot(source, "REJECTED",
+                    "offline source fixture; diagnostic-only format", false, false,
+                    null, "OFFLINE_FIXTURE_NOT_REAL_GAME_STATE", System.currentTimeMillis());
+            java.io.OutputStreamWriter writer = new java.io.OutputStreamWriter(
+                    new java.io.FileOutputStream(args[2]), java.nio.charset.StandardCharsets.UTF_8);
+            try { new Gson().toJson(diagnostic, writer); } finally { writer.close(); }
+            System.out.println("LIVE_BATTLE_DIAGNOSTIC_SNAPSHOT evidence=OFFLINE_FIXTURE_NOT_REAL_GAME_STATE protocol_v1=REJECTED search=DENIED");
+            return;
+        }
         if (args.length == 3 && "--diagnose-cards".equals(args[0])) {
             JsonObject source = readObject(args[1]);
             if (!source.has("test_only") || !"OFFLINE_CARD_SOURCE_FIXTURE_NOT_REAL_GAME_STATE".equals(source.get("test_only").getAsString()))

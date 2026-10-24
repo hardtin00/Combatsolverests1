@@ -13,6 +13,12 @@
 
 完整的已记录 PowerShell 启动命令见本机完整运行包 `README.md`。先启动 Server profile，确认 `BATTLEAI_SERVER_READY port=5125 testMode=false` 后，再启动客户端 profile。客户端 profile 加载 CombatSolver1；Server profile 加载 BattleAiMod 与 ServerStatePatch。
 
+## 分享给朋友
+
+GitHub 发布的文件只有本项目客户端 JAR、此说明和哈希记录；未发布游戏本体、ModTheSpire 或第三方 Mod JAR。朋友需要自行拥有并安装 Slay the Spire 1，准备兼容的 ModTheSpire，以及与记录清单匹配的 BaseMod、StSLib、SaveStateMod、LudicrousSpeed、BattleAiMod、CommunicationMod 和 ServerStatePatch。只下载 CombatSolver1 JAR 不能启动搜索服务。
+
+可将本机完整运行包私下打包分享作为文件清单/配置参考，但其中启动命令使用原机绝对路径，不能原样用于其他 Windows 账户；朋友须将 `$game`、`LOCALAPPDATA`、`user.home`、`java.io.tmpdir` 改为自己的隔离目录，并确认客户端与 Server profile 加载列表正确。不要覆盖 Steam 正式游戏目录，也不要公开再分发第三方依赖；依赖哈希见本机包的 `SHA256SUMS.txt`。
+
 战斗中点击 Overlay 的 **重新计算**，等待结果后查看路线、目标和当前状态。路线可能只有部分计划；“未找到完整胜利”不能当作胜利路线。仅当第一步是普通 CARD、当前状态/目标匹配且单步预检通过时，点击 **单步执行** 授权一张牌。等待稳定边界与后置校验成功后，旧路线失效；再次执行前重新计算。
 
 ## 已验证能力

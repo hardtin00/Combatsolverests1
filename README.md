@@ -1,5 +1,9 @@
 # Combat Solver 1
 
+## V0.9 个人试用基线
+
+如需试用已冻结的 V0.9，请先阅读 [V0.9 使用说明](docs/COMBATSOLVER1_V0.9_PERSONAL_TRIAL.md)。其中包含客户端 JAR、SHA-256、隔离安装与启动步骤、逐张授权方式及已知限制。V0.9 只验证过路线展示和一次普通卡牌单步执行，不支持整场自动执行。仓库未分发游戏本体或第三方运行依赖；朋友使用时须自行准备合法游戏与匹配依赖，不能只安装 CombatSolver1 JAR。
+
 面向《杀戮尖塔》（Slay the Spire 1）的战斗路线求解器 Mod，功能对齐
 [Torch1230/CombatSolver](https://github.com/Torch1230/CombatSolver)（该项目的目标平台是
 《杀戮尖塔 2》，C# / .NET / Godot 技术栈）。

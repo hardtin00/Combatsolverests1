@@ -1,0 +1,38 @@
+[
+ {
+  "file": "SEARCH_RESULT.live29.json",
+  "status": "SEARCHED",
+  "plan_potions": [
+   {
+    "slot": 1,
+    "target_slot": 0,
+    "token": "USE_POTION SPEED_POTION potion_slot=1 target_slot=0",
+    "turn": 3
+   }
+  ]
+ },
+ {
+  "file": "SEARCH_RESULT.live30.json",
+  "status": "SEARCHED",
+  "plan_potions": [
+   {
+    "slot": 1,
+    "target_slot": 0,
+    "token": "USE_POTION SPEED_POTION potion_slot=1 target_slot=0",
+    "turn": 4
+   }
+  ]
+ },
+ {
+  "file": "SEARCH_RESULT.live33.json",
+  "status": "SEARCHED",
+  "plan_potions": [
+   {
+    "slot": 1,
+    "target_slot": 0,
+    "token": "USE_POTION SPEED_POTION potion_slot=1 target_slot=0",
+    "turn": 1
+   }
+  ]
+ }
+]

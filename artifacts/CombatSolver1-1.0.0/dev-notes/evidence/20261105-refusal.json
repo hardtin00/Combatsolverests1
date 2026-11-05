@@ -1,0 +1,48 @@
+[
+ {
+  "event": "refused",
+  "at": 1793885094644,
+  "identity": "",
+  "code": "E-BOUNDARY",
+  "reason": "当前不是稳定操作点（room_phase=COMBAT action_phase=WAITING_ON_USER turn=1 turn_has_ended=false end_turn_queued=false using_card=false current_action=none actions=0 card_queue=0 monster_queue=0 screen_up=false battle_over=true）"
+ },
+ {
+  "event": "refused",
+  "at": 1793886990223,
+  "identity": "",
+  "code": "E-BOUNDARY",
+  "reason": "当前不是稳定操作点（room_phase=COMBAT action_phase=WAITING_ON_USER turn=1 turn_has_ended=false end_turn_queued=false using_card=false current_action=none actions=0 card_queue=0 monster_queue=0 screen_up=false battle_over=true）"
+ },
+ {
+  "event": "refused",
+  "at": 1793888113229,
+  "identity": "",
+  "code": "E-BOUNDARY",
+  "reason": "当前不是稳定操作点（room_phase=COMBAT action_phase=WAITING_ON_USER turn=1 turn_has_ended=false end_turn_queued=false using_card=false current_action=none actions=0 card_queue=0 monster_queue=0 screen_up=false battle_over=true）"
+ },
+ {
+  "event": "refused",
+  "at": 1793888622343,
+  "identity": "",
+  "code": "E-BOUNDARY",
+  "reason": "当前不是稳定操作点（room_phase=COMBAT action_phase=EXECUTING_ACTIONS turn=1 turn_has_ended=false end_turn_queued=false using_card=false current_action=present actions=4 card_queue=0 monster_queue=0 screen_up=false battle_over=false）"
+ },
+ {
+  "event": "engine_identity",
+  "at": 1793889342897,
+  "identity": "",
+  "path": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\SlayTheSpire\\cs1-engine\\s2b0_search_3d.exe",
+  "sha256": "a0a3a2f471f83ee0b55533b624373c92e78325d432e5262e0fa4ca3aebadb4c1",
+  "bytes": 1438720,
+  "authorised_potions": "[Ancient Potion, Block Potion, Blood Potion, Cultist Potion, Dexterity Potion, Duplication Potion, Energy Potion, Essence of Steel, Explosive Potion, Fear Potion, Fire Potion, Flex Potion, Fruit Juice, Ghost in a Jar, Heart of Iron, Liquid Bronze, Regen Potion, Speed Potion, Strength Potion, Swift Potion, Weak Potion]",
+  "potion_execution_authorised": true,
+  "stop_after_potion": false
+ },
+ {
+  "event": "refused",
+  "at": 1793889342902,
+  "identity": "",
+  "code": "E-OTHER",
+  "reason": "采集失败：IllegalStateException: ethereal state disagrees with verified card rule: Ghostly Armor"
+ }
+]

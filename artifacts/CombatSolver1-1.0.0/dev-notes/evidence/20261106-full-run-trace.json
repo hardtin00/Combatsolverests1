@@ -1,0 +1,697 @@
+[
+ {
+  "event": "engine_identity",
+  "at": 1793896491310,
+  "identity": "",
+  "path": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\SlayTheSpire\\cs1-engine\\s2b0_search_3d.exe",
+  "sha256": "a0a3a2f471f83ee0b55533b624373c92e78325d432e5262e0fa4ca3aebadb4c1",
+  "bytes": 1438720,
+  "authorised_potions": "[Ancient Potion, Block Potion, Blood Potion, Cultist Potion, Dexterity Potion, Duplication Potion, Energy Potion, Essence of Steel, Explosive Potion, Fear Potion, Fire Potion, Flex Potion, Fruit Juice, Ghost in a Jar, Heart of Iron, Liquid Bronze, Regen Potion, Speed Potion, Strength Potion, Swift Potion, Weak Potion]",
+  "potion_execution_authorised": true,
+  "stop_after_potion": false
+ },
+ {
+  "event": "search_request",
+  "at": 1793896491335,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "trigger": "panel",
+  "sequence": 1,
+  "turn": 1,
+  "protocol_sha256": "8240dd1d25b2912bae99ec2bfb5bafb286cf5805bec1a94060ed6d956f04c141",
+  "protocol_step_copy": "live-battle-state-v1.seq1.json",
+  "gate_flags": "[--max-supported-turn, 20, --execution-cards, A_THOUSAND_CUTS,ACCURACY,ACROBATICS,RUSHDOWN,ADRENALINE,AFTER_IMAGE,AGGREGATE,ALL_FOR_ONE,ALL_OUT_ATTACK,ALPHA,AMPLIFY,ANGER,APOTHEOSIS,ARMAMENTS,ASCENDERS_BANE,AUTO_SHIELDS,BACKFLIP,BACKSTAB,BALL_LIGHTNING,BANDAGE_UP,BANE,BARRAGE,BARRICADE,BASH,BATTLE_TRANCE,BATTLE_HYMN,BEAM_CELL,BECOME_ALMIGHTY,BERSERK,BETA,BIASED_COGNITION,BITE,BLADE_DANCE,BLASPHEMY,BLIND,BLIZZARD,BLOOD_FOR_BLOOD,BLOODLETTING,BLUDGEON,BLUR,BODY_SLAM,BOOT_SEQUENCE,BOUNCING_FLASK,BOWLING_BASH,BRILLIANCE,BRUTALITY,BUFFER,BULLET_TIME,BURN,BURNING_PACT,BURST,CALCULATED_GAMBLE,CALTROPS,CAPACITOR,CARNAGE,CARVE_REALITY,CATALYST,CHAOS,CHILL,CHOKE,CHRYSALIS,CLASH,TRANQUILITY,CLEAVE,CLOAK_AND_DAGGER,CLOTHESLINE,CLUMSY,COLD_SNAP,COLLECT,COMBUST,COMPILE_DRIVER,CONCENTRATE,CONCLUDE,CONJURE_BLADE,CONSECRATE,CHARGE_BATTERY,CONSUME,COOLHEADED,CORE_SURGE,CORPSE_EXPLOSION,CORRUPTION,CREATIVE_AI,CRESCENDO,CRIPPLING_CLOUD,CRUSH_JOINTS,CURSE_OF_THE_BELL,CUT_THROUGH_FATE,DAGGER_SPRAY,DAGGER_THROW,DARK_EMBRACE,DARK_SHACKLES,DARKNESS,DASH,DAZED,DEADLY_POISON,DECAY,DECEIVE_REALITY,DEEP_BREATH,DEFEND_BLUE,DEFEND_GREEN,DEFEND_PURPLE,DEFEND_RED,DEFLECT,DEFRAGMENT,DEMON_FORM,DEUS_EX_MACHINA,DEVA_FORM,DEVOTION,DIE_DIE_DIE,DISARM,DISCOVERY,DISTRACTION,DODGE_AND_ROLL,DOOM_AND_GLOOM,DOPPELGANGER,DOUBLE_ENERGY,DOUBLE_TAP,DOUBT,DRAMATIC_ENTRANCE,DROPKICK,DUAL_WIELD,DUALCAST,ECHO_FORM,ELECTRODYNAMICS,EMPTY_BODY,EMPTY_FIST,EMPTY_MIND,ENDLESS_AGONY,ENLIGHTENMENT,ENTRENCH,ENVENOM,ERUPTION,ESCAPE_PLAN,ESTABLISHMENT,EVALUATE,EVISCERATE,EVOLVE,EXHUME,EXPERTISE,EXPUNGER,FTL,FAME_AND_FORTUNE,FASTING,FEAR_NO_EVIL,FEED,FEEL_NO_PAIN,FIEND_FIRE,FINESSE,FINISHER,FIRE_BREATHING,FISSION,FLAME_BARRIER,FLASH_OF_STEEL,FLECHETTES,FLEX,FLURRY_OF_BLOWS,FLYING_KNEE,FLYING_SLEEVES,FOLLOW_UP,FOOTWORK,FORCE_FIELD,FOREIGN_INFLUENCE,FORETHOUGHT,FUSION,CLAW,GENETIC_ALGORITHM,APPARITION,GHOSTLY_ARMOR,GLACIER,GLASS_KNIFE,GO_FOR_THE_EYES,GOOD_INSTINCTS,GRAND_FINALE,HALT,HAND_OF_GREED,HAVOC,HEADBUTT,HEATSINKS,HEAVY_BLADE,HEEL_HOOK,HELLO_WORLD,HEMOKINESIS,HOLOGRAM,HYPERBEAM,IMMOLATE,IMPATIENCE,IMPERVIOUS,INDIGNATION,INFERNAL_BLADE,INFINITE_BLADES,INFLAME,INJURY,INNER_PEACE,INSIGHT,INTIMIDATE,IRON_WAVE,JAX,JACK_OF_ALL_TRADES,JUDGMENT,JUGGERNAUT,JUST_LUCKY,LEAP,LEG_SWEEP,LESSON_LEARNED,LIKE_WATER,LIMIT_BREAK,LIVE_FOREVER,BULLSEYE,LOOP,MACHINE_LEARNING,MADNESS,MAGNETISM,MALAISE,MASTER_OF_STRATEGY,MASTER_REALITY,MASTERFUL_STAB,MAYHEM,MEDITATE,MELTER,MENTAL_FORTRESS,METALLICIZE,METAMORPHOSIS,METEOR_STRIKE,MIND_BLAST,MIRACLE,MULTI_CAST,NECRONOMICURSE,NEUTRALIZE,NIGHTMARE,NIRVANA,NORMALITY,NOXIOUS_FUMES,OFFERING,OMEGA,OMNISCIENCE,OUTMANEUVER,PAIN,PANACEA,PANACHE,PANIC_BUTTON,PARASITE,PRESSURE_POINTS,PERFECTED_STRIKE,PERSEVERANCE,PHANTASMAL_KILLER,PIERCING_WAIL,POISONED_STAB,POMMEL_STRIKE,POWER_THROUGH,PRAY,PREDATOR,PREPARED,PRIDE,PROSTRATE,PROTECT,PUMMEL,PURITY,QUICK_SLASH,RAGE,RAGNAROK,RAINBOW,RAMPAGE,REACH_HEAVEN,REAPER,REBOOT,REBOUND,RECKLESS_CHARGE,RECYCLE,RECURSION,REFLEX,REGRET,REINFORCED_BODY,REPROGRAM,RIDDLE_WITH_HOLES,RIP_AND_TEAR,RITUAL_DAGGER,RUPTURE,SADISTIC_NATURE,SAFETY,SANCTITY,SANDS_OF_TIME,SASH_WHIP,SCRAPE,SCRAWL,SEARING_BLOW,SECOND_WIND,SECRET_TECHNIQUE,SECRET_WEAPON,SEEING_RED,SEEK,SELF_REPAIR,SENTINEL,SETUP,SEVER_SOUL,SHAME,SHIV,SHOCKWAVE,SHRUG_IT_OFF,SIGNATURE_MOVE,SKEWER,SKIM,SLICE,SLIMED,SMITE,SPIRIT_SHIELD,SPOT_WEAKNESS,STACK,STATIC_DISCHARGE,STEAM_BARRIER,OVERCLOCK,STORM,STORM_OF_STEEL,STREAMLINE,STRIKE_BLUE,STRIKE_GREEN,STRIKE_PURPLE,STRIKE_RED,STUDY,SUCKER_PUNCH,SUNDER,SURVIVOR,SWEEPING_BEAM,SWIFT_STRIKE,SWIVEL,SWORD_BOOMERANG,TACTICIAN,TALK_TO_THE_HAND,TANTRUM,TEMPEST,TERROR,THE_BOMB,THINKING_AHEAD,THIRD_EYE,THROUGH_VIOLENCE,THUNDER_STRIKE,THUNDERCLAP,TOOLS_OF_THE_TRADE,TRANSMUTATION,TRIP,TRUE_GRIT,TURBO,TWIN_STRIKE,SNEAKY_STRIKE,EQUILIBRIUM,UNLOAD,UPPERCUT,VAULT,SIMMERING_FURY,ALCHEMIZE,VIGILANCE,VIOLENCE,VOID,WALLOP,WARCRY,WAVE_OF_THE_HAND,WEAVE,WELL_LAID_PLANS,WHEEL_KICK,WHIRLWIND,WHITE_NOISE,WILD_STRIKE,WINDMILL_STRIKE,FORESIGHT,WISH,WORSHIP,WOUND,WRAITH_FORM,WREATH_OF_FLAME,WRITHE,ZAP, --potion-actions, policy, --execution-potions, ANCIENT_POTION,BLOCK_POTION,BLOOD_POTION,CULTIST_POTION,DEXTERITY_POTION,DUPLICATION_POTION,ENERGY_POTION,ESSENCE_OF_STEEL,EXPLOSIVE_POTION,FEAR_POTION,FIRE_POTION,FLEX_POTION,FRUIT_JUICE,GHOST_IN_A_JAR,HEART_OF_IRON,LIQUID_BRONZE,REGEN_POTION,SPEED_POTION,STRENGTH_POTION,SWIFT_POTION,WEAK_POTION]",
+  "search_scope": "EXECUTION_CONSTRAINED",
+  "search_scope_error": "",
+  "search_admission": "generated search-safe set (136 cards)",
+  "search_admission_cards": 136,
+  "execution_admission_cards": 370,
+  "history_has_verified_special": false
+ },
+ {
+  "event": "search_adopted",
+  "at": 1793896491560,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "status": "SEARCHED",
+  "root_digest": "a9370fec58ab695d",
+  "simulations": 6000,
+  "nodes": 0,
+  "edges": 0,
+  "elapsed_ms": 208,
+  "best_action_value": 80.0,
+  "admission_filter_enabled": true,
+  "execution_constrained": true,
+  "search_scope": "EXECUTION_CONSTRAINED",
+  "route_size": 17,
+  "terminal_outcome": "PLAYER_VICTORY",
+  "refusal_tallies": "{}",
+  "potion_refusals": 0,
+  "steps": [
+   {
+    "description": "PLAY_CARD HAVOC hand_slot=5 uuid=325e2387-6d90-433d-b6a3-f3a1f06d4bae target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "325e2387-6d90-433d-b6a3-f3a1f06d4bae",
+    "hand_slot": 5,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD CORRUPTION hand_slot=4 uuid=943b9f5e-50dc-40a1-bcd4-4fe34cd0196a target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "943b9f5e-50dc-40a1-bcd4-4fe34cd0196a",
+    "hand_slot": 4,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD DEMON_FORM hand_slot=3 uuid=b06f62c9-a498-4b79-a6c0-b9802f6a0479 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "b06f62c9-a498-4b79-a6c0-b9802f6a0479",
+    "hand_slot": 3,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD SEARING_BLOW hand_slot=0 uuid=92a6eb6c-eee0-4ade-a778-8959e243d833 target_slot=1",
+    "kind": "PLAY_CARD",
+    "uuid": "92a6eb6c-eee0-4ade-a778-8959e243d833",
+    "hand_slot": 0,
+    "target_slot": 1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD GHOSTLY_ARMOR hand_slot=1 uuid=e56644dd-e47b-4381-80df-4056ba528cb2 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "e56644dd-e47b-4381-80df-4056ba528cb2",
+    "hand_slot": 1,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD OFFERING hand_slot=0 uuid=357fca9d-920a-4e1c-9572-70be2c72cad6 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "357fca9d-920a-4e1c-9572-70be2c72cad6",
+    "hand_slot": 0,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD IMMOLATE hand_slot=1 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": null,
+    "hand_slot": 1,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD BATTLE_TRANCE hand_slot=4 uuid=ce2f7c6d-92cc-40b2-a3cb-093784e4cdb7 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "ce2f7c6d-92cc-40b2-a3cb-093784e4cdb7",
+    "hand_slot": 4,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD SECOND_WIND hand_slot=3 uuid=2909979e-9403-4063-bddd-6bb87a452cb9 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "2909979e-9403-4063-bddd-6bb87a452cb9",
+    "hand_slot": 3,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD SHRUG_IT_OFF hand_slot=8 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": null,
+    "hand_slot": 8,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD FLEX hand_slot=9 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": null,
+    "hand_slot": 9,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "END_TURN",
+    "kind": "END_TURN",
+    "uuid": null,
+    "hand_slot": -1,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD ARMAMENTS hand_slot=1 uuid=f34ae0fb-8c64-45ec-9965-9f55c6ae8bc5 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "f34ae0fb-8c64-45ec-9965-9f55c6ae8bc5",
+    "hand_slot": 1,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD DEFEND_RED hand_slot=1 uuid=7fc7a7e4-c8f5-4d94-87f1-4456c6083091 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "7fc7a7e4-c8f5-4d94-87f1-4456c6083091",
+    "hand_slot": 1,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD HEAVY_BLADE hand_slot=6 target_slot=1",
+    "kind": "PLAY_CARD",
+    "uuid": null,
+    "hand_slot": 6,
+    "target_slot": 1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD SPOT_WEAKNESS hand_slot=0 uuid=b7072c82-190b-4ee9-a63e-12f69dc2835a target_slot=2",
+    "kind": "PLAY_CARD",
+    "uuid": "b7072c82-190b-4ee9-a63e-12f69dc2835a",
+    "hand_slot": 0,
+    "target_slot": 2,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD REAPER hand_slot=0 uuid=309714ec-5ad6-42c8-8fd7-0370606de3e9 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "309714ec-5ad6-42c8-8fd7-0370606de3e9",
+    "hand_slot": 0,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   }
+  ]
+ },
+ {
+  "event": "action_queued",
+  "at": 1793896537329,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "thread": "LWJGL Application",
+  "card": "Havoc",
+  "uuid": "325e2387-6d90-433d-b6a3-f3a1f06d4bae",
+  "target": "none",
+  "queue_size_after": 1
+ },
+ {
+  "event": "action_executed",
+  "at": 1793896537329,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "step_index": 1,
+  "description": "PLAY_CARD HAVOC hand_slot=5 uuid=325e2387-6d90-433d-b6a3-f3a1f06d4bae target_slot=-1",
+  "remaining_steps": 16,
+  "predicted_energy_after": 0,
+  "predicted_hp_after": 0
+ },
+ {
+  "event": "execution_refused",
+  "at": 1793896537778,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "gates": "9 有未完成动作或卡牌链（room_phase=COMBAT action_phase=EXECUTING_ACTIONS turn=1 turn_has_ended=false end_turn_queued=false using_card=false current_action=present actions=2 card_queue=0 monster_queue=0 screen_up=false battle_over=false）; "
+ },
+ {
+  "event": "action_queued",
+  "at": 1793896538230,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "thread": "LWJGL Application",
+  "card": "Corruption",
+  "uuid": "943b9f5e-50dc-40a1-bcd4-4fe34cd0196a",
+  "target": "none",
+  "queue_size_after": 1
+ },
+ {
+  "event": "action_executed",
+  "at": 1793896538231,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "step_index": 2,
+  "description": "PLAY_CARD CORRUPTION hand_slot=4 uuid=943b9f5e-50dc-40a1-bcd4-4fe34cd0196a target_slot=-1",
+  "remaining_steps": 15,
+  "predicted_energy_after": 0,
+  "predicted_hp_after": 0
+ },
+ {
+  "event": "execution_refused",
+  "at": 1793896538687,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "gates": "9 有未完成动作或卡牌链（room_phase=COMBAT action_phase=EXECUTING_ACTIONS turn=1 turn_has_ended=false end_turn_queued=false using_card=false current_action=present actions=2 card_queue=0 monster_queue=0 screen_up=false battle_over=false）; "
+ },
+ {
+  "event": "action_queued",
+  "at": 1793896539139,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "thread": "LWJGL Application",
+  "card": "Demon Form",
+  "uuid": "b06f62c9-a498-4b79-a6c0-b9802f6a0479",
+  "target": "none",
+  "queue_size_after": 1
+ },
+ {
+  "event": "action_executed",
+  "at": 1793896539139,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "step_index": 3,
+  "description": "PLAY_CARD DEMON_FORM hand_slot=3 uuid=b06f62c9-a498-4b79-a6c0-b9802f6a0479 target_slot=-1",
+  "remaining_steps": 14,
+  "predicted_energy_after": 0,
+  "predicted_hp_after": 0
+ },
+ {
+  "event": "action_queued",
+  "at": 1793896539593,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "thread": "LWJGL Application",
+  "card": "Searing Blow",
+  "uuid": "92a6eb6c-eee0-4ade-a778-8959e243d833",
+  "target": "Spiker",
+  "queue_size_after": 1
+ },
+ {
+  "event": "action_executed",
+  "at": 1793896539593,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "step_index": 4,
+  "description": "PLAY_CARD SEARING_BLOW hand_slot=0 uuid=92a6eb6c-eee0-4ade-a778-8959e243d833 target_slot=1",
+  "remaining_steps": 13,
+  "predicted_energy_after": 0,
+  "predicted_hp_after": 0
+ },
+ {
+  "event": "action_queued",
+  "at": 1793896540041,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "thread": "LWJGL Application",
+  "card": "Ghostly Armor",
+  "uuid": "e56644dd-e47b-4381-80df-4056ba528cb2",
+  "target": "none",
+  "queue_size_after": 1
+ },
+ {
+  "event": "action_executed",
+  "at": 1793896540041,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "step_index": 5,
+  "description": "PLAY_CARD GHOSTLY_ARMOR hand_slot=1 uuid=e56644dd-e47b-4381-80df-4056ba528cb2 target_slot=-1",
+  "remaining_steps": 12,
+  "predicted_energy_after": 0,
+  "predicted_hp_after": 0
+ },
+ {
+  "event": "action_queued",
+  "at": 1793896540493,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "thread": "LWJGL Application",
+  "card": "Offering",
+  "uuid": "357fca9d-920a-4e1c-9572-70be2c72cad6",
+  "target": "none",
+  "queue_size_after": 1
+ },
+ {
+  "event": "action_executed",
+  "at": 1793896540493,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "step_index": 6,
+  "description": "PLAY_CARD OFFERING hand_slot=0 uuid=357fca9d-920a-4e1c-9572-70be2c72cad6 target_slot=-1",
+  "remaining_steps": 11,
+  "predicted_energy_after": 0,
+  "predicted_hp_after": 0
+ },
+ {
+  "event": "execution_refused",
+  "at": 1793896540942,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "gates": "9 有未完成动作或卡牌链（room_phase=COMBAT action_phase=EXECUTING_ACTIONS turn=1 turn_has_ended=false end_turn_queued=false using_card=false current_action=present actions=1 card_queue=0 monster_queue=0 screen_up=false battle_over=false）; "
+ },
+ {
+  "event": "execution_refused",
+  "at": 1793896541394,
+  "identity": "turn=1 hand=7/92a6eb6c",
+  "gates": "5/6 卡牌或目标无法唯一识别; "
+ },
+ {
+  "event": "search_request",
+  "at": 1793896541407,
+  "identity": "turn=1 hand=9/aaec4ded",
+  "trigger": "turn-replan",
+  "sequence": 2,
+  "turn": 1,
+  "protocol_sha256": "ffd919c0257072b0fee3534fe4f9421926b2d37a0849421b9ae81f8c19d087d0",
+  "protocol_step_copy": "live-battle-state-v1.seq2.json",
+  "gate_flags": "[--max-supported-turn, 20, --execution-cards, A_THOUSAND_CUTS,ACCURACY,ACROBATICS,RUSHDOWN,ADRENALINE,AFTER_IMAGE,AGGREGATE,ALL_FOR_ONE,ALL_OUT_ATTACK,ALPHA,AMPLIFY,ANGER,APOTHEOSIS,ARMAMENTS,ASCENDERS_BANE,AUTO_SHIELDS,BACKFLIP,BACKSTAB,BALL_LIGHTNING,BANDAGE_UP,BANE,BARRAGE,BARRICADE,BASH,BATTLE_TRANCE,BATTLE_HYMN,BEAM_CELL,BECOME_ALMIGHTY,BERSERK,BETA,BIASED_COGNITION,BITE,BLADE_DANCE,BLASPHEMY,BLIND,BLIZZARD,BLOOD_FOR_BLOOD,BLOODLETTING,BLUDGEON,BLUR,BODY_SLAM,BOOT_SEQUENCE,BOUNCING_FLASK,BOWLING_BASH,BRILLIANCE,BRUTALITY,BUFFER,BULLET_TIME,BURN,BURNING_PACT,BURST,CALCULATED_GAMBLE,CALTROPS,CAPACITOR,CARNAGE,CARVE_REALITY,CATALYST,CHAOS,CHILL,CHOKE,CHRYSALIS,CLASH,TRANQUILITY,CLEAVE,CLOAK_AND_DAGGER,CLOTHESLINE,CLUMSY,COLD_SNAP,COLLECT,COMBUST,COMPILE_DRIVER,CONCENTRATE,CONCLUDE,CONJURE_BLADE,CONSECRATE,CHARGE_BATTERY,CONSUME,COOLHEADED,CORE_SURGE,CORPSE_EXPLOSION,CORRUPTION,CREATIVE_AI,CRESCENDO,CRIPPLING_CLOUD,CRUSH_JOINTS,CURSE_OF_THE_BELL,CUT_THROUGH_FATE,DAGGER_SPRAY,DAGGER_THROW,DARK_EMBRACE,DARK_SHACKLES,DARKNESS,DASH,DAZED,DEADLY_POISON,DECAY,DECEIVE_REALITY,DEEP_BREATH,DEFEND_BLUE,DEFEND_GREEN,DEFEND_PURPLE,DEFEND_RED,DEFLECT,DEFRAGMENT,DEMON_FORM,DEUS_EX_MACHINA,DEVA_FORM,DEVOTION,DIE_DIE_DIE,DISARM,DISCOVERY,DISTRACTION,DODGE_AND_ROLL,DOOM_AND_GLOOM,DOPPELGANGER,DOUBLE_ENERGY,DOUBLE_TAP,DOUBT,DRAMATIC_ENTRANCE,DROPKICK,DUAL_WIELD,DUALCAST,ECHO_FORM,ELECTRODYNAMICS,EMPTY_BODY,EMPTY_FIST,EMPTY_MIND,ENDLESS_AGONY,ENLIGHTENMENT,ENTRENCH,ENVENOM,ERUPTION,ESCAPE_PLAN,ESTABLISHMENT,EVALUATE,EVISCERATE,EVOLVE,EXHUME,EXPERTISE,EXPUNGER,FTL,FAME_AND_FORTUNE,FASTING,FEAR_NO_EVIL,FEED,FEEL_NO_PAIN,FIEND_FIRE,FINESSE,FINISHER,FIRE_BREATHING,FISSION,FLAME_BARRIER,FLASH_OF_STEEL,FLECHETTES,FLEX,FLURRY_OF_BLOWS,FLYING_KNEE,FLYING_SLEEVES,FOLLOW_UP,FOOTWORK,FORCE_FIELD,FOREIGN_INFLUENCE,FORETHOUGHT,FUSION,CLAW,GENETIC_ALGORITHM,APPARITION,GHOSTLY_ARMOR,GLACIER,GLASS_KNIFE,GO_FOR_THE_EYES,GOOD_INSTINCTS,GRAND_FINALE,HALT,HAND_OF_GREED,HAVOC,HEADBUTT,HEATSINKS,HEAVY_BLADE,HEEL_HOOK,HELLO_WORLD,HEMOKINESIS,HOLOGRAM,HYPERBEAM,IMMOLATE,IMPATIENCE,IMPERVIOUS,INDIGNATION,INFERNAL_BLADE,INFINITE_BLADES,INFLAME,INJURY,INNER_PEACE,INSIGHT,INTIMIDATE,IRON_WAVE,JAX,JACK_OF_ALL_TRADES,JUDGMENT,JUGGERNAUT,JUST_LUCKY,LEAP,LEG_SWEEP,LESSON_LEARNED,LIKE_WATER,LIMIT_BREAK,LIVE_FOREVER,BULLSEYE,LOOP,MACHINE_LEARNING,MADNESS,MAGNETISM,MALAISE,MASTER_OF_STRATEGY,MASTER_REALITY,MASTERFUL_STAB,MAYHEM,MEDITATE,MELTER,MENTAL_FORTRESS,METALLICIZE,METAMORPHOSIS,METEOR_STRIKE,MIND_BLAST,MIRACLE,MULTI_CAST,NECRONOMICURSE,NEUTRALIZE,NIGHTMARE,NIRVANA,NORMALITY,NOXIOUS_FUMES,OFFERING,OMEGA,OMNISCIENCE,OUTMANEUVER,PAIN,PANACEA,PANACHE,PANIC_BUTTON,PARASITE,PRESSURE_POINTS,PERFECTED_STRIKE,PERSEVERANCE,PHANTASMAL_KILLER,PIERCING_WAIL,POISONED_STAB,POMMEL_STRIKE,POWER_THROUGH,PRAY,PREDATOR,PREPARED,PRIDE,PROSTRATE,PROTECT,PUMMEL,PURITY,QUICK_SLASH,RAGE,RAGNAROK,RAINBOW,RAMPAGE,REACH_HEAVEN,REAPER,REBOOT,REBOUND,RECKLESS_CHARGE,RECYCLE,RECURSION,REFLEX,REGRET,REINFORCED_BODY,REPROGRAM,RIDDLE_WITH_HOLES,RIP_AND_TEAR,RITUAL_DAGGER,RUPTURE,SADISTIC_NATURE,SAFETY,SANCTITY,SANDS_OF_TIME,SASH_WHIP,SCRAPE,SCRAWL,SEARING_BLOW,SECOND_WIND,SECRET_TECHNIQUE,SECRET_WEAPON,SEEING_RED,SEEK,SELF_REPAIR,SENTINEL,SETUP,SEVER_SOUL,SHAME,SHIV,SHOCKWAVE,SHRUG_IT_OFF,SIGNATURE_MOVE,SKEWER,SKIM,SLICE,SLIMED,SMITE,SPIRIT_SHIELD,SPOT_WEAKNESS,STACK,STATIC_DISCHARGE,STEAM_BARRIER,OVERCLOCK,STORM,STORM_OF_STEEL,STREAMLINE,STRIKE_BLUE,STRIKE_GREEN,STRIKE_PURPLE,STRIKE_RED,STUDY,SUCKER_PUNCH,SUNDER,SURVIVOR,SWEEPING_BEAM,SWIFT_STRIKE,SWIVEL,SWORD_BOOMERANG,TACTICIAN,TALK_TO_THE_HAND,TANTRUM,TEMPEST,TERROR,THE_BOMB,THINKING_AHEAD,THIRD_EYE,THROUGH_VIOLENCE,THUNDER_STRIKE,THUNDERCLAP,TOOLS_OF_THE_TRADE,TRANSMUTATION,TRIP,TRUE_GRIT,TURBO,TWIN_STRIKE,SNEAKY_STRIKE,EQUILIBRIUM,UNLOAD,UPPERCUT,VAULT,SIMMERING_FURY,ALCHEMIZE,VIGILANCE,VIOLENCE,VOID,WALLOP,WARCRY,WAVE_OF_THE_HAND,WEAVE,WELL_LAID_PLANS,WHEEL_KICK,WHIRLWIND,WHITE_NOISE,WILD_STRIKE,WINDMILL_STRIKE,FORESIGHT,WISH,WORSHIP,WOUND,WRAITH_FORM,WREATH_OF_FLAME,WRITHE,ZAP, --potion-actions, policy, --execution-potions, ANCIENT_POTION,BLOCK_POTION,BLOOD_POTION,CULTIST_POTION,DEXTERITY_POTION,DUPLICATION_POTION,ENERGY_POTION,ESSENCE_OF_STEEL,EXPLOSIVE_POTION,FEAR_POTION,FIRE_POTION,FLEX_POTION,FRUIT_JUICE,GHOST_IN_A_JAR,HEART_OF_IRON,LIQUID_BRONZE,REGEN_POTION,SPEED_POTION,STRENGTH_POTION,SWIFT_POTION,WEAK_POTION]",
+  "search_scope": "EXECUTION_CONSTRAINED",
+  "search_scope_error": "",
+  "search_admission": "generated search-safe set (136 cards)",
+  "search_admission_cards": 136,
+  "execution_admission_cards": 370,
+  "history_has_verified_special": false
+ },
+ {
+  "event": "search_adopted",
+  "at": 1793896541614,
+  "identity": "turn=1 hand=9/aaec4ded",
+  "status": "SEARCHED",
+  "root_digest": "a9370fec58ab695d",
+  "simulations": 6000,
+  "nodes": 0,
+  "edges": 0,
+  "elapsed_ms": 194,
+  "best_action_value": 80.0,
+  "admission_filter_enabled": true,
+  "execution_constrained": true,
+  "search_scope": "EXECUTION_CONSTRAINED",
+  "route_size": 6,
+  "terminal_outcome": "PLAYER_VICTORY",
+  "refusal_tallies": "{}",
+  "potion_refusals": 0,
+  "steps": [
+   {
+    "description": "PLAY_CARD IMMOLATE hand_slot=1 uuid=b3b6028a-79e9-47a6-a947-dfddba23d549 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "b3b6028a-79e9-47a6-a947-dfddba23d549",
+    "hand_slot": 1,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD SECOND_WIND hand_slot=3 uuid=2909979e-9403-4063-bddd-6bb87a452cb9 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "2909979e-9403-4063-bddd-6bb87a452cb9",
+    "hand_slot": 3,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD IMPERVIOUS hand_slot=7 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": null,
+    "hand_slot": 7,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "END_TURN",
+    "kind": "END_TURN",
+    "uuid": null,
+    "hand_slot": -1,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD SPOT_WEAKNESS hand_slot=3 uuid=b7072c82-190b-4ee9-a63e-12f69dc2835a target_slot=2",
+    "kind": "PLAY_CARD",
+    "uuid": "b7072c82-190b-4ee9-a63e-12f69dc2835a",
+    "hand_slot": 3,
+    "target_slot": 2,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD REAPER hand_slot=5 uuid=309714ec-5ad6-42c8-8fd7-0370606de3e9 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "309714ec-5ad6-42c8-8fd7-0370606de3e9",
+    "hand_slot": 5,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   }
+  ]
+ },
+ {
+  "event": "action_queued",
+  "at": 1793896541846,
+  "identity": "turn=1 hand=9/aaec4ded",
+  "thread": "LWJGL Application",
+  "card": "Immolate",
+  "uuid": "b3b6028a-79e9-47a6-a947-dfddba23d549",
+  "target": "none",
+  "queue_size_after": 1
+ },
+ {
+  "event": "action_executed",
+  "at": 1793896541846,
+  "identity": "turn=1 hand=9/aaec4ded",
+  "step_index": 1,
+  "description": "PLAY_CARD IMMOLATE hand_slot=1 uuid=b3b6028a-79e9-47a6-a947-dfddba23d549 target_slot=-1",
+  "remaining_steps": 5,
+  "predicted_energy_after": 0,
+  "predicted_hp_after": 0
+ },
+ {
+  "event": "action_queued",
+  "at": 1793896542296,
+  "identity": "turn=1 hand=9/aaec4ded",
+  "thread": "LWJGL Application",
+  "card": "Second Wind",
+  "uuid": "2909979e-9403-4063-bddd-6bb87a452cb9",
+  "target": "none",
+  "queue_size_after": 1
+ },
+ {
+  "event": "action_executed",
+  "at": 1793896542296,
+  "identity": "turn=1 hand=9/aaec4ded",
+  "step_index": 2,
+  "description": "PLAY_CARD SECOND_WIND hand_slot=3 uuid=2909979e-9403-4063-bddd-6bb87a452cb9 target_slot=-1",
+  "remaining_steps": 4,
+  "predicted_energy_after": 0,
+  "predicted_hp_after": 0
+ },
+ {
+  "event": "execution_refused",
+  "at": 1793896542748,
+  "identity": "turn=1 hand=9/aaec4ded",
+  "gates": "9 有未完成动作或卡牌链（room_phase=COMBAT action_phase=EXECUTING_ACTIONS turn=1 turn_has_ended=false end_turn_queued=false using_card=false current_action=present actions=5 card_queue=0 monster_queue=0 screen_up=false battle_over=false）; "
+ },
+ {
+  "event": "execution_refused",
+  "at": 1793896543200,
+  "identity": "turn=1 hand=9/aaec4ded",
+  "gates": "9 有未完成动作或卡牌链（room_phase=COMBAT action_phase=EXECUTING_ACTIONS turn=1 turn_has_ended=false end_turn_queued=false using_card=false current_action=present actions=2 card_queue=0 monster_queue=0 screen_up=false battle_over=false）; "
+ },
+ {
+  "event": "execution_refused",
+  "at": 1793896543651,
+  "identity": "turn=1 hand=9/aaec4ded",
+  "gates": "5/6 卡牌或目标无法唯一识别; "
+ },
+ {
+  "event": "search_request",
+  "at": 1793896543661,
+  "identity": "turn=1 hand=8/aaec4ded",
+  "trigger": "turn-replan",
+  "sequence": 3,
+  "turn": 1,
+  "protocol_sha256": "40054bec59af105cf24217c0034198a4aeac2eabf1626b4b5a465583e9409f19",
+  "protocol_step_copy": "live-battle-state-v1.seq3.json",
+  "gate_flags": "[--max-supported-turn, 20, --execution-cards, A_THOUSAND_CUTS,ACCURACY,ACROBATICS,RUSHDOWN,ADRENALINE,AFTER_IMAGE,AGGREGATE,ALL_FOR_ONE,ALL_OUT_ATTACK,ALPHA,AMPLIFY,ANGER,APOTHEOSIS,ARMAMENTS,ASCENDERS_BANE,AUTO_SHIELDS,BACKFLIP,BACKSTAB,BALL_LIGHTNING,BANDAGE_UP,BANE,BARRAGE,BARRICADE,BASH,BATTLE_TRANCE,BATTLE_HYMN,BEAM_CELL,BECOME_ALMIGHTY,BERSERK,BETA,BIASED_COGNITION,BITE,BLADE_DANCE,BLASPHEMY,BLIND,BLIZZARD,BLOOD_FOR_BLOOD,BLOODLETTING,BLUDGEON,BLUR,BODY_SLAM,BOOT_SEQUENCE,BOUNCING_FLASK,BOWLING_BASH,BRILLIANCE,BRUTALITY,BUFFER,BULLET_TIME,BURN,BURNING_PACT,BURST,CALCULATED_GAMBLE,CALTROPS,CAPACITOR,CARNAGE,CARVE_REALITY,CATALYST,CHAOS,CHILL,CHOKE,CHRYSALIS,CLASH,TRANQUILITY,CLEAVE,CLOAK_AND_DAGGER,CLOTHESLINE,CLUMSY,COLD_SNAP,COLLECT,COMBUST,COMPILE_DRIVER,CONCENTRATE,CONCLUDE,CONJURE_BLADE,CONSECRATE,CHARGE_BATTERY,CONSUME,COOLHEADED,CORE_SURGE,CORPSE_EXPLOSION,CORRUPTION,CREATIVE_AI,CRESCENDO,CRIPPLING_CLOUD,CRUSH_JOINTS,CURSE_OF_THE_BELL,CUT_THROUGH_FATE,DAGGER_SPRAY,DAGGER_THROW,DARK_EMBRACE,DARK_SHACKLES,DARKNESS,DASH,DAZED,DEADLY_POISON,DECAY,DECEIVE_REALITY,DEEP_BREATH,DEFEND_BLUE,DEFEND_GREEN,DEFEND_PURPLE,DEFEND_RED,DEFLECT,DEFRAGMENT,DEMON_FORM,DEUS_EX_MACHINA,DEVA_FORM,DEVOTION,DIE_DIE_DIE,DISARM,DISCOVERY,DISTRACTION,DODGE_AND_ROLL,DOOM_AND_GLOOM,DOPPELGANGER,DOUBLE_ENERGY,DOUBLE_TAP,DOUBT,DRAMATIC_ENTRANCE,DROPKICK,DUAL_WIELD,DUALCAST,ECHO_FORM,ELECTRODYNAMICS,EMPTY_BODY,EMPTY_FIST,EMPTY_MIND,ENDLESS_AGONY,ENLIGHTENMENT,ENTRENCH,ENVENOM,ERUPTION,ESCAPE_PLAN,ESTABLISHMENT,EVALUATE,EVISCERATE,EVOLVE,EXHUME,EXPERTISE,EXPUNGER,FTL,FAME_AND_FORTUNE,FASTING,FEAR_NO_EVIL,FEED,FEEL_NO_PAIN,FIEND_FIRE,FINESSE,FINISHER,FIRE_BREATHING,FISSION,FLAME_BARRIER,FLASH_OF_STEEL,FLECHETTES,FLEX,FLURRY_OF_BLOWS,FLYING_KNEE,FLYING_SLEEVES,FOLLOW_UP,FOOTWORK,FORCE_FIELD,FOREIGN_INFLUENCE,FORETHOUGHT,FUSION,CLAW,GENETIC_ALGORITHM,APPARITION,GHOSTLY_ARMOR,GLACIER,GLASS_KNIFE,GO_FOR_THE_EYES,GOOD_INSTINCTS,GRAND_FINALE,HALT,HAND_OF_GREED,HAVOC,HEADBUTT,HEATSINKS,HEAVY_BLADE,HEEL_HOOK,HELLO_WORLD,HEMOKINESIS,HOLOGRAM,HYPERBEAM,IMMOLATE,IMPATIENCE,IMPERVIOUS,INDIGNATION,INFERNAL_BLADE,INFINITE_BLADES,INFLAME,INJURY,INNER_PEACE,INSIGHT,INTIMIDATE,IRON_WAVE,JAX,JACK_OF_ALL_TRADES,JUDGMENT,JUGGERNAUT,JUST_LUCKY,LEAP,LEG_SWEEP,LESSON_LEARNED,LIKE_WATER,LIMIT_BREAK,LIVE_FOREVER,BULLSEYE,LOOP,MACHINE_LEARNING,MADNESS,MAGNETISM,MALAISE,MASTER_OF_STRATEGY,MASTER_REALITY,MASTERFUL_STAB,MAYHEM,MEDITATE,MELTER,MENTAL_FORTRESS,METALLICIZE,METAMORPHOSIS,METEOR_STRIKE,MIND_BLAST,MIRACLE,MULTI_CAST,NECRONOMICURSE,NEUTRALIZE,NIGHTMARE,NIRVANA,NORMALITY,NOXIOUS_FUMES,OFFERING,OMEGA,OMNISCIENCE,OUTMANEUVER,PAIN,PANACEA,PANACHE,PANIC_BUTTON,PARASITE,PRESSURE_POINTS,PERFECTED_STRIKE,PERSEVERANCE,PHANTASMAL_KILLER,PIERCING_WAIL,POISONED_STAB,POMMEL_STRIKE,POWER_THROUGH,PRAY,PREDATOR,PREPARED,PRIDE,PROSTRATE,PROTECT,PUMMEL,PURITY,QUICK_SLASH,RAGE,RAGNAROK,RAINBOW,RAMPAGE,REACH_HEAVEN,REAPER,REBOOT,REBOUND,RECKLESS_CHARGE,RECYCLE,RECURSION,REFLEX,REGRET,REINFORCED_BODY,REPROGRAM,RIDDLE_WITH_HOLES,RIP_AND_TEAR,RITUAL_DAGGER,RUPTURE,SADISTIC_NATURE,SAFETY,SANCTITY,SANDS_OF_TIME,SASH_WHIP,SCRAPE,SCRAWL,SEARING_BLOW,SECOND_WIND,SECRET_TECHNIQUE,SECRET_WEAPON,SEEING_RED,SEEK,SELF_REPAIR,SENTINEL,SETUP,SEVER_SOUL,SHAME,SHIV,SHOCKWAVE,SHRUG_IT_OFF,SIGNATURE_MOVE,SKEWER,SKIM,SLICE,SLIMED,SMITE,SPIRIT_SHIELD,SPOT_WEAKNESS,STACK,STATIC_DISCHARGE,STEAM_BARRIER,OVERCLOCK,STORM,STORM_OF_STEEL,STREAMLINE,STRIKE_BLUE,STRIKE_GREEN,STRIKE_PURPLE,STRIKE_RED,STUDY,SUCKER_PUNCH,SUNDER,SURVIVOR,SWEEPING_BEAM,SWIFT_STRIKE,SWIVEL,SWORD_BOOMERANG,TACTICIAN,TALK_TO_THE_HAND,TANTRUM,TEMPEST,TERROR,THE_BOMB,THINKING_AHEAD,THIRD_EYE,THROUGH_VIOLENCE,THUNDER_STRIKE,THUNDERCLAP,TOOLS_OF_THE_TRADE,TRANSMUTATION,TRIP,TRUE_GRIT,TURBO,TWIN_STRIKE,SNEAKY_STRIKE,EQUILIBRIUM,UNLOAD,UPPERCUT,VAULT,SIMMERING_FURY,ALCHEMIZE,VIGILANCE,VIOLENCE,VOID,WALLOP,WARCRY,WAVE_OF_THE_HAND,WEAVE,WELL_LAID_PLANS,WHEEL_KICK,WHIRLWIND,WHITE_NOISE,WILD_STRIKE,WINDMILL_STRIKE,FORESIGHT,WISH,WORSHIP,WOUND,WRAITH_FORM,WREATH_OF_FLAME,WRITHE,ZAP, --potion-actions, policy, --execution-potions, ANCIENT_POTION,BLOCK_POTION,BLOOD_POTION,CULTIST_POTION,DEXTERITY_POTION,DUPLICATION_POTION,ENERGY_POTION,ESSENCE_OF_STEEL,EXPLOSIVE_POTION,FEAR_POTION,FIRE_POTION,FLEX_POTION,FRUIT_JUICE,GHOST_IN_A_JAR,HEART_OF_IRON,LIQUID_BRONZE,REGEN_POTION,SPEED_POTION,STRENGTH_POTION,SWIFT_POTION,WEAK_POTION]",
+  "search_scope": "EXECUTION_CONSTRAINED",
+  "search_scope_error": "",
+  "search_admission": "generated search-safe set (136 cards)",
+  "search_admission_cards": 136,
+  "execution_admission_cards": 370,
+  "history_has_verified_special": false
+ },
+ {
+  "event": "search_adopted",
+  "at": 1793896543795,
+  "identity": "turn=1 hand=8/aaec4ded",
+  "status": "SEARCHED",
+  "root_digest": "a9370fec58ab695d",
+  "simulations": 6000,
+  "nodes": 0,
+  "edges": 0,
+  "elapsed_ms": 127,
+  "best_action_value": 80.0,
+  "admission_filter_enabled": true,
+  "execution_constrained": true,
+  "search_scope": "EXECUTION_CONSTRAINED",
+  "route_size": 4,
+  "terminal_outcome": "PLAYER_VICTORY",
+  "refusal_tallies": "{}",
+  "potion_refusals": 0,
+  "steps": [
+   {
+    "description": "PLAY_CARD IMPERVIOUS hand_slot=7 uuid=7690a77d-8e79-4555-accd-ae6b8df67157 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "7690a77d-8e79-4555-accd-ae6b8df67157",
+    "hand_slot": 7,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "END_TURN",
+    "kind": "END_TURN",
+    "uuid": null,
+    "hand_slot": -1,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD SPOT_WEAKNESS hand_slot=3 uuid=b7072c82-190b-4ee9-a63e-12f69dc2835a target_slot=0",
+    "kind": "PLAY_CARD",
+    "uuid": "b7072c82-190b-4ee9-a63e-12f69dc2835a",
+    "hand_slot": 3,
+    "target_slot": 0,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD REAPER hand_slot=5 uuid=309714ec-5ad6-42c8-8fd7-0370606de3e9 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "309714ec-5ad6-42c8-8fd7-0370606de3e9",
+    "hand_slot": 5,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   }
+  ]
+ },
+ {
+  "event": "action_queued",
+  "at": 1793896544102,
+  "identity": "turn=1 hand=8/aaec4ded",
+  "thread": "LWJGL Application",
+  "card": "Impervious",
+  "uuid": "7690a77d-8e79-4555-accd-ae6b8df67157",
+  "target": "none",
+  "queue_size_after": 1
+ },
+ {
+  "event": "action_executed",
+  "at": 1793896544102,
+  "identity": "turn=1 hand=8/aaec4ded",
+  "step_index": 1,
+  "description": "PLAY_CARD IMPERVIOUS hand_slot=7 uuid=7690a77d-8e79-4555-accd-ae6b8df67157 target_slot=-1",
+  "remaining_steps": 3,
+  "predicted_energy_after": 0,
+  "predicted_hp_after": 0
+ },
+ {
+  "event": "end_turn_submitted",
+  "at": 1793896544553,
+  "identity": "turn=1 hand=8/aaec4ded",
+  "turn": 1,
+  "dropped_remaining_steps": 2,
+  "predicted_energy_after": 0,
+  "predicted_hp_after": 0,
+  "root_digest": "a9370fec58ab695d",
+  "protocol_sha256": "40054bec59af105cf24217c0034198a4aeac2eabf1626b4b5a465583e9409f19",
+  "confirmations": "1 稳定玩家操作阶段=是; 2 路线来自最新真实状态=是; 3 End Turn 动作合法=是（isEndingTurn=false hand=8/10）; 4 没有未完成卡牌链=是; 5 没有未完成选牌界面=是; 6 没有未经验证的特殊机制=是; ",
+  "accepted_by_native": true,
+  "boundary_after_submit": "room_phase=COMBAT action_phase=WAITING_ON_USER turn=1 turn_has_ended=false end_turn_queued=false using_card=false current_action=none actions=4 card_queue=0 monster_queue=0 screen_up=false battle_over=false"
+ },
+ {
+  "event": "stale_invalidated_cleared",
+  "at": 1793896547774,
+  "identity": "turn=1 hand=8/aaec4ded",
+  "auto_state": "ABORTED"
+ },
+ {
+  "event": "search_request",
+  "at": 1793896547784,
+  "identity": "turn=2 hand=7/db750620",
+  "trigger": "自动",
+  "sequence": 4,
+  "turn": 2,
+  "protocol_sha256": "2a2d0d79d9b67a202cd225ce3c3f185b68e2be5f657596ab97b82bf006489226",
+  "protocol_step_copy": "live-battle-state-v1.seq4.json",
+  "gate_flags": "[--max-supported-turn, 20, --execution-cards, A_THOUSAND_CUTS,ACCURACY,ACROBATICS,RUSHDOWN,ADRENALINE,AFTER_IMAGE,AGGREGATE,ALL_FOR_ONE,ALL_OUT_ATTACK,ALPHA,AMPLIFY,ANGER,APOTHEOSIS,ARMAMENTS,ASCENDERS_BANE,AUTO_SHIELDS,BACKFLIP,BACKSTAB,BALL_LIGHTNING,BANDAGE_UP,BANE,BARRAGE,BARRICADE,BASH,BATTLE_TRANCE,BATTLE_HYMN,BEAM_CELL,BECOME_ALMIGHTY,BERSERK,BETA,BIASED_COGNITION,BITE,BLADE_DANCE,BLASPHEMY,BLIND,BLIZZARD,BLOOD_FOR_BLOOD,BLOODLETTING,BLUDGEON,BLUR,BODY_SLAM,BOOT_SEQUENCE,BOUNCING_FLASK,BOWLING_BASH,BRILLIANCE,BRUTALITY,BUFFER,BULLET_TIME,BURN,BURNING_PACT,BURST,CALCULATED_GAMBLE,CALTROPS,CAPACITOR,CARNAGE,CARVE_REALITY,CATALYST,CHAOS,CHILL,CHOKE,CHRYSALIS,CLASH,TRANQUILITY,CLEAVE,CLOAK_AND_DAGGER,CLOTHESLINE,CLUMSY,COLD_SNAP,COLLECT,COMBUST,COMPILE_DRIVER,CONCENTRATE,CONCLUDE,CONJURE_BLADE,CONSECRATE,CHARGE_BATTERY,CONSUME,COOLHEADED,CORE_SURGE,CORPSE_EXPLOSION,CORRUPTION,CREATIVE_AI,CRESCENDO,CRIPPLING_CLOUD,CRUSH_JOINTS,CURSE_OF_THE_BELL,CUT_THROUGH_FATE,DAGGER_SPRAY,DAGGER_THROW,DARK_EMBRACE,DARK_SHACKLES,DARKNESS,DASH,DAZED,DEADLY_POISON,DECAY,DECEIVE_REALITY,DEEP_BREATH,DEFEND_BLUE,DEFEND_GREEN,DEFEND_PURPLE,DEFEND_RED,DEFLECT,DEFRAGMENT,DEMON_FORM,DEUS_EX_MACHINA,DEVA_FORM,DEVOTION,DIE_DIE_DIE,DISARM,DISCOVERY,DISTRACTION,DODGE_AND_ROLL,DOOM_AND_GLOOM,DOPPELGANGER,DOUBLE_ENERGY,DOUBLE_TAP,DOUBT,DRAMATIC_ENTRANCE,DROPKICK,DUAL_WIELD,DUALCAST,ECHO_FORM,ELECTRODYNAMICS,EMPTY_BODY,EMPTY_FIST,EMPTY_MIND,ENDLESS_AGONY,ENLIGHTENMENT,ENTRENCH,ENVENOM,ERUPTION,ESCAPE_PLAN,ESTABLISHMENT,EVALUATE,EVISCERATE,EVOLVE,EXHUME,EXPERTISE,EXPUNGER,FTL,FAME_AND_FORTUNE,FASTING,FEAR_NO_EVIL,FEED,FEEL_NO_PAIN,FIEND_FIRE,FINESSE,FINISHER,FIRE_BREATHING,FISSION,FLAME_BARRIER,FLASH_OF_STEEL,FLECHETTES,FLEX,FLURRY_OF_BLOWS,FLYING_KNEE,FLYING_SLEEVES,FOLLOW_UP,FOOTWORK,FORCE_FIELD,FOREIGN_INFLUENCE,FORETHOUGHT,FUSION,CLAW,GENETIC_ALGORITHM,APPARITION,GHOSTLY_ARMOR,GLACIER,GLASS_KNIFE,GO_FOR_THE_EYES,GOOD_INSTINCTS,GRAND_FINALE,HALT,HAND_OF_GREED,HAVOC,HEADBUTT,HEATSINKS,HEAVY_BLADE,HEEL_HOOK,HELLO_WORLD,HEMOKINESIS,HOLOGRAM,HYPERBEAM,IMMOLATE,IMPATIENCE,IMPERVIOUS,INDIGNATION,INFERNAL_BLADE,INFINITE_BLADES,INFLAME,INJURY,INNER_PEACE,INSIGHT,INTIMIDATE,IRON_WAVE,JAX,JACK_OF_ALL_TRADES,JUDGMENT,JUGGERNAUT,JUST_LUCKY,LEAP,LEG_SWEEP,LESSON_LEARNED,LIKE_WATER,LIMIT_BREAK,LIVE_FOREVER,BULLSEYE,LOOP,MACHINE_LEARNING,MADNESS,MAGNETISM,MALAISE,MASTER_OF_STRATEGY,MASTER_REALITY,MASTERFUL_STAB,MAYHEM,MEDITATE,MELTER,MENTAL_FORTRESS,METALLICIZE,METAMORPHOSIS,METEOR_STRIKE,MIND_BLAST,MIRACLE,MULTI_CAST,NECRONOMICURSE,NEUTRALIZE,NIGHTMARE,NIRVANA,NORMALITY,NOXIOUS_FUMES,OFFERING,OMEGA,OMNISCIENCE,OUTMANEUVER,PAIN,PANACEA,PANACHE,PANIC_BUTTON,PARASITE,PRESSURE_POINTS,PERFECTED_STRIKE,PERSEVERANCE,PHANTASMAL_KILLER,PIERCING_WAIL,POISONED_STAB,POMMEL_STRIKE,POWER_THROUGH,PRAY,PREDATOR,PREPARED,PRIDE,PROSTRATE,PROTECT,PUMMEL,PURITY,QUICK_SLASH,RAGE,RAGNAROK,RAINBOW,RAMPAGE,REACH_HEAVEN,REAPER,REBOOT,REBOUND,RECKLESS_CHARGE,RECYCLE,RECURSION,REFLEX,REGRET,REINFORCED_BODY,REPROGRAM,RIDDLE_WITH_HOLES,RIP_AND_TEAR,RITUAL_DAGGER,RUPTURE,SADISTIC_NATURE,SAFETY,SANCTITY,SANDS_OF_TIME,SASH_WHIP,SCRAPE,SCRAWL,SEARING_BLOW,SECOND_WIND,SECRET_TECHNIQUE,SECRET_WEAPON,SEEING_RED,SEEK,SELF_REPAIR,SENTINEL,SETUP,SEVER_SOUL,SHAME,SHIV,SHOCKWAVE,SHRUG_IT_OFF,SIGNATURE_MOVE,SKEWER,SKIM,SLICE,SLIMED,SMITE,SPIRIT_SHIELD,SPOT_WEAKNESS,STACK,STATIC_DISCHARGE,STEAM_BARRIER,OVERCLOCK,STORM,STORM_OF_STEEL,STREAMLINE,STRIKE_BLUE,STRIKE_GREEN,STRIKE_PURPLE,STRIKE_RED,STUDY,SUCKER_PUNCH,SUNDER,SURVIVOR,SWEEPING_BEAM,SWIFT_STRIKE,SWIVEL,SWORD_BOOMERANG,TACTICIAN,TALK_TO_THE_HAND,TANTRUM,TEMPEST,TERROR,THE_BOMB,THINKING_AHEAD,THIRD_EYE,THROUGH_VIOLENCE,THUNDER_STRIKE,THUNDERCLAP,TOOLS_OF_THE_TRADE,TRANSMUTATION,TRIP,TRUE_GRIT,TURBO,TWIN_STRIKE,SNEAKY_STRIKE,EQUILIBRIUM,UNLOAD,UPPERCUT,VAULT,SIMMERING_FURY,ALCHEMIZE,VIGILANCE,VIOLENCE,VOID,WALLOP,WARCRY,WAVE_OF_THE_HAND,WEAVE,WELL_LAID_PLANS,WHEEL_KICK,WHIRLWIND,WHITE_NOISE,WILD_STRIKE,WINDMILL_STRIKE,FORESIGHT,WISH,WORSHIP,WOUND,WRAITH_FORM,WREATH_OF_FLAME,WRITHE,ZAP, --potion-actions, policy, --execution-potions, ANCIENT_POTION,BLOCK_POTION,BLOOD_POTION,CULTIST_POTION,DEXTERITY_POTION,DUPLICATION_POTION,ENERGY_POTION,ESSENCE_OF_STEEL,EXPLOSIVE_POTION,FEAR_POTION,FIRE_POTION,FLEX_POTION,FRUIT_JUICE,GHOST_IN_A_JAR,HEART_OF_IRON,LIQUID_BRONZE,REGEN_POTION,SPEED_POTION,STRENGTH_POTION,SWIFT_POTION,WEAK_POTION]",
+  "search_scope": "EXECUTION_CONSTRAINED",
+  "search_scope_error": "",
+  "search_admission": "generated search-safe set (136 cards)",
+  "search_admission_cards": 136,
+  "execution_admission_cards": 370,
+  "history_has_verified_special": false
+ },
+ {
+  "event": "search_adopted",
+  "at": 1793896547903,
+  "identity": "turn=2 hand=7/db750620",
+  "status": "SEARCHED",
+  "root_digest": "a9370fec58ab695d",
+  "simulations": 6000,
+  "nodes": 0,
+  "edges": 0,
+  "elapsed_ms": 109,
+  "best_action_value": 80.0,
+  "admission_filter_enabled": true,
+  "execution_constrained": true,
+  "search_scope": "EXECUTION_CONSTRAINED",
+  "route_size": 2,
+  "terminal_outcome": "PLAYER_VICTORY",
+  "refusal_tallies": "{}",
+  "potion_refusals": 0,
+  "steps": [
+   {
+    "description": "PLAY_CARD SPOT_WEAKNESS hand_slot=3 uuid=b7072c82-190b-4ee9-a63e-12f69dc2835a target_slot=0",
+    "kind": "PLAY_CARD",
+    "uuid": "b7072c82-190b-4ee9-a63e-12f69dc2835a",
+    "hand_slot": 3,
+    "target_slot": 0,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   },
+   {
+    "description": "PLAY_CARD REAPER hand_slot=5 uuid=309714ec-5ad6-42c8-8fd7-0370606de3e9 target_slot=-1",
+    "kind": "PLAY_CARD",
+    "uuid": "309714ec-5ad6-42c8-8fd7-0370606de3e9",
+    "hand_slot": 5,
+    "target_slot": -1,
+    "energy": "0->0",
+    "player_hp": "0->0",
+    "digest_after": ""
+   }
+  ]
+ }
+]

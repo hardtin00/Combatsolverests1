@@ -58,6 +58,9 @@ jobs:
       - name: W7 预算分档基线自检（5 断言）
         run: java -cp build/solvertest BudgetPresetCheck
 
+      - name: W7 计划精简有界删除自检（8 断言）
+        run: java -cp build/solvertest PlanReducerCheck
+
       - name: W0 参照求解器自检（42 题 × 5 断言）
         run: java -cp build/solvertest SearchQuality --selftest
 

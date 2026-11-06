@@ -1,3 +1,33 @@
+## 2026-11-06：W7 第四单元 —— 计划精简有界删除（L2 离线，未接入交付路径）
+
+> 任务书 W7.4「计划精简」。借鉴参考项目 `overlay/plan_reduction.py`（MIT，仅读思路、未移植代码）：
+> 搜索后逐个尝试删除单张牌，按**原回合调度**在 CombatEngine 上原样重放，
+> 只有「仍获胜 + 回合数不增 + 终局 HP 不降」才接受，否则回滚；全程有尝试/重放上限。
+
+- 修改：
+  - 新增 `src/main/java/com/combatsolver1/search/PlanReducer.java`（`MAX_ATTEMPTS=128`、
+    `MAX_REPLAYS=20000`）。**关键正确性点**：重放时任一动作找不到手牌即返回 null 视为候选无效，
+    **不静默跳过**（否则「删一张」会隐式变成「删多张」，违反 AGENTS.md 4.3）；
+    原计划自身不可重放时安全返回不精简；不修改传入的原计划对象。
+  - 新增 `tools/solvertest/PlanReducerCheck.java`：8 项自检，证据 `docs/W7_PLAN_REDUCER_CHECK.txt`。
+  - CI 加步骤。
+- 验证等级：**L2 离线**。`javac` 0；`PlanReducerCheck` 退出 0、**8/8 通过**
+  （删冗余 2→1、致胜动作未被删/失败回滚、原计划未被修改、有界 attempts=2/replays=4、
+  精简后原样重放仍获胜、未获胜时 0 删除、不可重放计划安全返回）；
+  全量自检（Solvertest all、SearchQuality --selftest 225/0、BudgetPresetCheck、
+  W8PotionPriorCheck、Historical29Check）全 0。
+- W0 指标前后对照（**PlanReducer 未接入** CombatSearch / PlanDeployer 交付路径，不改任何搜索输出）：
+  BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**；
+  Oracle 42 题漏优 0.0% —— **不变**。
+- 用户验收：`java -cp build/solvertest PlanReducerCheck` → 「通过 8 项，失败 0」。
+- **限制/如实标注**：
+  - 等价判据只用「胜负 + 回合数 + 终局 HP」，**不比较**遗物计数/药水/牌堆等资源
+    （参考项目用 resources() 更全），是**保守近似**，不能当作实机执行安全证明。
+  - **未接入交付路径**，因此本单元不声称「引擎路线已精简」或 W7 完成；
+    接入会改变执行行为，需单独任务授权 + 真机验证。
+  - W7 其余 3 项（引擎常驻、每场重导 RNG、逐动作重规划）仍未做。
+  - 未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W7 第三单元 —— 预算分档基线与自检（L2 离线）
 
 > 任务书 W7.3「按预算分档」。本轮不新建第二套档位表（AGENTS.md 8.4），而是把

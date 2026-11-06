@@ -1,0 +1,10 @@
+[PASS] 能删掉冗余动作  removed=1
+[PASS] 精简后动作数减少  2 -> 1
+[PASS] 致胜必需动作未被删（失败回滚生效）  Strike_R kept
+[PASS] 原计划对象未被修改  source still 2 actions
+[PASS] 尝试/重放次数在上限内  attempts=2 replays=4
+[PASS] 精简后路线原样重放仍获胜  won=true
+[PASS] 未获胜时不做任何精简  removed=0
+[PASS] 不可重放的原计划安全返回  removed=0
+自检汇总：通过 8 项，失败 0 项
+L 等级：L2 离线；PlanReducer 未接入交付路径，W0 指标不变

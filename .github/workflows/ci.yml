@@ -46,6 +46,9 @@ jobs:
       - name: W4 引擎路径药水协议自检（11 断言）
         run: powershell -ExecutionPolicy Bypass -File tools/recordercheck/run-potion-mode-check.ps1
 
+      - name: W7 出牌排序先验「只引导不剪枝」自检（8 断言）
+        run: java -cp build/solvertest CardOrderPriorCheck
+
       - name: W0 参照求解器自检（42 题 × 5 断言）
         run: java -cp build/solvertest SearchQuality --selftest
 

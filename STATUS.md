@@ -1,3 +1,29 @@
+## 2026-11-06：W7 第一单元 —— 出牌排序先验（只引导不剪枝，L2 离线）
+
+> 任务书 W7.5：「按 W0 逐遭遇数据为常用牌加排序先验（参考项目 ExpertKnowledge 的思路），
+> 先验只引导不剪枝」。W7 整体依赖 W1/W3/W4，本单元只做其中**纯离线、可独立验收**的先验表。
+
+- 调查：`CombatSearch.expandTurn` 的排序是纯 `turnScore` 降序（第 362-367 行），
+  没有先验；`withinTurnWidth` 截断在第 372 行。W0 `BatchPlay` 的起手/抽牌池给出常用牌频率。
+- 修改：
+  - 新增 `src/main/java/com/combatsolver1/search/CardOrderPrior.java`：14 张常用牌的小权重表，
+    `MAX_BONUS=0.5`（远小于 turnScore 胜负量级）、`enabled` **默认 false**、`bonus(cardId)`
+    关闭时恒 0。来源标注为 W0 200 局离线批量对局的常用牌，属**排序提示不是规则**。
+  - 新增 `tools/solvertest/CardOrderPriorCheck.java`：8 项自检，证据 `docs/W7_CARD_ORDER_PRIOR_CHECK.txt`。
+    ★ 核心断言：「候选集合不变（无剪枝）」与「分差>MAX_BONUS 的异分顺序不被先验翻转」，
+    以及默认关闭/可关闭/未知牌 0/量级有界/同分引导生效。
+  - CI 加步骤。
+- **关键边界**：`CardOrderPrior` **尚未接入** `CombatSearch.turnScore`；本单元只有先验表与自检，
+  **不改变任何搜索行为**（W0 指标逐位不变）。接入开关并做 W0 前后对照留下一单元。
+- 验证等级：**L2 离线**。模拟 CI 精确编译退出 0；`CardOrderPriorCheck` 退出 0、**8/8 通过**；
+  `Solvertest all` 退出 0；`SearchQuality --selftest` **210/0**；`MechanismFixtureCheck`/
+  `PerCardVerifyCheck` 退出 0。
+- W0 指标前后对照：Oracle 42 题 / 210 通过 0 失败 / 漏优 0.0% —— **不变**；
+  BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**。
+- 用户验收：`java -cp build/solvertest CardOrderPriorCheck` 应显示「通过 8 项，失败 0」。
+- **限制/如实标注**：W7 其余 5 项（引擎常驻、每场重导 RNG、预算分档、计划精简、逐动作重规划）
+  均**未做**；本单元不声称引擎路线主力化。未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W4 第一单元 —— 引擎路径药水协议离线自检（L2 离线）
 
 > 任务书 W4：「potion_actions_mode=on；含药路线在逐步核对兜底下执行；真机一场含药路线全链证据；

@@ -1,0 +1,10 @@
+[PASS] 先验默认关闭  enabled=false
+[PASS] 关闭时所有 bonus=0  W0 baseline unchanged
+[PASS] 开启后 bonus ∈ (0, MAX_BONUS] 且 MAX_BONUS≤0.5  MAX_BONUS=0.5 表规模=14
+[PASS] 未知牌 / null 的 bonus=0  no fabrication
+[PASS] 候选集合不变（无剪枝）  size=5 ids equal
+[PASS] 同分候选按先验排序（引导生效）  Strike_R > Defend_R
+[PASS] 分差>MAX_BONUS 的异分顺序不被先验翻转  no big reorder
+[PASS] 可关闭且关闭后归零  clean state
+自检汇总：通过 8 项，失败 0 项
+L 等级：L2 离线；先验表已编码但**未接入** CombatSearch.turnScore（下一单元做 W0 前后对照）

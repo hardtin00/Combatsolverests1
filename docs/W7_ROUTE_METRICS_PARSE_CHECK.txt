@@ -1,0 +1,8 @@
+[PASS] 战斗 A 按 battle_id 分组：engine 2 / 总 4  engine=2/4
+[PASS] 引擎路线占比 = 0.5  0.5
+[PASS] 重规划次数 = 2（replan 事件计数）  replan=2
+[PASS] 战斗 B 全 local / 0 重规划（离线口径固有值，非真机成效）  0/2/0
+[PASS] 占比 = 0.0  0.0
+[PASS] 无事件战斗安全返回 0  empty
+自检汇总：通过 6 项，失败 0 项
+L 等级：L2 离线（合成事件流，非真机记录）；指标规格见 docs/W7_ROUTE_METRICS_SPEC.md

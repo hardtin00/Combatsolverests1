@@ -1,3 +1,30 @@
+## 2026-11-06 21:26：W7 评测维度骨架（引擎路线占比 / 重规划次数，L2 离线定义）
+
+> 任务书 W7 要求对每项改动评测「引擎路线占比 / 重规划次数」。本轮做**规格 + 解析自检**，
+> 不改运行路径、不编造数值（属用户划定的非实机范围）。
+
+- 现状核验：`Plan.source` 有 `engine`/`local` 两值，但只在 runtime 层赋值
+  （`EngineBridge:302` / `CombatController:794,874,328`）；`CombatController.searchAttempts`
+  统计的是本地 beam 重试，**不等于逐动作重规划**；W7 第 6 项（逐动作重规划）未实现，
+  该事件尚未埋点。
+- **当前真实值（如实）**：离线 `BatchPlay` 200 局恒 `source=local` →
+  **引擎路线占比 = 0**、**重规划次数 = 0**（一次搜索整场、不逐动作重规划）；
+  这是离线口径固有属性，**不得当 W7 主力化成效**。真机 L4 由用户接管，**无真实样本**，
+  任何非零数字都属编造，本轮不填。
+- 新增 `docs/W7_ROUTE_METRICS_SPEC.md`：两指标定义、采集点（route_source / replan 事件
+  埋点位置）、按 battle_id 分组的统计口径、与 W0 四项指标的前后对照要求、
+  「禁止仅因搜索次数增加就宣称质量提高」红线。
+- 新增 `tools/solvertest/RouteMetricsParseCheck.java`：**6/6 通过**（合成事件流证明
+  按 battle_id 统计 engine 占比 / replan 次数正确、空战斗不产生 NaN）；
+  证据 `docs/W7_ROUTE_METRICS_PARSE_CHECK.txt`；**合成流非真机记录**，明确标注。
+- 验证等级：**L2 离线**；全量自检（Solvertest、selftest 225/0、PerCardVerifyWiringCheck）全 0。
+- W0 前后对照：零代码改动 → 75.0% / 35.5、Q1-42 漏优 0.0% **不变**。
+- 用户验收：`java -cp build/solvertest RouteMetricsParseCheck` → 「通过 6 项，失败 0」；
+  读 `docs/W7_ROUTE_METRICS_SPEC.md`。
+- **限制**：这是规格/骨架，不是 W7 主力化实现；引擎 worker 常驻、每场重导 RNG、
+  逐动作重规划、高预算 ≥20000 次模拟均未完成。未推远程、未改正式游戏 mods/存档、
+  未使用 CU、未做真机 L4；`git diff --check` 通过。
+
 ## 2026-11-06 21:21：W3 预测状态接线（回合末 endState，L2/L3 离线）
 
 > 承接 W3-b。本轮把 `perCardPredicted` 从 `Plan.Turn.endState` 接上，

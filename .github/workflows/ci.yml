@@ -73,6 +73,9 @@ jobs:
       - name: W3 接入前置格式/停机自检（9 断言）
         run: java -cp build/solvertest PerCardVerifyWiringCheck
 
+      - name: W7 路线占比/重规划统计解析自检（6 断言）
+        run: java -cp build/solvertest RouteMetricsParseCheck
+
       - name: W0 参照求解器自检（42 题 × 5 断言）
         run: java -cp build/solvertest SearchQuality --selftest
 

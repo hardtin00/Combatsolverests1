@@ -1,3 +1,27 @@
+## 2026-11-06：28 个本地提交的可移植归档（纯本地备份，未推远程）
+
+> 回应上一轮登记的「未同步即有丢失风险」。本轮**不推 GitHub、不删文件、不改代码**，
+> 只把 `98aa381..bc3efbd` 的 28 个提交打包成 git bundle 并**实测恢复**。
+
+- 产物（在工作区根 `outputs/`，**不在 git 仓库内**，不会被误提交）：
+  - `CombatSolver1-W0W8-28commits-20261106.bundle`（288K，SHA-256
+    `bf13e89f7a1f38aa91325a62dbbecfa0b95779fa09e5fb657519b21e6cb5351b`）
+  - `CombatSolver1-W0W8-归档说明.md`（恢复命令 + 边界说明）
+- 验证等级：**L2 离线（归档完整性）**。
+  - `git bundle create` 退出 0；`git bundle verify` → `is okay`，含 `bc3efbd`、依赖 `98aa381`。
+  - **恢复实测**：临时克隆 + `git fetch <bundle> HEAD:refs/heads/restored` →
+    **28/28 提交恢复**、HEAD 与源一致；6 个关键文件（STATUS/LICENSE/W0_BASELINE/
+    W2_ACCEPTANCE_KIT/PlanReducer/W8_TUNING_NEGATIVE_RESULT）全在；
+    恢复副本内 `javac` 0、`SearchQuality --selftest` 0（225/0）、`PlanReducerCheck` 0（8/8）。
+    临时目录用后删除。
+  - 首次恢复 attempt 因相对路径按临时仓库解析而失败，改用绝对路径后成功（已记录，非静默略过）。
+- W0 指标前后对照：本轮**无代码改动**，W0 冻结指标不变（75.0% / 35.5、Oracle 42 题漏优 0.0%）。
+- **边界（如实）**：远程 main 仍 `98aa381`，28 个提交**仍未推送**；未做 L4 真机验收；
+  游戏 mods 仍是 r31（`e7c8def5…`），新类未进真机 jar。本归档是**备份**，不是发布、不是 L4。
+- 用户验收：`git bundle verify ../CombatSolver1-W0W8-28commits-20261106.bundle` 应显示 `is okay`；
+  读 `CombatSolver1-W0W8-归档说明.md` 有恢复步骤。
+- 本轮未推远程、未改游戏 mods、未碰存档；`git diff --check` 通过。
+
 ## 2026-11-06：本会话新增实验性开关的技术债清点（AGENTS.md 8.8/8.9）
 
 > 连续多轮纯离线单元后，核验「默认关闭 / 未接入」的声明是否属实，并登记可执行的清理/接入决策。

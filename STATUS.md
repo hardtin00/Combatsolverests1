@@ -1,3 +1,37 @@
+## 2026-11-06：W3 第一单元 —— 逐张重采核对判定器（注入式不匹配证明停机，L2 离线）
+
+> 任务书 W3：「部署每张牌后稳定帧重采与预测 diff（与 EngineRootStateBinding 对齐），
+> 不符→VERIFYING→REFUSED 停机；自动重授权节流（2.5s、每场上限）」。
+> 验收点：「注入式不匹配离线用例证明会停机；真机正常战斗全程不误停」。
+> 本单元完成前半（离线判定器 + 注入式用例），后半真机不误停留后续单元。
+
+- 调查：`CombatController` 现有的是**回合级** drift 检查（`verifyEngineRouteAtTurnStart` →
+  `checkPendingDrift`）；`ExecutionSafety.FailureLatch` 是失败后锁定/授权/释放门；
+  `EngineRootStateBinding.matches()` 是权威状态比对（hp=/blk=/en=/hand=[/mons= + turn+1）。
+  W3 需要的是**逐张牌后**的新一层，不覆盖现有回合级逻辑。
+- 修改：
+  - 新增 `src/main/java/com/combatsolver1/runtime/PerCardVerify.java`（纯逻辑，无游戏依赖）：
+    `Verdict = PASS / VERIFYING / REFUSED / EXHAUSTED`；`Budget` 实现 2.5s 节流与每场 8 次上限、
+    EXHAUSTED 后不自动恢复、`reset()` 换场。状态比对**直接复用** `EngineRootStateBinding.matches()`
+    （AGENTS.md 8.4 同一规则一个权威实现），不另写比较逻辑。
+  - 新增 `tools/solvertest/PerCardVerifyCheck.java`：12 项离线自检，证据 `docs/W3_PER_CARD_VERIFY_CHECK.txt`。
+  - `run.ps1` 与 `.github/workflows/ci.yml`：把两个无游戏依赖的 runtime 源文件精确加入编译输入
+    （不用 `runtime/*.java` 通配以免拉进依赖游戏类的文件），CI 加 `PerCardVerifyCheck` 步骤。
+- 验证等级：**L2 离线**。模拟 CI 精确编译命令退出 0；`Solvertest all` 退出 0；
+  `SearchQuality --selftest` **210/0**；`PerCardVerifyCheck` 退出 0、**12/12 通过**；
+  `ShuffleWireCheck`/`ReplayTruthCheck`/`JavaLcgCheck` 退出 0。
+  - ★ 任务书验收点达成：C「注入不匹配（predicted hp=70 / recaptured hp=64）→ REFUSED 停机」、
+    I「重采缺必需字段 → 按不匹配停机」；并覆盖未稳定帧不误停、节流 2.5s、每场 8 次上限、
+    第 9 次 EXHAUSTED、EXHAUSTED 不自动恢复、reset 换场。
+- W0 指标前后对照（只加**未接入运行路径**的判定器，未改任何求解/执行行为）：Oracle 42 题 /
+  210 通过 0 失败 / 漏优 0.0% —— **不变**；BatchPlay 200 局胜率 **75.0% (150/200)**、
+  平均 HP 损失 **35.5** —— **不变**。
+- 用户验收：`java -cp build/solvertest PerCardVerifyCheck` 应显示「通过 12 项，失败 0」。
+- **限制/如实标注**：
+  - `PerCardVerify` **尚未接入** `CombatController` 的逐动作调用点；本单元只有 L2 判定器与注入式用例，
+    **真机「正常战斗全程不误停」未验证**，不声称 W3 完成。
+  - 未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W2 第一单元 —— 实机验收检查单 / 复现种子 / 离线复算准备（L2 离线）
 
 > 任务书 W2：「代理准备检查单/复现种子/离线复算；用户只按步骤打游戏导记录」。

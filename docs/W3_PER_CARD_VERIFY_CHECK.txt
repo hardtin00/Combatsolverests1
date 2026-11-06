@@ -1,0 +1,14 @@
+[PASS] 稳定帧且重采匹配预测 → PASS  no mismatch
+[PASS] 未稳定帧 → VERIFYING（不误停）  settled=false
+[PASS] 注入不匹配 → REFUSED 停机  predicted hp=70, recaptured hp=64
+[PASS] 不匹配但自动重授权成功 → VERIFYING（重搜）  reAuth=1
+[PASS] 重授权计数 +1  count=1
+[PASS] 2.5s 节流内第二次不匹配 → REFUSED  gap=1000ms < 2500ms
+[PASS] 节流内计数不变  count=1
+[PASS] 超过 2.5s 后可再次重授权  gap=3000ms
+[PASS] 每场 8 次上限用尽后第 9 次 → EXHAUSTED  exhaustedAt=9 count=8
+[PASS] EXHAUSTED 后即便超时也不自动恢复  permanent stop
+[PASS] reset() 后新一场可正常核对  budget cleared
+[PASS] 重采缺必需字段 → 按不匹配停机  missing blk/en/hand/mons
+自检汇总：通过 12 项，失败 0 项
+L 等级：L2 离线（注入式不匹配用例）；未接入 CombatController 运行路径

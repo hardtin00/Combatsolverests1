@@ -1,4 +1,4 @@
-﻿# 一键运行离线自检：编译纯模拟层 + 自检工具，然后执行 Solvertest。
+# 一键运行离线自检：编译纯模拟层 + 自检工具，然后执行 Solvertest。
 #
 # 用法：
 #   powershell -ExecutionPolicy Bypass -File tools/solvertest/run.ps1
@@ -32,6 +32,9 @@ $sources = @()
 $sources += (Get-ChildItem (Join-Path $root 'src\main\java\com\combatsolver1\engine') -Filter *.java).FullName
 $sources += (Get-ChildItem (Join-Path $root 'src\main\java\com\combatsolver1\search') -Filter *.java).FullName
 $sources += (Get-ChildItem (Join-Path $root 'src\main\java\com\combatsolver1\settings') -Filter *.java).FullName
+# W3：逐张重采核对判定器与其权威比对口径（纯逻辑，无游戏依赖）
+$sources += (Join-Path $root 'src\main\java\com\combatsolver1\runtime\EngineRootStateBinding.java')
+$sources += (Join-Path $root 'src\main\java\com\combatsolver1\runtime\PerCardVerify.java')
 $sources += (Get-ChildItem $PSScriptRoot -Filter *.java).FullName
 
 $previousErrorActionPreference = $ErrorActionPreference

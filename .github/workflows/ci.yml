@@ -30,10 +30,15 @@ jobs:
             src/main/java/com/combatsolver1/engine/*.java \
             src/main/java/com/combatsolver1/search/*.java \
             src/main/java/com/combatsolver1/settings/SolverSettings.java \
+            src/main/java/com/combatsolver1/runtime/EngineRootStateBinding.java \
+            src/main/java/com/combatsolver1/runtime/PerCardVerify.java \
             tools/solvertest/*.java
 
       - name: 运行全部离线自检
         run: java -cp build/solvertest Solvertest all
+
+      - name: W3 逐张重采核对注入式停机自检（12 断言）
+        run: java -cp build/solvertest PerCardVerifyCheck
 
       - name: W0 参照求解器自检（42 题 × 5 断言）
         run: java -cp build/solvertest SearchQuality --selftest

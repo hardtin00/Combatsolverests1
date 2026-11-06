@@ -244,9 +244,11 @@ public final class CombatEngine {
             }
         }
         if (card.power != null && s.hasRelic("Mummified Hand") && !s.hand.isEmpty()) {
-            // 木乃伊之手：游戏 CardGroup.getRandomCard 走 wrapper random(size-1)（counter+1）。
-            // randomFrom 与 nextIntFrom 数值等价，仅对齐 counter（W1 wrapper 语义）。
-            SimState.Card pick = s.hand.get(s.randomFrom(SimState.RngStream.CARD_RANDOM, s.hand.size() - 1));
+            // 木乃伊之手：游戏 CardGroup.getRandomCard(boolean) 用 AbstractDungeon.cardRng
+            // （字节码已核），而 cardRng 不在捕获的六流 aiRng/cardRandomRng/miscRng/
+            // monsterHpRng/potionRng/shuffleRng 内，故本调用点只能保持近似，不映射到六流。
+            // 不改为 randomFrom(CARD_RANDOM)：那是 cardRandomRng，语义不同（见 STATUS W1-i）。
+            SimState.Card pick = s.hand.get(s.nextIntFrom(SimState.RngStream.CARD_RANDOM, s.hand.size()));
             if (!pick.freeThisTurn) {
                 pick.freeThisTurn = true;
                 s.freeCardsThisTurn.add(pick); // 木乃伊之手：打能力牌后随机一张牌本回合 0 费

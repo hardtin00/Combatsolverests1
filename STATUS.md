@@ -1,3 +1,39 @@
+## 2026-11-06：W1 第九单元 —— 六流归属真值核对 + 回滚 W1-h 错误对齐（L2 离线）
+
+> 承接 W1-h「其余 15+ 处调用点流归属待核对」。本轮逐处核对游戏字节码与
+> vendored sts_lightspeed C++ 源码，发现 W1-h 的一处对齐**流选错了**，予以回滚。
+
+- **★ 真值核对（`docs/W1_RNG_STREAM_ATTRIBUTION.md`）**：
+  - 六流 = `aiRng, cardRandomRng, miscRng, monsterHpRng, potionRng, shuffleRng`。
+  - `aiRng` → 随机目标/怪物招式（`Actions.cpp:451/532`）：`MonsterAi`/`MonsterManual` 映射 ✓ 正确。
+  - `cardRandomRng` → 插入抽牌堆位置/Snecko Oil 费用（`CardManager.cpp:220/406`）：W1-g ✓ 正确。
+  - `shuffleRng` → 洗牌（`CardManager.cpp:28`）：W1-g ✓ 正确。
+  - `monsterHpRng`（怪物初始 HP）、`miscRng`（怪物组构成）→ 本引擎**未建模**，
+    是 W1 真机 L4 会差异的**缺口**，不是映射错。
+  - **`cardRng` 不在六流内**：游戏 `CardGroup.getRandomCard(boolean)` 用
+    `AbstractDungeon.cardRng`（字节码 `getstatic ...cardRng` → `Random.random`），
+    而六流没有它。依赖它的木乃伊之手 / 地狱之刃随机攻击牌 / 随机取攻防牌
+    **天生只能近似**，无法用六流精确重放。
+- **对 W1-h 的更正**：W1-h 把 `CombatEngine:247`（木乃伊之手）改为
+  `randomFrom(CARD_RANDOM, ...)` 以对齐 counter——counter 对齐本身没错，但
+  **`CARD_RANDOM` 是 cardRandomRng、该点实为 cardRng，流归属错误**。
+  本轮**回滚**为 `nextIntFrom` 近似路径并加真值注释。
+  `RngCounterSemanticsCheck`（5/5，「数值等价、只差 counter」）作为**语义事实**保留，
+  但明确：它**不足以**作为把任意调用点改 randomFrom 的依据，必须先核对流归属。
+- **结论（如实）**：W1 三处已接入映射经真值核对正确；但 W1 真机 L4
+  「三类随机点逐位一致 / CombatRecorder diff 零差异」存在**结构性障碍**：
+  `cardRng` 未捕获、`monsterHpRng`/`miscRng` 未建模、potionRng 无调用点。
+  不得声称「全部随机点已闭环」。这比 W1-h 之前写的「counter 语义未对齐」更根本。
+- 验证等级：**L2 离线**（字节码 / vendored C++ 源码核对），非真机 L4。
+  `javac` 0；全量自检 6 项全 0（Solvertest、selftest 225/0、RngCounterSemanticsCheck 5/5、
+  ShuffleWireCheck、RngInjectionCheck、Historical29Check）。
+- W0 指标前后对照（回滚 `nextIntFrom`，数值等价）：BatchPlay 200 局胜率
+  **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**；Oracle 42 题漏优 0.0% —— **不变**。
+- 用户验收：读 `docs/W1_RNG_STREAM_ATTRIBUTION.md`；
+  `java -cp build/solvertest RngCounterSemanticsCheck` → 「通过 5 项，失败 0」。
+- **限制**：未改其余 15+ 处调用点（流归属逐一核对需字节码/真机证据，不猜测式批量替换）；
+  未推远程、未改游戏 mods、未碰存档；`git diff --check` 通过。
+
 ## 2026-11-06：W1 第八单元 —— wrapper counter 语义自检 + 首个调用点对齐（L2 离线）
 
 > W1 自 W1-g 起一直登记「其余 wrapper 级调用点仍用底层 nextIntFrom（不 +counter）」。

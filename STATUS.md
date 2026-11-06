@@ -1,3 +1,14 @@
+## 2026-11-06：W1 第二单元 —— SimState 六流容器（L2 离线）
+
+- 目标：W1-a 已落地 `TrueRng` 数学层，本单元把六流状态作为**可 fork 的容器**接入 `SimState`，为后续「按流推进」与「实机注入」提供落点。严格保持现有行为不变。
+- 修改：`src/main/java/com/combatsolver1/engine/SimState.java` 新增 `RngStream` 枚举（6 流，名字与 `Reader.RNG_FIELDS` 对应）、`rngStreams` 私有数组、`setRngStreams(...)` 两种注入、`hasTrueRng()` / `rngStream()` / `nextIntFrom()` / `randomFrom()` / `rngStreamsKey()`；`fork()` 深拷贝六流；`searchKey()` 仅在注入时追加六流段。
+  - **关键设计**：`nextInt(bound)` 与所有 `CombatEngine` 随机调用点**一个都没改**；`nextIntFrom/randomFrom` 在**未注入**时回退到旧 xorshift。因此未注入状态下 `nextInt` 序列、`searchKey` 与改动前逐位一致（自检断言 A/B）。
+  - 新增 `tools/solvertest/RngStreamStateCheck.java`：12 项自检（默认未注入、旧序列逐位一致、searchKey 无新段、注入成功、按流推进独立性、counter 语义、fork 隔离、名字映射 6/6）。
+- 验证等级：**L2 离线**。`javac --release 8` 退出 0；`RngStreamStateCheck` 退出 0、**通过 12 / 失败 0**（`docs/W1_RNG_STREAM_STATE_CHECK.txt`）；`Solvertest all` 退出 0；`SearchQuality --selftest` **210/0**；`RngStreamCheck` 退出 0。
+- W0 指标前后对照（本单元不改任何随机调用点，故应不变）：Oracle 42 题 / 210 通过 0 失败 / PROVABLE 漏优 0.0% —— **不变**；BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**；耗时 421→464ms、最大 1566→1627ms 为 JVM 抖动。
+- 用户验收：`java -cp build/solvertest RngStreamStateCheck` 应显示「通过 12 项，失败 0」；`java -cp build/solvertest BatchPlay --runs 200` 胜率/失血应与 W0 基线一致。
+- 限制/下一步：**仍未**接入 `LiveCapture`（现编种子未动）、**仍未**把 `CombatEngine` 的 `s.nextInt(...)` 调用点改走 `nextIntFrom`（洗牌/随机目标/随机出招仍用单流 xorshift）、**仍未**改 `CombatSearch.measureRobustness`（仍 4 分支伪造抽样）。Java 路线全部输出继续标「近似」，真机 L4 重放验收未完成。下一单元：把六流真实状态接入 LiveCapture 并将引擎随机调用点逐流映射（会改变 W0 指标，需单独前后对照）。
+
 ## 2026-11-06：W1 第一单元 —— 真 RNG 数学层落地（TrueRng，L2 离线）
 
 - 现象/目标：任务书 W1 要求「真 RNG 闭环」作为搜索质量前提。现状 `LiveCapture.captureRoot()` 用现编种子、`SimState.nextInt()` 用 xorshift、`CombatSearch.measureRobustness()` 用 4 分支伪造抽样。本单元先落地**可独立验收的数学层**：与 `vendor/sts_lightspeed/include/game/Random.h` 的 `sts::Random` / 游戏 `RandomXS128` 逐位对齐的六流 RNG 实现，供后续接入 LiveCapture 与 SimState 使用。

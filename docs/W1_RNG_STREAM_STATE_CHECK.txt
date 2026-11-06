@@ -1,0 +1,14 @@
+[PASS] 默认未注入六流  hasTrueRng=false
+[PASS] 未注入时 nextInt 序列与旧实现一致  79,16,96,90,66,70,44,58,87,47,52,47,81,5...
+[PASS] 未注入时 searchKey 无六流段  len=344
+[PASS] 注入六流成功  streams=6
+[PASS] AI 流推进后状态变化  seed0=97b290912920f3ca
+[PASS] 六流按流推进互不干扰  仅 CARD_RANDOM / SHUFFLE 变化
+[PASS] nextIntFrom 不改 counter  counter=4
+[PASS] randomFrom counter+1  counter=5
+[PASS] fork() 六流隔离  parent unchanged
+[PASS] fork() 子状态可独立推进  child changed
+[PASS] 注入后 searchKey 含六流段  ok
+[PASS] 六流名字与 Reader.RNG_FIELDS 对应  6/6
+自检汇总：通过 12 项，失败 0 项
+L 等级：L2 离线；本单元未改任何 CombatEngine 随机调用点，W0 指标应不变

@@ -111,6 +111,109 @@ public class SimState {
 
     public long rngState;
 
+    /**
+     * W1 真 RNG 六流（与 NativeStateSamplerV1/Reader.java 的 RNG_FIELDS 顺序一致）。
+     * null = 未注入，此时 {@link #nextInt(int)} 继续用旧的 xorshift 种子（近似口径）。
+     * 注入后由 W1 后续单元把 CombatEngine 的随机调用点逐个改走 {@link #nextIntFrom}。
+     * 本单元只提供容器与按流推进 API，不改变任何现有调用点，因此 W0 指标不变。
+     */
+    public enum RngStream {
+        AI, CARD_RANDOM, MISC, MONSTER_HP, POTION, SHUFFLE;
+
+        public static final int COUNT = 6;
+
+        public static RngStream byName(String name) {
+            if (name == null) return null;
+            if ("aiRng".equals(name)) return AI;
+            if ("cardRandomRng".equals(name)) return CARD_RANDOM;
+            if ("miscRng".equals(name)) return MISC;
+            if ("monsterHpRng".equals(name)) return MONSTER_HP;
+            if ("potionRng".equals(name)) return POTION;
+            if ("shuffleRng".equals(name)) return SHUFFLE;
+            return null;
+        }
+
+        public String fieldName() {
+            switch (this) {
+                case AI: return "aiRng";
+                case CARD_RANDOM: return "cardRandomRng";
+                case MISC: return "miscRng";
+                case MONSTER_HP: return "monsterHpRng";
+                case POTION: return "potionRng";
+                case SHUFFLE: return "shuffleRng";
+                default: return "?";
+            }
+        }
+    }
+
+    private TrueRng[] rngStreams;
+
+    /** 从实机捕获的六流三元组注入；任一为 null/长度不足则整体不注入，保持近似口径。 */
+    public void setRngStreams(long[] seed0, long[] seed1, int[] counter) {
+        if (seed0 == null || seed1 == null || counter == null
+                || seed0.length < RngStream.COUNT || seed1.length < RngStream.COUNT
+                || counter.length < RngStream.COUNT) {
+            this.rngStreams = null;
+            return;
+        }
+        TrueRng[] s = new TrueRng[RngStream.COUNT];
+        for (int i = 0; i < RngStream.COUNT; i++) {
+            s[i] = new TrueRng(seed0[i], seed1[i], counter[i]);
+        }
+        this.rngStreams = s;
+    }
+
+    /** 从六个 TrueRng 实例注入（用于离线重放/单元测试）。 */
+    public void setRngStreams(TrueRng[] streams) {
+        if (streams == null || streams.length < RngStream.COUNT) {
+            this.rngStreams = null;
+            return;
+        }
+        TrueRng[] s = new TrueRng[RngStream.COUNT];
+        for (int i = 0; i < RngStream.COUNT; i++) {
+            s[i] = streams[i] == null ? null : streams[i].copy();
+        }
+        for (int i = 0; i < RngStream.COUNT; i++) {
+            if (s[i] == null) {
+                this.rngStreams = null;
+                return;
+            }
+        }
+        this.rngStreams = s;
+    }
+
+    public boolean hasTrueRng() {
+        return rngStreams != null;
+    }
+
+    public TrueRng rngStream(RngStream stream) {
+        return rngStreams == null || stream == null ? null : rngStreams[stream.ordinal()];
+    }
+
+    /** 按指定流产生 0..bound-1；未注入时回退到旧 xorshift（行为不变）。 */
+    public int nextIntFrom(RngStream stream, int bound) {
+        if (bound <= 1) return 0;
+        TrueRng r = rngStream(stream);
+        return r == null ? nextInt(bound) : r.nextInt(bound);
+    }
+
+    /** 按指定流产生 wrapper 层 0..range（含），counter+1；未注入时回退到旧 xorshift。 */
+    public int randomFrom(RngStream stream, int range) {
+        TrueRng r = rngStream(stream);
+        return r == null ? nextInt(range + 1) : r.random(range);
+    }
+
+    /** 六流状态的只读快照，供 searchKey / 诊断。 */
+    public String rngStreamsKey() {
+        if (rngStreams == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < RngStream.COUNT; i++) {
+            sb.append('|').append(RngStream.values()[i].fieldName()).append(':')
+              .append(rngStreams[i].toString());
+        }
+        return sb.toString();
+    }
+
     public SimState fork() {
         SimState s = new SimState();
         s.hp = hp;
@@ -168,6 +271,11 @@ public class SimState {
         s.attacksThisCombat = attacksThisCombat;
         s.skillsThisCombat = skillsThisCombat;
         s.rngState = rngState;
+        if (rngStreams != null) {
+            TrueRng[] copy = new TrueRng[RngStream.COUNT];
+            for (int i = 0; i < RngStream.COUNT; i++) copy[i] = rngStreams[i].copy();
+            s.rngStreams = copy;
+        }
         for (Card c : hand) s.hand.add(c.copy());
         for (Card c : drawPile) s.drawPile.add(c.copy());
         for (Card c : discardPile) s.discardPile.add(c.copy());
@@ -262,6 +370,7 @@ public class SimState {
     public String searchKey() {
         StringBuilder sb = new StringBuilder(signature());
         sb.append("|rng:").append(rngState)
+          .append(rngStreamsKey())
           .append("|asc:").append(ascension)
           .append("|firstEnemy:").append(firstEnemyTurn)
           .append("|simStr:").append(simStrengthBonus)

@@ -44,6 +44,9 @@ jobs:
       - name: W1 真 RNG 数学层自检（8 断言 + 18 行 TSV）
         run: java -cp build/solvertest RngStreamCheck
 
+      - name: W1 SimState 六流容器自检（12 断言，含旧 xorshift 逐位回归）
+        run: java -cp build/solvertest RngStreamStateCheck
+
       - name: 校验游戏 ID 提取工具可编译
         run: |
           mkdir -p build/inspect

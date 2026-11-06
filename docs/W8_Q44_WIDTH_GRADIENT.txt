@@ -1,0 +1,30 @@
+Q44 width gradient measurement (2026-11-06)
+Preset 1, all other budgets unchanged; pure diagnostic flags, ZERO code change.
+Command: java -cp build/solvertest SearchQuality --only 44-44 --within W --beam B
+
+within/beam   PROVABLE beam   ref C(2)      miss
+24/48         995970.0        999970.0      YES
+48/48         995970.0        999970.0      YES
+64/48         995970.0        999970.0      YES
+64/64         995970.0        999970.0      YES
+96/64         999970.0        999970.0      NO
+128/96        999970.0        999970.0      NO
+
+Conclusion: within=96/beam=64 is the FIRST no-miss configuration; 64/64 still misses.
+=> The bottleneck is withinTurnWidth (intra-turn width), NOT beam width, and NOT
+   a missing action-generation path.
+
+Evidence: docs/W8_Q44_WIDE_VERBOSE.txt (verbose route at within=128/beam=96).
+At that width beam turn 1 plays 5 cards:
+  Snecko Oil -> Cleave -> Anger -> Defend_R -> Defend_R  (60hp, no loss)
+which matches the exhaustive reference's "5 cards / 1 turn / no loss".
+
+CORRECTION to earlier W8 notes (this round's measurement; AGENTS.md 3.C forbids
+presenting inference as fact):
+- W8-b claimed "49 width-grid configs all miss -> structural defect": the grid
+  only covered within<=48 / beam<=48, so it never reached the passing region. WRONG.
+- W8-d claimed "no width / any budget can fix -> action generation / search
+  structure gap": WRONG. Adding width fixes it. The real root cause is default
+  within=32 being too narrow, not a missing candidate-generation path.
+
+This is L2 offline (same simulator beam vs exhaustive reference), NOT real-machine L4.

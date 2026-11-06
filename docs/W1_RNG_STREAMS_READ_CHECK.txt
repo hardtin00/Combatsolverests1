@@ -1,0 +1,8 @@
+[PASS] 六流反射读取成功  snapshot non-null
+[PASS] 六流顺序/seed0/seed1/counter 精确一致  6/6
+[PASS] 快照一致性标志  true
+[PASS] 读取不推进 wrapper counter  ai=1 shuffle=5
+[PASS] 字段缺失时返回 null  no fabricated seed
+[PASS] getState 不可用时返回 null  graceful
+自检汇总：通过 6 项，失败 0 项
+L 等级：L2 离线（反射逻辑自检，非真机 L4 读取验证）

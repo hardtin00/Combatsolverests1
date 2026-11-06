@@ -50,6 +50,14 @@ jobs:
       - name: W1 六流注入确定性自检（真机捕获三元组，5 断言）
         run: java -cp build/solvertest RngInjectionCheck
 
+      - name: W1 六流只读反射自检（需要游戏 jar；CI 无版权依赖，明确记为未执行）
+        run: |
+          if [ -n "$STS_DIR" ] && [ -f "$STS_DIR/desktop-1.0.jar" ]; then
+            powershell -ExecutionPolicy Bypass -File tools/rng-capture-validation/run-rngstreams-read-check.ps1 -StsDir "$STS_DIR"
+          else
+            echo "RNG_STREAMS_READ_CHECK=not_run (game jars unavailable in CI; ran locally, see STATUS.md)"
+          fi
+
       - name: 校验游戏 ID 提取工具可编译
         run: |
           mkdir -p build/inspect

@@ -39,7 +39,13 @@ public final class LiveCapture {
         s.handSize = Math.max(1, AbstractDungeon.player.gameHandSize);
         s.ascension = AbstractDungeon.ascensionLevel;
         s.turn = AbstractDungeon.actionManager.turn;
+        // W1：优先注入实机六条 RNG 流的只读快照；读不到（反射失败 / 读期间 RNG 被推进）
+        // 才退回旧的合成种子，保持「近似」口径，绝不编造 seed。
         s.rngState = 0x9E3779B97F4A7C15L + s.turn * 131L + AbstractDungeon.player.hand.size();
+        RngStreams.Snapshot rng = RngStreams.read();
+        if (rng != null) {
+            s.setRngStreams(rng.seed0, rng.seed1, rng.counter);
+        }
 
         for (AbstractCard c : AbstractDungeon.player.hand.group) {
             s.hand.add(simCard(c));

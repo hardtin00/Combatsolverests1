@@ -1,3 +1,38 @@
+## 2026-11-06：W1 第四单元 —— 六流只读反射读取 + 接入 LiveCapture（L2/L3）
+
+- 目标：把 W1-a/b/c 的离线六流能力接到真实采集入口。新增 runtime 层只读反射读取六条
+  `AbstractDungeon` RNG 流，并在 `LiveCapture.captureRoot()` 里**优先注入真实六流**、读不到才回退旧合成种子。
+- 修改：
+  - 新增 `src/main/java/com/combatsolver1/runtime/RngStreams.java`：与 `Reader.java:822-863` 同读法
+    （六个静态 `Random` wrapper → `random.getState(0/1)` → `counter`）；`read()` 做读前/读后一致性校验，
+    任一失败整体返回 null（**不编造 seed**）；抽出可离线测试的 `readFrom(Class, Method)` 核心。
+  - `LiveCapture.java:42`：`s.rngState` 保留作回退；新增 `RngStreams.read()` → `s.setRngStreams(...)`。
+    读不到时保持旧「近似」口径，行为不变。
+  - 新增 `tools/rng-capture-validation/RngStreamsReadCheck.java` + `run-rngstreams-read-check.ps1`：
+    用同构 stub 验证 6 项（六流顺序/seed0/seed1/counter 精确、只读不推进 counter、字段缺失返回 null、getState 不可用返回 null）。
+    **刻意不放进 `tools/solvertest/`**——该目录在 CI 里用无游戏依赖的 classpath 编译，放入会破坏离线自检。
+- 验证等级：
+  - **L2 离线**：`run-rngstreams-read-check.ps1` 退出 0、**6/6 通过**（`docs/W1_RNG_STREAMS_READ_CHECK.txt`）；
+    `javac --release 8` 编译 engine/search/settings/solvertest 退出 0；`Solvertest all` 退出 0；
+    `SearchQuality --selftest` **210/0**；`RngStreamCheck` / `RngStreamStateCheck` / `RngInjectionCheck` 均退出 0。
+  - **L3 完整 Mod 编译（runtime 层）**：用游戏 `desktop-1.0.jar` + mods 作 classpath，
+    `RngStreams.java` + `LiveCapture.java` 编译退出 0（我们编译的 class 置于 classpath 首位以避免 mods 里旧 `SimState` 遮蔽）。
+  - **L4 真机读取未执行**：尚未把新类打进实际 jar、未在游戏内验证 `read()` 返回非 null，
+    故不声称注入在真机生效。
+- W0 指标前后对照（改的是 runtime 采集层，离线 engine/search 不受影响）：Oracle 42 题 / 210 通过 0 失败 /
+  漏优 0.0% —— **不变**；BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**；
+  耗时 421→381ms、最大 1566→1455ms 为 JVM 抖动。
+- 用户验收：`powershell -File tools/rng-capture-validation/run-rngstreams-read-check.ps1` 应显示「通过 6 项，失败 0」；
+  `java -cp build/solvertest BatchPlay --runs 200` 数字与 W0 基线一致。
+- **限制/如实标注**：
+  - `RngStreams.read()` 在真机是否成功（六流字段名/`getState` 签名/一致性校验）**尚未 L4 验证**；
+    历史 `RUNTIME_RESULT_2026-10-19.md` 证明同类读取在真机可行，但本类为新建、未部署。
+  - W1-c 记录的 wrapper counter 语义缺口（底层 `nextInt` 不 +1）、剩余三流无调用点、`CombatSearch.measureRobustness`
+    仍 4 分支伪造抽样、Java 路线仍标「近似」——全部**未变**。
+  - 新类**未打包进交付 jar**、未改游戏 mods 目录、未重启游戏、未碰存档。
+- 下一步单元：① 把新类打进 mod jar 并在真机验证 `RngStreams.read()` 返回六流（L4 前置）；
+  ② wrapper counter 语义对齐 + 剩余三流；③ 重放分支改真实 RNG 并如实改名；④ 真机三类随机点逐位一致 + CombatRecorder diff 零差异。
+
 ## 2026-11-06：W1 第三单元 —— 引擎随机调用点按六流映射（L2 离线）
 
 - 目标：在 W1-b 的 `SimState` 六流容器基础上，把 `CombatEngine` / `MonsterAi` / `MonsterManual` 里全部 19 处 `s.nextInt(...)` 调用点按游戏语义映射到六个流（洗牌/插入抽牌堆位置 → `SHUFFLE`；随机生成牌/随机取手牌/Strange Spoon/死枝 → `CARD_RANDOM`；怪物随机招式与 AI 决策 → `AI`），统一改走 `SimState.nextIntFrom(stream, bound)`。

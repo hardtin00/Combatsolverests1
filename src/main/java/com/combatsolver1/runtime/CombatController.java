@@ -93,6 +93,48 @@ public class CombatController {
     private List<AbstractCard> lastIdleHand = new ArrayList<>();
     private List<AbstractPotion> lastIdlePotions = new ArrayList<>();
 
+    // ── W3 逐张重采核对（默认关闭；关闭时逐卡路径与改动前逐位一致）────────────
+    // 状态生命周期（AGENTS.md 8.3）：
+    //  - perCardBudget：每场战斗一个实例；进入 COMBAT / clear() 处 reset()（见 resetPerCard）。
+    //  - 写入点：evaluatePerCard 在稳定帧被调用；读取点：仅此处判定。
+    //  - 失效：budget.isRefused() 后不自动恢复，与现有 executionFailure 共用停机出口。
+    //  - 约束：不与 FailureLatch 双重停机；REFUSED/EXHAUSTED 统一走 onDeployFinished 路径。
+    private boolean perCardEnabled = false;
+    private final PerCardVerify.Budget perCardBudget = new PerCardVerify.Budget();
+    private String perCardPredicted;   // 当前动作后引擎预测的 STATE 行（Plan.Turn.endState 格式）
+
+    /** 换场 / 显式重新授权时重置本场预算（生命周期写入点）。 */
+    private void resetPerCard() {
+        perCardBudget.reset();
+        perCardPredicted = null;
+    }
+
+    /** 设置/关闭 W3 逐卡门（供配置与离线自检；默认 false）。 */
+    public void setPerCardEnabled(boolean on) {
+        this.perCardEnabled = on;
+        if (!on) resetPerCard();
+    }
+
+    public boolean isPerCardEnabled() {
+        return perCardEnabled;
+    }
+
+    /** 设置当前动作后引擎预测的 STATE 行（来源应为 Plan.Turn.endState；由引擎桥接/调用方填入）。 */
+    void setPerCardPredicted(String stateLine) {
+        this.perCardPredicted = stateLine;
+    }
+
+    /**
+     * 逐卡判定：控制器只协调，规则由 {@link PerCardVerify} 承接。
+     * 默认关闭时恒返回 PASS（不改变执行）。包级可见以便离线自检。
+     */
+    PerCardVerify.Verdict evaluatePerCard(boolean settled, String recaptured,
+                                          long nowMs, boolean autoReAuth) {
+        if (!perCardEnabled) return PerCardVerify.Verdict.PASS;
+        return PerCardVerify.evaluate(settled, perCardPredicted, recaptured,
+                perCardBudget, nowMs, autoReAuth);
+    }
+
     public static CombatController instance() {
         if (instance == null) {
             instance = new CombatController();
@@ -291,6 +333,18 @@ public class CombatController {
 
             if (deployer.isActive()) {
                 deployer.update();
+                // W3 逐张重采核对：仅开启且稳定帧时判定；默认关闭时此块完全不生效。
+                if (perCardEnabled && isSettled()) {
+                    PerCardVerify.Verdict verdict = evaluatePerCard(
+                            true, liveStateLine(), System.currentTimeMillis(), true);
+                    if (verdict == PerCardVerify.Verdict.REFUSED
+                            || verdict == PerCardVerify.Verdict.EXHAUSTED) {
+                        CombatLog.info("per-card verify STOP: " + verdict
+                                + " predicted=[" + perCardPredicted + "] live=[" + liveStateLine() + "]");
+                        // 统一走现有停机门，不新增第二套停机机制（AGENTS.md 8.2/8.3）。
+                        deployer.abort("逐张重采核对不通过：" + verdict);
+                    }
+                }
                 PlanDeployer.Result result = deployer.consumeResult();
                 if (result != null) {
                     onDeployFinished(result);

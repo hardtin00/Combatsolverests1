@@ -1,3 +1,34 @@
+## 2026-11-06 21:16：W3 接入本体（默认关闭，L2/L3 离线可验）
+
+> 承接 W3_WIRING_PLAN。本轮把 `PerCardVerify` **接入主仓库运行路径**
+> （`CombatController`/`PlanDeployer`），**默认关闭**，真机行为变化由用户后续实机验收。
+> 按 AGENTS.md 8.2：控制器只协调，判定规则由 `PerCardVerify` 承接；
+> Budget 状态生命周期（每场一个 / 写入点 / 失效 / 与 FailureLatch 不双重停机）已写清。
+
+- **改动（3 文件）**：
+  - `CombatController`：加 `perCardEnabled`(默认 false)、`perCardBudget`、`perCardPredicted`、
+    `setPerCardPredicted`、`resetPerCard()`、包级 `evaluatePerCard(...)`；
+    `deployer.update()` 后仅「开启且 `isSettled()`」时取 `liveStateLine()` 判定；
+    REFUSED/EXHAUSTED → `deployer.abort(...)` → 复用现有 `onDeployFinished` 停机门。
+  - `PlanDeployer`：新增窄 public `abort(String)`，复用 private `finish`（未复制逻辑）。
+  - `docs/W3_WIRING_PLAN.md`：更新接入进度与未完成项；CI 已有 W3 前置自检步骤。
+- **验证等级**：
+  - **L3 完整构建**：`build-release.ps1` 带游戏 jar 退出 0、150 条目全正斜杠、
+    Java 8 `major=52`；`final_check.py ALL CHECKS PASSED`（LoadAll2 248/248）。
+    （这是 runtime 改动的唯一有效编译验证；纯模拟 solvertest 不含游戏依赖。）
+  - **L2 离线**：全量自检（`Solvertest all`、`SearchQuality --selftest` 225/0、
+    `PerCardVerifyCheck` 12/12、`PerCardVerifyWiringCheck` 9/9）全 0。
+- **W0 指标前后对照**：默认关闭时逐卡路径逐位不变 →
+  BatchPlay 200 局 **75.0% (150/200) / 35.5**、Q1-42 漏优 **0.0%** —— **不变**。
+- **如实边界（重要）**：`perCardPredicted` **未从 `Plan.Turn.endState` 自动接线**
+  （`PlanDeployer` 不暴露当前动作后的逐步预测状态）；开启开关但未设预测会走
+  「predicted=null → REFUSED」的保守路径（不误放行），但**不能声称「逐卡与预测已真值核对」**。
+  自动接线留下一单元。**未做真机 L4**：正常战斗不误停、逐卡 diff 由用户实机验收，
+  不声称 W3 完成。
+- 用户验收：`git show --stat HEAD` 看 3 文件；复跑 `PerCardVerifyWiringCheck` → 9/9；
+  L3 构建脚本退出 0。
+- 未推远程、未改正式游戏 mods/存档、未使用 CU、未做真机 L4；`git diff --check` 通过。
+
 ## 2026-11-06 21:10：W3 接入前置（非实机，L2 离线）
 
 > 用户新指令：实机部分由用户亲自执行；代理完成非实机部分后统一通知。

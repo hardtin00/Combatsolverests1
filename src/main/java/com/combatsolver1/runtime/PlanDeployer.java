@@ -683,6 +683,14 @@ public class PlanDeployer {
         finish(completed, reason, null);
     }
 
+    /**
+     * W3 逐张重采核对停机入口：复用现有 {@link #finish} 的取消/停机逻辑，
+     * 不复制一份（AGENTS.md 8.4）。仅由 CombatController 在 REFUSED/EXHAUSTED 时调用。
+     */
+    public void abort(String reason) {
+        finish(false, reason);
+    }
+
     /** Preserve the CardQueueItem currently entering AbstractPlayer.useCard until vanilla returns. */
     private void finish(boolean completed, String reason, AbstractCard inFlightCard) {
         if (!completed && ExhumeChoiceSafety.requiresDirtyJournalOnFailure(

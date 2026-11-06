@@ -4,6 +4,29 @@
 > 本文件是「非实机可完成」的接入设计与证据；**未接入 `CombatController` 运行路径**
 > （那会改变真机行为，属用户后续实机验收范围）。AGENTS.md 8.9 可执行技术债格式。
 
+## 接入进度（2026-11-06 21:16 更新）
+
+**已完成（W3-b，默认关闭、L2 离线 + L3 完整构建通过）**：
+- `CombatController` 加 `perCardEnabled`（默认 `false`）、`perCardBudget`（每场一个，
+  `resetPerCard()` 生命周期写入点）、`perCardPredicted`、`setPerCardPredicted`、
+  包级 `evaluatePerCard(...)`；`deployer.update()` 后仅「开启且 `isSettled()`」时判定，
+  REFUSED/EXHAUSTED 走 `deployer.abort(...)` → 复用现有 `finish` 与 `onDeployFinished`
+  停机门，**不新增第二套停机机制**。
+- `PlanDeployer.abort(String)` 为窄 public 入口，复用 private `finish`，未复制逻辑。
+- 默认关闭时 `evaluatePerCard` 恒返回 PASS，逐卡路径与改动前**逐位一致**；
+  W0 冻结指标不变（75.0% / 35.5、Q1-42 漏优 0.0%）；18+ 自检全绿；
+  L3 完整构建 150 条目 major=52、`final_check` 248/248。
+
+**未完成（下一单元，纯代码、不需真机）**：
+- `perCardPredicted` 目前只有 `setPerCardPredicted(String)` 入口，**未从
+  `EngineBridge:353` 的 `Plan.Turn.endState` 自动接线**（`PlanDeployer` 不暴露
+  「当前动作后的逐步预测状态」）。需要：把 `Plan.Turn.endState` 按动作索引映射到
+  部署中的当前动作，并在 `acceptCardUsed` 后设置 `perCardPredicted`。
+- 在此之前，开启开关而没有设置预测会走「predicted=null → 比对失败 → REFUSED」
+  的保守路径（不会误放行），但**不能声称「逐卡与预测已真值核对」**。
+- L4 真机（用户做）：正常战斗全程不误停、注入不匹配停机、逐卡 diff 零差异、
+  节流/次数上限在真机生效。
+
 ## 现状（本会话已核验）
 
 | 项 | 位置 | 状态 |

@@ -46,8 +46,15 @@ jobs:
       - name: W5-b 29 个历史真机局面夹具回归（10 断言）
         run: java -cp build/solvertest Historical29Check
 
+      - name: 确认 PowerShell 7 (pwsh) 可用
+        run: |
+          # GitHub ubuntu-latest runner images ship with PowerShell 7 (pwsh).
+          # Fail loudly instead of falling back to the Windows-only `powershell`.
+          command -v pwsh >/dev/null 2>&1 || { echo "::error::pwsh not found on this runner"; exit 127; }
+          pwsh --version
+
       - name: W4 引擎路径药水协议自检（11 断言）
-        run: powershell -ExecutionPolicy Bypass -File tools/recordercheck/run-potion-mode-check.ps1
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File tools/recordercheck/run-potion-mode-check.ps1
 
       - name: W7 出牌排序先验「只引导不剪枝」自检（8 断言）
         run: java -cp build/solvertest CardOrderPriorCheck
@@ -103,7 +110,7 @@ jobs:
       - name: W1 六流只读反射自检（需要游戏 jar；CI 无版权依赖，明确记为未执行）
         run: |
           if [ -n "$STS_DIR" ] && [ -f "$STS_DIR/desktop-1.0.jar" ]; then
-            powershell -ExecutionPolicy Bypass -File tools/rng-capture-validation/run-rngstreams-read-check.ps1 -StsDir "$STS_DIR"
+            pwsh -NoProfile -ExecutionPolicy Bypass -File tools/rng-capture-validation/run-rngstreams-read-check.ps1 -StsDir "$STS_DIR"
           else
             echo "RNG_STREAMS_READ_CHECK=not_run (game jars unavailable in CI; ran locally, see STATUS.md)"
           fi
@@ -141,7 +148,7 @@ jobs:
               echo ""
               echo "仓库没有提供游戏依赖 jar（desktop-1.0.jar / ModTheSpire.jar / BaseMod.jar 有版权，不入库）。"
               echo "因此本次绿色只代表**离线模拟层自检通过**，不代表完整 Mod 能从这份提交构建。"
-              echo "完整构建请在装有游戏的机器上运行：\`powershell -File tools/build/build-release.ps1\`"
+              echo "完整构建请在装有游戏的机器上运行：\`pwsh -File tools/build/build-release.ps1\`"
             } >> "$GITHUB_STEP_SUMMARY"
             echo "未提供游戏依赖：完整 Mod 编译未执行（详见本次运行的 Summary）。"
           fi

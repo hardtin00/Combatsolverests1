@@ -1,0 +1,74 @@
+{
+  "best_action_value": 0,
+  "best_playout_length": 4,
+  "candidate_route": [
+    {
+      "action_bits": 3,
+      "description": "PLAY_CARD ARMAMENTS hand_slot=3 uuid=45be8a5f-b1ae-4dea-b70a-72934bb3c4a9 target_slot=-1",
+      "kind": "PLAY_CARD",
+      "turn": 6
+    },
+    {
+      "action_bits": 2,
+      "description": "PLAY_CARD RAMPAGE hand_slot=2 uuid=48f12e50-6215-4dae-993d-180d974d786c target_slot=0",
+      "kind": "PLAY_CARD",
+      "turn": 6
+    },
+    {
+      "action_bits": 0,
+      "description": "PLAY_CARD STRIKE_RED hand_slot=0 uuid=f499931c-e47d-4c29-a93f-e7660e618512 target_slot=0",
+      "kind": "PLAY_CARD",
+      "turn": 6
+    },
+    {
+      "action_bits": -2147483648,
+      "description": "END_TURN",
+      "kind": "END_TURN",
+      "turn": 6
+    }
+  ],
+  "candidate_route_all_actions_valid_in_tree_walk": true,
+  "candidate_route_final_digest": "",
+  "candidate_route_step_count": 4,
+  "candidate_route_terminal_hp": 0,
+  "candidate_route_terminal_outcome": "PLAYER_LOSS",
+  "candidate_route_terminal_turn": 6,
+  "config": {
+    "admission_filter_card_count": 0,
+    "admission_filter_enabled": false,
+    "admission_filter_state_card_count": 14,
+    "admission_filter_unlisted": [],
+    "execution_constrained": false,
+    "exploration_parameter": 4.242640687119286,
+    "max_route_depth": 12,
+    "max_supported_turn": 20,
+    "search_mode": "RESEARCH",
+    "searcher_rng_seed_source": "bc.seed + bc.floorNum, engine-internal",
+    "simulations": 800
+  },
+  "edge_count": 0,
+  "elapsed_ms": 0,
+  "execution_cards": [],
+  "execution_constrained": false,
+  "execution_potions": [],
+  "independent_replay": [],
+  "independent_replay_final_digest": "",
+  "independent_replay_matches_tree_walk": true,
+  "label": "audit",
+  "max_tree_depth": 0,
+  "min_action_value": 0.0,
+  "node_count": 0,
+  "potion_actions": {},
+  "potion_actions_mode": "off",
+  "protocol": "s2b0_search_result",
+  "root_children": [],
+  "root_simulations": 800,
+  "root_untouched_after_search_and_walks": true,
+  "route_truncated_not_admitted": [],
+  "search_mode": "RESEARCH",
+  "search_performed": true,
+  "searcher_outcome_player_hp": 0,
+  "simulations_requested": 800,
+  "status": "SEARCHED",
+  "version": 1
+}

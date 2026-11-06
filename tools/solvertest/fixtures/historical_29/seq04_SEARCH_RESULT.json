@@ -1,0 +1,146 @@
+{
+  "best_action_value": 46,
+  "best_playout_length": 16,
+  "candidate_route": [
+    {
+      "action_bits": 0,
+      "description": "PLAY_CARD IMPERVIOUS hand_slot=0 uuid=ed5ddc74-a498-454d-a52c-4332e9107f65 target_slot=-1",
+      "kind": "PLAY_CARD",
+      "turn": 2
+    },
+    {
+      "action_bits": 0,
+      "description": "PLAY_CARD HEADBUTT hand_slot=0 uuid=a1400b63-ae7e-4190-8708-326c47173bdc target_slot=0",
+      "kind": "PLAY_CARD",
+      "turn": 2
+    },
+    {
+      "action_bits": -2147483648,
+      "description": "END_TURN",
+      "kind": "END_TURN",
+      "turn": 2
+    },
+    {
+      "action_bits": 4,
+      "description": "PLAY_CARD ARMAMENTS hand_slot=4 uuid=45be8a5f-b1ae-4dea-b70a-72934bb3c4a9 target_slot=-1",
+      "kind": "PLAY_CARD",
+      "turn": 3
+    },
+    {
+      "action_bits": 1,
+      "description": "PLAY_CARD ARMAMENTS hand_slot=1 uuid=208074f9-84b5-4aab-ba7f-409f2d48d797 target_slot=-1",
+      "kind": "PLAY_CARD",
+      "turn": 3
+    },
+    {
+      "action_bits": 0,
+      "description": "PLAY_CARD DEFEND_RED hand_slot=0 uuid=b8a5de17-83d5-4104-8c6c-701146decb27 target_slot=-1",
+      "kind": "PLAY_CARD",
+      "turn": 3
+    },
+    {
+      "action_bits": -2147483648,
+      "description": "END_TURN",
+      "kind": "END_TURN",
+      "turn": 3
+    },
+    {
+      "action_bits": 2,
+      "description": "PLAY_CARD IMPERVIOUS hand_slot=2 uuid=df4409d7-86f8-42c2-9abe-4d38e1ee8ba4 target_slot=-1",
+      "kind": "PLAY_CARD",
+      "turn": 4
+    },
+    {
+      "action_bits": 3,
+      "description": "PLAY_CARD STRIKE_RED hand_slot=3 uuid=55dd27d1-ab07-463e-9f9e-c6818b6da9a9 target_slot=0",
+      "kind": "PLAY_CARD",
+      "turn": 4
+    },
+    {
+      "action_bits": -2147483648,
+      "description": "END_TURN",
+      "kind": "END_TURN",
+      "turn": 4
+    },
+    {
+      "action_bits": 2,
+      "description": "PLAY_CARD POWER_THROUGH hand_slot=2 uuid=80bd6e2b-75de-4546-9447-a57c8fef906c target_slot=-1",
+      "kind": "PLAY_CARD",
+      "turn": 5
+    },
+    {
+      "action_bits": 2,
+      "description": "PLAY_CARD FIEND_FIRE hand_slot=2 uuid=43823a65-859d-4d36-848f-a7b3fb022328 target_slot=0",
+      "kind": "PLAY_CARD",
+      "turn": 5
+    },
+    {
+      "action_bits": -2147483648,
+      "description": "END_TURN",
+      "kind": "END_TURN",
+      "turn": 5
+    },
+    {
+      "action_bits": 2,
+      "description": "PLAY_CARD RAMPAGE hand_slot=2 uuid=48f12e50-6215-4dae-993d-180d974d786c target_slot=0",
+      "kind": "PLAY_CARD",
+      "turn": 6
+    },
+    {
+      "action_bits": 2,
+      "description": "PLAY_CARD DEFEND_RED hand_slot=2 uuid=b8a5de17-83d5-4104-8c6c-701146decb27 target_slot=-1",
+      "kind": "PLAY_CARD",
+      "turn": 6
+    },
+    {
+      "action_bits": 0,
+      "description": "PLAY_CARD STRIKE_RED hand_slot=0 uuid=f499931c-e47d-4c29-a93f-e7660e618512 target_slot=0",
+      "kind": "PLAY_CARD",
+      "turn": 6
+    }
+  ],
+  "candidate_route_all_actions_valid_in_tree_walk": true,
+  "candidate_route_final_digest": "",
+  "candidate_route_step_count": 16,
+  "candidate_route_terminal_hp": 46,
+  "candidate_route_terminal_outcome": "PLAYER_VICTORY",
+  "candidate_route_terminal_turn": 6,
+  "config": {
+    "admission_filter_card_count": 0,
+    "admission_filter_enabled": false,
+    "admission_filter_state_card_count": 13,
+    "admission_filter_unlisted": [],
+    "execution_constrained": false,
+    "exploration_parameter": 4.242640687119286,
+    "max_route_depth": 12,
+    "max_supported_turn": 20,
+    "search_mode": "RESEARCH",
+    "searcher_rng_seed_source": "bc.seed + bc.floorNum, engine-internal",
+    "simulations": 800
+  },
+  "edge_count": 0,
+  "elapsed_ms": 0,
+  "execution_cards": [],
+  "execution_constrained": false,
+  "execution_potions": [],
+  "independent_replay": [],
+  "independent_replay_final_digest": "",
+  "independent_replay_matches_tree_walk": true,
+  "label": "audit",
+  "max_tree_depth": 0,
+  "min_action_value": 0.0,
+  "node_count": 0,
+  "potion_actions": {},
+  "potion_actions_mode": "off",
+  "protocol": "s2b0_search_result",
+  "root_children": [],
+  "root_simulations": 800,
+  "root_untouched_after_search_and_walks": true,
+  "route_truncated_not_admitted": [],
+  "search_mode": "RESEARCH",
+  "search_performed": true,
+  "searcher_outcome_player_hp": 46,
+  "simulations_requested": 800,
+  "status": "SEARCHED",
+  "version": 1
+}

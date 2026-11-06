@@ -43,6 +43,9 @@ jobs:
       - name: W5 逐机制真值夹具自检（10 夹具 + 边界声明）
         run: java -cp build/solvertest MechanismFixtureCheck
 
+      - name: W5-b 29 个历史真机局面夹具回归（10 断言）
+        run: java -cp build/solvertest Historical29Check
+
       - name: W4 引擎路径药水协议自检（11 断言）
         run: powershell -ExecutionPolicy Bypass -File tools/recordercheck/run-potion-mode-check.ps1
 

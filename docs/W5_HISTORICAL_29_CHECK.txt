@@ -1,0 +1,12 @@
+[PASS] 夹具目录存在  tools\solvertest\fixtures\historical_29
+[PASS] 29 份历史局面结果齐全  count=29
+[PASS] 29/29 status=SEARCHED  searched=29
+[PASS] 29/29 路线动作 tree-walk 合法  valid=29
+[PASS] 29/29 独立重放与 tree-walk 一致  replayOk=29
+[PASS] 无 hand_slot=-1 幽灵步骤  ghost=0
+[PASS] 无 route_truncated_not_admitted  truncated=0
+[PASS] 总步数 255（与 AUDIT §2 一致）  steps=255
+[PASS] 终局 23 胜 / 6 负（与 AUDIT §2 一致）  23W/6L
+[PASS] manifest.json 存在  size=8955
+自检汇总：通过 10 项，失败 0 项
+L 等级：L2 离线（29 个历史真机局面的引擎审计夹具；非新的实机 L4 记录）

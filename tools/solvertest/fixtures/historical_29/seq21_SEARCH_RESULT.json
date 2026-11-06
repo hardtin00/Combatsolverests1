@@ -1,0 +1,110 @@
+{
+  "best_action_value": 24,
+  "best_playout_length": 10,
+  "candidate_route": [
+    {
+      "action_bits": 65540,
+      "description": "PLAY_CARD STRIKE_RED hand_slot=4 uuid=091d28dd-c820-4db7-92c1-058df7a9d1d4 target_slot=1",
+      "kind": "PLAY_CARD",
+      "turn": 10
+    },
+    {
+      "action_bits": 65539,
+      "description": "PLAY_CARD HEADBUTT hand_slot=3 uuid=3ba2f271-b06c-432f-8ddf-f235c740b92d target_slot=1",
+      "kind": "PLAY_CARD",
+      "turn": 10
+    },
+    {
+      "action_bits": -2147483648,
+      "description": "END_TURN",
+      "kind": "END_TURN",
+      "turn": 10
+    },
+    {
+      "action_bits": 0,
+      "description": "PLAY_CARD DEFEND_RED hand_slot=0 uuid=cacfb480-954c-4667-8fb1-f5109401bde0 target_slot=-1",
+      "kind": "PLAY_CARD",
+      "turn": 11
+    },
+    {
+      "action_bits": 3,
+      "description": "PLAY_CARD DEFEND_RED hand_slot=3 uuid=229923d8-323e-4d07-a812-4121cf992920 target_slot=-1",
+      "kind": "PLAY_CARD",
+      "turn": 11
+    },
+    {
+      "action_bits": -2147483648,
+      "description": "END_TURN",
+      "kind": "END_TURN",
+      "turn": 11
+    },
+    {
+      "action_bits": -2147483648,
+      "description": "END_TURN",
+      "kind": "END_TURN",
+      "turn": 12
+    },
+    {
+      "action_bits": 65536,
+      "description": "PLAY_CARD STRIKE_RED hand_slot=0 uuid=0db3f422-7010-43a6-a60f-e033f5ad3c5d target_slot=1",
+      "kind": "PLAY_CARD",
+      "turn": 13
+    },
+    {
+      "action_bits": 65537,
+      "description": "PLAY_CARD STRIKE_RED hand_slot=1 uuid=e9b76595-f510-48ea-8822-5186bc86b743 target_slot=1",
+      "kind": "PLAY_CARD",
+      "turn": 13
+    },
+    {
+      "action_bits": 65536,
+      "description": "PLAY_CARD RAMPAGE hand_slot=0 uuid=a73d9331-c441-4ada-acf7-e1664566d0c8 target_slot=1",
+      "kind": "PLAY_CARD",
+      "turn": 13
+    }
+  ],
+  "candidate_route_all_actions_valid_in_tree_walk": true,
+  "candidate_route_final_digest": "",
+  "candidate_route_step_count": 10,
+  "candidate_route_terminal_hp": 24,
+  "candidate_route_terminal_outcome": "PLAYER_VICTORY",
+  "candidate_route_terminal_turn": 13,
+  "config": {
+    "admission_filter_card_count": 0,
+    "admission_filter_enabled": false,
+    "admission_filter_state_card_count": 12,
+    "admission_filter_unlisted": [],
+    "execution_constrained": false,
+    "exploration_parameter": 4.242640687119286,
+    "max_route_depth": 12,
+    "max_supported_turn": 20,
+    "search_mode": "RESEARCH",
+    "searcher_rng_seed_source": "bc.seed + bc.floorNum, engine-internal",
+    "simulations": 800
+  },
+  "edge_count": 0,
+  "elapsed_ms": 0,
+  "execution_cards": [],
+  "execution_constrained": false,
+  "execution_potions": [],
+  "independent_replay": [],
+  "independent_replay_final_digest": "",
+  "independent_replay_matches_tree_walk": true,
+  "label": "audit",
+  "max_tree_depth": 0,
+  "min_action_value": 0.0,
+  "node_count": 0,
+  "potion_actions": {},
+  "potion_actions_mode": "off",
+  "protocol": "s2b0_search_result",
+  "root_children": [],
+  "root_simulations": 800,
+  "root_untouched_after_search_and_walks": true,
+  "route_truncated_not_admitted": [],
+  "search_mode": "RESEARCH",
+  "search_performed": true,
+  "searcher_outcome_player_hp": 24,
+  "simulations_requested": 800,
+  "status": "SEARCHED",
+  "version": 1
+}

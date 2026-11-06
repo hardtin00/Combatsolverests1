@@ -1,3 +1,33 @@
+## 2026-11-06：W5 第二单元 —— 29 个历史真机局面纳入主仓库夹具（L2 离线）
+
+> 任务书 W5：「29 个历史局面扩成逐机制夹具…纳入 tools/solvertest 与 CI，无游戏依赖可跑」。
+> 上一单元（W5-a）只粗查主仓库说「没找到 29 份」；本单元深入历史工作树**真正找到并纳入**。
+
+- 找到的来源：`_build/audit_out/live-battle-state-v1.seq1..29`（2026-11-04 对 29 个历史真机局面
+  跑外部引擎的离线回归），摘要见 `combatsolver1-integration/delivery/dev-notes/AUDIT_20261104.md §2`：
+  `states=29 flagged=0 total_steps=255 phantom=0`、23 胜 6 负。
+- 修改：
+  - 把 29 份 `SEARCH_RESULT.audit.json` 原样复制到
+    `tools/solvertest/fixtures/historical_29/seq01..29_SEARCH_RESULT.json`（共 100KB），
+    并生成 `manifest.json`（逐场 status / steps / outcome / 终局 HP / 合法性标志）。
+  - 新增 `tools/solvertest/Historical29Check.java`：10 项自检，逐项复核 AUDIT §2 的断言——
+    29 份齐全、29/29 `SEARCHED`、29/29 路线动作 tree-walk 合法、29/29 独立重放一致、
+    0 个 `hand_slot=-1` 幽灵步骤、0 个 `route_truncated_not_admitted`、总步数 255、
+    终局 23 胜 / 6 负、manifest 存在。证据 `docs/W5_HISTORICAL_29_CHECK.txt`。
+  - CI 加 `W5-b 29 个历史真机局面夹具回归` 步骤（与 CI 编译命令一致，无游戏依赖）。
+- 验证等级：**L2 离线**（29 份是引擎审计输出，**不是新的实机 L4 记录**，不声称实机精度）。
+  模拟 CI 精确编译退出 0；`Historical29Check` 退出 0、**10/10 通过**；
+  `Solvertest all` 退出 0；`SearchQuality --selftest` **210/0**；
+  `MechanismFixtureCheck`/`CardOrderPriorCheck` 退出 0。
+- W0 指标前后对照（只加只读夹具，未改任何求解/执行行为）：Oracle 42 题 / 210 通过 0 失败 /
+  漏优 0.0% —— **不变**；BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**。
+- 用户验收：`java -cp build/solvertest Historical29Check` 应显示「通过 10 项，失败 0」。
+- **限制/如实标注**：
+  - 这 29 份是**引擎审计结果**（`candidate_route` 等字段），不是 `tools/solvertest/fixtures/recordings/`
+    那种原生动作日志；把它们作为「历史局面回归夹具」纳入，不等于新增 29 场实机 L4 验收。
+  - 每张近似牌/药水/选牌屏的逐项真值夹具仍留后续单元（W5-a 已登记边界）。
+  - 未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W7 第二单元 —— 先验接入 turnScore + W0 前后指标对照（L2 离线）
 
 > 承接 W7-a。任务书 W7 验收要求「W0 指标逐项对照：胜率/失血/漏优率不回退」。

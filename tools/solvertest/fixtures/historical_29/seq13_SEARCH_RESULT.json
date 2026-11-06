@@ -1,0 +1,80 @@
+{
+  "best_action_value": 46,
+  "best_playout_length": 5,
+  "candidate_route": [
+    {
+      "action_bits": 65538,
+      "description": "PLAY_CARD RAMPAGE hand_slot=2 uuid=b69113ee-c0c6-48d1-9e19-527bd1ce4cd4 target_slot=1",
+      "kind": "PLAY_CARD",
+      "turn": 3
+    },
+    {
+      "action_bits": 65539,
+      "description": "PLAY_CARD STRIKE_RED hand_slot=3 uuid=832664e6-fb8e-4cad-9710-9930de3167be target_slot=1",
+      "kind": "PLAY_CARD",
+      "turn": 3
+    },
+    {
+      "action_bits": 65537,
+      "description": "PLAY_CARD STRIKE_RED hand_slot=1 uuid=226f0ad2-e1be-455d-9af7-95fedf00fff6 target_slot=1",
+      "kind": "PLAY_CARD",
+      "turn": 3
+    },
+    {
+      "action_bits": -2147483648,
+      "description": "END_TURN",
+      "kind": "END_TURN",
+      "turn": 3
+    },
+    {
+      "action_bits": 0,
+      "description": "PLAY_CARD FIEND_FIRE hand_slot=0 uuid=5efba5ac-6a46-426b-ba01-e24bde141118 target_slot=0",
+      "kind": "PLAY_CARD",
+      "turn": 4
+    }
+  ],
+  "candidate_route_all_actions_valid_in_tree_walk": true,
+  "candidate_route_final_digest": "",
+  "candidate_route_step_count": 5,
+  "candidate_route_terminal_hp": 46,
+  "candidate_route_terminal_outcome": "PLAYER_VICTORY",
+  "candidate_route_terminal_turn": 4,
+  "config": {
+    "admission_filter_card_count": 0,
+    "admission_filter_enabled": false,
+    "admission_filter_state_card_count": 12,
+    "admission_filter_unlisted": [],
+    "execution_constrained": false,
+    "exploration_parameter": 4.242640687119286,
+    "max_route_depth": 12,
+    "max_supported_turn": 20,
+    "search_mode": "RESEARCH",
+    "searcher_rng_seed_source": "bc.seed + bc.floorNum, engine-internal",
+    "simulations": 800
+  },
+  "edge_count": 0,
+  "elapsed_ms": 0,
+  "execution_cards": [],
+  "execution_constrained": false,
+  "execution_potions": [],
+  "independent_replay": [],
+  "independent_replay_final_digest": "",
+  "independent_replay_matches_tree_walk": true,
+  "label": "audit",
+  "max_tree_depth": 0,
+  "min_action_value": 0.0,
+  "node_count": 0,
+  "potion_actions": {},
+  "potion_actions_mode": "off",
+  "protocol": "s2b0_search_result",
+  "root_children": [],
+  "root_simulations": 800,
+  "root_untouched_after_search_and_walks": true,
+  "route_truncated_not_admitted": [],
+  "search_mode": "RESEARCH",
+  "search_performed": true,
+  "searcher_outcome_player_hp": 46,
+  "simulations_requested": 800,
+  "status": "SEARCHED",
+  "version": 1
+}

@@ -129,9 +129,12 @@ public final class SearchQuality {
         int onlyTo = Integer.MAX_VALUE;
         int overrideBeam = -1;
         int overrideWithin = -1;
+        boolean w8Prior = false;
         for (int i = 0; i < args.length; i++) {
             if ("--verbose".equals(args[i])) {
                 verbose = true;
+            } else if ("--w8prior".equals(args[i])) {
+                w8Prior = true;
             } else if ("--beam".equals(args[i]) && i + 1 < args.length) {
                 overrideBeam = Integer.parseInt(args[++i]);
             } else if ("--within".equals(args[i]) && i + 1 < args.length) {
@@ -158,6 +161,8 @@ public final class SearchQuality {
         // 无条件按档位取预算：不传 --preset 也必须用运行时默认档，否则基准测的是本文件初值，
         // 与玩家实际配置无关（上一轮就是这么把旧宽度当成已加宽的配置测了一遍，数字毫无变化）。
         applyPreset(presetIndex);
+        // W8-d 诊断选项：开启喝药后低费连打引导，验证 Q44 是否不漏优。不传则与 W0 基线逐位一致。
+        com.combatsolver1.search.W8PotionPrior.setEnabled(w8Prior);
         // W8-b 诊断选项：显式覆盖宽度，验证「Q43 用 beam=48 是否不漏优」。不传则与 W0 基线完全一致。
         if (overrideBeam > 0) beamWidth = overrideBeam;
         if (overrideWithin > 0) withinTurnWidth = overrideWithin;

@@ -1,0 +1,11 @@
+[PASS] 默认关闭  enabled=false
+[PASS] 关闭时保持原硬编码惩罚 15.0  penalty=15.0
+[PASS] 关闭时低费连打加分=0  bonus=0.0
+[PASS] 开启时取消药水惩罚  penalty=0.0
+[PASS] 开启时低费连打给出有界小加分  bonus=2.5
+[PASS] 加分数值符合 max(0,2-cost)*0.5  bonus=2.5
+[PASS] 无药水动作时不加  bonus=0.0
+[PASS] null 动作列表不加  bonus=0.0
+[PASS] 关闭后完全复位  clean state
+自检汇总：通过 9 项，失败 0 项
+L 等级：L2 离线（开关行为自检）；调参对 Q44 无效的结论见 docs/W8_TUNING_NEGATIVE_RESULT.md

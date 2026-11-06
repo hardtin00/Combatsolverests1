@@ -335,7 +335,7 @@ public class CombatSearch {
                             na.add(pa);
                             nextStates.add(ns);
                             nextActions.add(na);
-                            nextScores.add(turnScore(state, ns, incoming, na) - 15.0);
+                            nextScores.add(turnScore(state, ns, incoming, na) - W8PotionPrior.potionCostPenalty());
                         }
                     } else {
                         SimState ns = st.fork();
@@ -347,7 +347,7 @@ public class CombatSearch {
                         na.add(pa);
                         nextStates.add(ns);
                         nextActions.add(na);
-                        nextScores.add(turnScore(state, ns, incoming, na) - 15.0);
+                        nextScores.add(turnScore(state, ns, incoming, na) - W8PotionPrior.potionCostPenalty());
                     }
                 }
             }
@@ -392,6 +392,8 @@ public class CombatSearch {
      */
     private double turnScore(SimState start, SimState st, int incoming, List<Plan.Action> na) {
         double base = turnScore(start, st, incoming, na.size());
+        // W8-d 实验：喝药后低费连打引导（默认关闭，见 W8PotionPrior）。
+        base += W8PotionPrior.lowCostChainBonus(na);
         if (!CardOrderPrior.isEnabled() || na.isEmpty()) return base;
         Plan.Action last = na.get(na.size() - 1);
         return base + CardOrderPrior.bonus(last == null ? null : last.cardId);

@@ -1,3 +1,39 @@
+## 2026-11-06：W8 第四单元 —— Q44 针对性评分调参实验（阴性结果，L2 离线）
+
+> 任务书 W8「做针对性先验/评分调参」。按 W8-c 根因做一个**可关闭、可量化**的调参实验，
+> 结果如实记录为**阴性**，并按 AGENTS.md 5「两次同假设修复失败则停止猜测式修改」收手。
+
+- 修改：
+  - 新增 `src/main/java/com/combatsolver1/search/W8PotionPrior.java`（默认 `enabled=false`）：
+    ① `potionCostPenalty()` 关闭=15.0（原硬编码值）/ 开启=0.0；
+    ② `lowCostChainBonus(na)` 含药水动作时按 `max(0,2-cost)*0.5` 给低费连打小加分。
+  - `CombatSearch`：`turnScore(List<Plan.Action>)` 加该引导；两处 `-15.0` 改为可关闭调用。
+    **默认关闭时逐位不变**。
+  - `SearchQuality --w8prior` 诊断开关；`tools/solvertest/W8PotionPriorCheck.java`（9 项）。
+  - 证据 `docs/W8_POTION_PRIOR_CHECK.txt`、`docs/W8_W8PRIOR_ON_43_45.txt`、
+    分析 `docs/W8_TUNING_NEGATIVE_RESULT.md`。CI 加步骤。
+- **★ 实测（阴性，有数字）**：
+  | 配置 | Q43 beam/参照 | Q44 beam/参照 | Q45 beam/参照 | W8 漏优率 |
+  |---|---|---|---|---|
+  | 默认关闭 | -188/-173 | 995970/999970 | 999970/999970 | 2/3=66.7% |
+  | `--w8prior` 开启 | -188/-173 | 995970/999970 | 999970/999970 | 2/3=66.7% |
+  - 开关自检 9/9 证明调参**确实生效**（开启后 penalty=0、bonus=2.5），不是无效代码；
+    但三题 PROVABLE beam 分数完全不变。
+  - **根因再定位**：`turnScore` 只管层内候选排序，PROVABLE 的 beam/参照差距来自终局
+    `evaluate()`（胜负/扣血/回合量级），是 beam 找到的路线**真的终局更差**，不是被排序压低。
+    结合 W8-b 的 49 组宽度网格全漏、先验开启无效，三组独立实验一致指向
+    **动作生成/搜索结构**缺口（未生成或保留住「喝油→Cleave→Strike_R→Anger→Defend_R」5 张牌路线）。
+- **结论**：**反超仍未成立**；本轮调参未修复 Q44、**未设为默认**（W0 基线不变）。
+  按停止规则，W8 评分调参到此为止，后续应转向动作生成/搜索结构（P1），需单独授权，本轮不扩张。
+- 验证等级：**L2 离线**。`javac` 0；9 项全量自检 + `W8PotionPriorCheck` 9/9 全 0；
+  `SearchQuality --selftest` **225/0**。
+- W0 指标前后对照（默认关闭）：Oracle 4 分片（42 题漏优 0.0% / 必胜漏报 1；
+  W8 66.7% 是既有未修复项）—— **不变**；BatchPlay 200 局胜率 **75.0% (150/200)**、
+  平均 HP 损失 **35.5** —— **不变**。
+- 用户验收：`java -cp build/solvertest W8PotionPriorCheck` → 「通过 9 项，失败 0」；
+  `java -cp build/solvertest SearchQuality --only 43-45 --w8prior` 分数应与默认分片完全一致。
+- **限制**：未改默认配置、未补动作生成、未与参考实现实机对跑、未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：当前 HEAD 全量离线总验收（L2/L3）
 
 > 在 21 个累积提交后，从头跑一遍全部自检、W0 两把尺子、三个脚本自检、完整 Mod 构建，

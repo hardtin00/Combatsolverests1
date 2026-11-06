@@ -52,6 +52,9 @@ jobs:
       - name: W7 出牌排序先验「只引导不剪枝」自检（8 断言）
         run: java -cp build/solvertest CardOrderPriorCheck
 
+      - name: W8-d 药水评分调参开关自检（9 断言）
+        run: java -cp build/solvertest W8PotionPriorCheck
+
       - name: W0 参照求解器自检（42 题 × 5 断言）
         run: java -cp build/solvertest SearchQuality --selftest
 

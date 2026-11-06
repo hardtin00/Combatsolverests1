@@ -1,0 +1,7 @@
+[PASS] 默认档位 1 与 W0 冻结预算一致  beam=24 within=32 turns=10 nodes=60000 time=8000ms
+[PASS] 5 档预算表与唯一权威来源一致  p0=8/12 p1=24/32 p2=32/48 p3=48/64 p4=6/8
+[PASS] 档位 0→3 预算单调不减  width/turns/nodes/time
+[PASS] PRESET_NAMES 覆盖 5 档且默认名为「中」  5 names
+[PASS] 越界档位被 clamp，不抛异常  preset=99 -> time=0
+自检汇总：通过 5 项，失败 0 项
+L 等级：L2 离线（档位表一致性）；档位→质量实测见 docs/W7_BUDGET_PRESET_BASELINE.txt

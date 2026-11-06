@@ -32,6 +32,8 @@ public final class BatchPlay {
     private static final int RUNS = 200;
     private static final long SEED0 = 20261106L;
     private static final int MAX_ACTION_GUARD = 2000;
+    /** W7 预算分档诊断：默认 1「中」= W0 冻结基线；--preset 可切换。 */
+    private static int preset = 1;
 
     private BatchPlay() {
     }
@@ -58,12 +60,13 @@ public final class BatchPlay {
         for (int i = 0; i < args.length; i++) {
             if ("--runs".equals(args[i]) && i + 1 < args.length) runs = Integer.parseInt(args[++i]);
             else if ("--prior".equals(args[i])) prior = true;
+            else if ("--preset".equals(args[i]) && i + 1 < args.length) preset = Integer.parseInt(args[++i]);
         }
         // W7-b: 先验默认关闭，--prior 用于「改动前后指标对照」。纯报告选项，
         // 不改评测/搜索逻辑本身（只是切换 CardOrderPrior 的开关）。
         com.combatsolver1.search.CardOrderPrior.setEnabled(prior);
         SolverSettings s = new SolverSettings();
-        s.preset = 1;   // 档位 1「中」，与 W0 Oracle 基线同口径
+        s.preset = preset;
 
         List<Result> results = new ArrayList<Result>();
         for (int i = 0; i < runs; i++) {
@@ -101,7 +104,7 @@ public final class BatchPlay {
 
         System.out.println("=== W0 离线批量对局（同模拟器自打，非真机 L4）===");
         System.out.println("口径: CombatSearch(beam, 档位1) 搜索整场计划 -> 同一 CombatEngine 原样重放");
-        System.out.println("局数=" + runs + " 种子=" + SEED0 + "+i 预算=档位1(within=" + within()
+        System.out.println("局数=" + runs + " 种子=" + SEED0 + "+i 预算=档位" + preset + "(within=" + within()
                 + " beam=" + beam() + " maxTurns=" + maxTurns() + " maxNodes=" + maxNodes() + ")"
                 + " 先验=" + (prior ? "on" : "off"));
         System.out.println("搜索出计划 " + searched + " / 重放成功 " + replayed);
@@ -134,10 +137,10 @@ public final class BatchPlay {
         return config().maxNodes;
     }
 
-    /** 与 SearchQuality.applyPreset 同一权威来源：档位 1 的运行时配置。 */
+    /** 与 SearchQuality.applyPreset 同一权威来源：当前档位的运行时配置。 */
     private static CombatSearch.Config config() {
         SolverSettings s = new SolverSettings();
-        s.preset = 1;
+        s.preset = preset;
         CombatSearch.Config cfg = new CombatSearch.Config();
         s.applyTo(cfg);
         return cfg;

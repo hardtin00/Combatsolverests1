@@ -55,6 +55,9 @@ jobs:
       - name: W8-d 药水评分调参开关自检（9 断言）
         run: java -cp build/solvertest W8PotionPriorCheck
 
+      - name: W7 预算分档基线自检（5 断言）
+        run: java -cp build/solvertest BudgetPresetCheck
+
       - name: W0 参照求解器自检（42 题 × 5 断言）
         run: java -cp build/solvertest SearchQuality --selftest
 

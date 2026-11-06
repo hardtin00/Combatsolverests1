@@ -1,3 +1,34 @@
+## 2026-11-06：W7 第三单元 —— 预算分档基线与自检（L2 离线）
+
+> 任务书 W7.3「按预算分档」。本轮不新建第二套档位表（AGENTS.md 8.4），而是把
+> `SolverSettings.applyTo` 这一唯一权威来源的 5 档用 W0 两把尺子量一遍，产出可核验基线。
+
+- 修改：
+  - `BatchPlay` 加 `--preset` 报告选项（**默认档位 1，与 W0 冻结基线逐位一致**）。
+  - 新增 `tools/solvertest/BudgetPresetCheck.java`：5 项自检，验证 5 档数值来自唯一权威源、
+    默认档 1 = W0 冻结预算（24/32/10/60000/8000）、0→3 单调不减、PRESET_NAMES 对齐、越界 clamp。
+  - 证据 `docs/W7_BUDGET_PRESET_BASELINE.txt`、`docs/W7_BUDGET_PRESET_CHECK.txt`；CI 加步骤。
+- **★ 5 档实测（BatchPlay 50 局固定种子，同模拟器自打，非真机 L4）**：
+  | 档 | within/beam | 胜率 | 平均失血 | 搜索耗时 |
+  |---|---|---|---|---|
+  | 0 低 | 12/8 | 52.0% | 34.9 | 62ms |
+  | 1 中(默认) | 32/24 | 76.0% | 34.9 | 359ms |
+  | 2 高 | 48/32 | 76.0% | 34.8 | 630ms |
+  | 3 极高 | 64/48 | 76.0% | 34.4 | 1068ms |
+  | 4 自定义默认 | 8/6 | 74.0% | 36.4 | 46ms |
+  - **诚实结论**：档位 0 因 `maxTurns=4` 明显不足；档位 1→3 胜率**持平 76%**、失血仅微降，
+    但耗时涨约 3 倍。50 局小样本下**更高档位不涨胜率、只涨耗时**——W7「预算分档」不能简单靠加宽度解决。
+    数字为离线口径，不与参考项目实机胜率比较（AGENTS.md 4.6）。
+- 验证等级：**L2 离线**。`javac` 0；`BudgetPresetCheck` 退出 0、**5/5 通过**；
+  全量自检（Solvertest all、SearchQuality --selftest 225/0、W8PotionPriorCheck、Historical29Check、
+  CardOrderPriorCheck）全 0。
+- W0 指标前后对照（默认档位 1 未改）：BatchPlay 200 局胜率 **75.0% (150/200)**、
+  平均 HP 损失 **35.5** —— **不变**；Oracle 42 题漏优 0.0% —— **不变**。
+- 用户验收：`java -cp build/solvertest BudgetPresetCheck` → 「通过 5 项，失败 0」；
+  `java -cp build/solvertest BatchPlay --runs 50 --preset 0..4` 应复现上表趋势。
+- **限制/下一步**：本轮**未改默认档位、未改任何分档数值**；W7 其余 4 项（引擎常驻、
+  每场重导 RNG、计划精简、逐动作重规划）仍未做。未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：任务书 W0→W8/W6 逐项完成度盘点（如实，L 等级 + 证据）
 
 > 本条目不是"宣布完成"，而是把 23 个本地提交按任务书逐项对照，写清**已达到的 L 等级、

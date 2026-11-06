@@ -8,7 +8,8 @@
   - BUDGET(10 回合) 参照 EXACT 2 / CAPPED 40，EXACT 子集漏优 0；必胜路线漏报 **1**（Q7 药水成本，历史已知）。
   - 每场 beam 耗时：分片 a 平均 102ms / 最大 372ms；b 平均 87ms / 最大 184ms；c 平均 94ms / 最大 224ms；42 题合计平均约 94ms、最大 372ms。
   - 详细定义、冻结清单与复跑命令见 `docs/W0_BASELINE.md`。
-- 限制：Oracle 是「同模拟器 + 同目标函数 + 同预算」内的可穷举上界，不是现实游戏全局最优；模拟器 RNG 非真实 RNG（W1 处理），需要玩家选择的牌由启发式代选；`approx` 牌按既有口径排除在题库外（由 W5 真值夹具单独处理）。W0 另一半「≥200 局 A20 自动对局集」尚缺可复现 harness，本轮未做，不声称完成。
+- W0 ② 补充（离线原型）：新增 `tools/solvertest/BatchPlay.java`，固定 200 种子（`20261106+i`）用 `CombatSearch`(档位 1) 搜整场计划后在同一 `CombatEngine` 原样重放。**口径：同模拟器自打，不是真机 auto-play(L4)，不可与真机胜率或参考项目实机表现混同。** 200 局基线：搜索出计划 200/200、重放 200/200、胜率 **75.0% (150/200)**、平均每场 HP 损失 **35.5**、每场搜索耗时平均 **421ms**/最大 **1566ms**、15 个遭遇逐项分布见 `docs/W0_AUTOPLAY_BASELINE.txt`。调查结论见 `docs/W0_AUTOPLAY_INVESTIGATION.md`：历史只有 172 个不含结果数据的沙盒快照、无可复现真机 harness、上游控制器无修改授权。
+- 限制：Oracle 是「同模拟器 + 同目标函数 + 同预算」内的可穷举上界，不是现实游戏全局最优；模拟器 RNG 非真实 RNG（W1 处理），需要玩家选择的牌由启发式代选；`approx` 牌按既有口径排除在题库外（由 W5 真值夹具单独处理）。**任务书要求的「真机 ≥200 局 auto-play」仍未完成**，离线原型不替代之。
 - 用户验收：复跑 `powershell -ExecutionPolicy Bypass -File tools/solvertest/run.ps1` 与 `java -cp build/solvertest SearchQuality --selftest`；三份分片报告数字与本节一致即通过。
 
 ## 2026-10-21：修复 Actions 离线自检编译依赖遗漏

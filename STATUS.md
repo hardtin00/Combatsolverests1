@@ -1,3 +1,46 @@
+## 2026-11-06：任务书 W0→W8/W6 逐项完成度盘点（如实，L 等级 + 证据）
+
+> 本条目不是"宣布完成"，而是把 23 个本地提交按任务书逐项对照，写清**已达到的 L 等级、
+> 证据文件、真实数字、以及必须用户授权才能推进的剩余项**。数字均于本轮用证据文件复核。
+> 仓库本地 HEAD `13af943`，工作区干净；**23 个提交均未推送远程**（AGENTS.md 1.6，等待授权）。
+
+### 已完成（纯离线，L2/L3）
+
+| W | 单元 | 最高等级 | 证据（数字经本轮复核） | 任务书要求 | 结论 |
+|---|---|---|---|---|---|
+| W0 | a/b 两把尺子 | **L2** | `W0_BASELINE.md`、Oracle 45→本报告 42 冻结题、`W0_BASELINE_selftest.txt`、3 分片、`W0_AUTOPLAY_BASELINE.txt` 200 局 | Oracle≥40、≥200 局 A20、指标冻结 | **达标**（42 题、200 局；但 200 局为「同模拟器自打」离线口径，**真机 L4 自动对局 harness 未建成**，见 `W0_AUTOPLAY_INVESTIGATION.md`） |
+| W1 | a–g 七单元 | **L3**（完整构建）+ L2 | 13 份自检中 W1 的 7 份：RngStreamCheck 8、RngStreamStateCheck 12、RngInjectionCheck 5、RngStreamsReadCheck 6、ReplayTruthCheck 8、JavaLcgCheck 7、ShuffleWireCheck 9 | 真 RNG 闭环、六流反射读取、洗牌对齐、重放分支改真 RNG | **离线闭环达标**；**L4 真机读取/三类随机点逐位一致/Recorder diff 零差异 未验证**，新类未打包进交付 jar |
+| W2 | a 检查单 | **L2** | `W2_ACCEPTANCE_KIT.md`（10 固定种子、14 项逐场检查单、复算命令），`run-root-replay-diff.ps1 -SelfTest` 30/30 | 10 场实机验收 + Exhume×2 | **仅代理准备物**；真机 10 场 L4 由用户执行，当前 `V1_ACCEPTANCE.md` 仍 0/10 |
+| W3 | a 判定器 | **L2** | `W3_PER_CARD_VERIFY_CHECK.txt` **12/12**（注入式不匹配→REFUSED 停机） | 逐张重采 diff + VERIFYING→REFUSED + 节流 | 离线判定器达标；**未接入 `CombatController` 运行路径**，真机不误停未验证 |
+| W4 | a 协议自检 | **L2** | `W4_POTION_MODE_CHECK.txt` **11/11** | potion_actions_mode=on、含药路线真机全链 | 仅协议自检；**真机含药路线全链证据未做**，交付目录 README/KNOWN_LIMITS 过时描述待同步 |
+| W5 | a/b 夹具 | **L2** | `W5_MECHANISM_FIXTURE_CHECK.txt` **10/10**、`W5_HISTORICAL_29_CHECK.txt` **10/10**（29 个历史真机局面纳入 fixtures） | 29 局面扩成逐机制夹具、消灭代选近似 | 骨架 + 29 历史局面达标；**每张近似牌/药水/选牌屏逐项真值夹具未全**，选牌屏如实标 BOUNDARY 未覆盖 |
+| W6 | a / b-prep | **L2/L3** | `LICENSE`(MIT)、2 个找回源文件、`W6_RELEASE_SHA256SUMS.txt`、完整构建 147 条目 major=52 | LICENSE、缺失文件、jar 走 Releases + SHA256 | 前两项 + SHA256 清单达标；**删除仓库内 jar + 发布 Release 需远程授权，未做** |
+| W7 | a/b 先验 | **L2** | `W7_CARD_ORDER_PRIOR_CHECK.txt` **8/8**、`W7_PRIOR_BATCHPLAY_OFF/ON.txt`（75.0%→76.0%、35.5→35.4、Oracle 漏优 0.0% 不回退） | 引擎路线主力化 6 项 | 仅第 5 项排序先验；**其余 5 项（引擎常驻/每场重导 RNG/预算分档/计划精简/逐动作重规划）未做** |
+| W8 | a/b/c/d | **L2** | `W8_ORACLE_SELFTEST.txt` **225/0**、分片 A–D、`W8_SWEEP_43_45.txt`、`W8_BEAM48_43_45.txt`、`W8_Q44_ROOT_CAUSE.md`、`W8_TUNING_NEGATIVE_RESULT.md`、`W8_POTION_PRIOR_CHECK.txt` **9/9** | 反超点位（燃烧契约/异蛇之油/小循环） | 3 道专项题 + 量化基线（**PROVABLE 漏优 2/3=66.7%**）+ 根因定位 + 调参阴性结果；**反超未成立**，本实现在这 2/3 点位也没做对，无「参考会错、本实现对」的对局证据 |
+
+### 全量整合验收（本轮复核）
+
+- 12 项 solvertest 自检 + 3 项脚本自检（root-replay 30/30、potion 11/11、rngstreams 6/6）全部退出 0。
+- W0 两把尺子：Oracle 4 分片（Q1-14/15-28/29-42 各 14 EXACT、漏优 0、0.0%；必胜漏报 1；W8 Q43-45 漏优 2/66.7% 为既有未修复基线）；BatchPlay 200 局 **75.0% (150/200) / 平均失血 35.5**。
+- L3：`build-release.ps1` 完整构建 147 条目全正斜杠、Java 8 major=52、`final_check.py ALL CHECKS PASSED`（LoadAll2 248/248）。
+- `git diff --check` 通过；工作区干净。
+
+### 未完成 / 必须用户授权（全部如实标注）
+
+1. **W1 L4 真机**：把新类打进 `mods/CombatSolver1.jar`、重启游戏验证 `RngStreams.read()` 与洗牌/随机目标/随机出招三类逐位一致、CombatRecorder diff 零差异 → 需授权改游戏目录并重启。
+2. **W2 10 场实机验收 + Exhume×2** → 需你按 `W2_ACCEPTANCE_KIT.md` 打游戏交回 bundle/截图。
+3. **W3-b / W4-b / W7 其余 5 项 / W8 动作生成修复** → 均触及运行路径或会改变 W0 指标，需单独任务授权 + 前后对照。
+4. **W0 真机 ≥200 局 A20 harness** → 历史 `battleai-frontier` 无结果数据、无上游许可，需你提供或授权重建。
+5. **W6-b 收尾**：`git rm artifacts/**/*.jar` + 发布 GitHub Release → 删除已跟踪文件 + 远程操作，需授权。
+6. **推送 23 个本地提交到 GitHub** → AGENTS.md 1.6，逐轮请求未获确认；自动续轮不构成新授权。早先「上传到我的仓库」针对的是 r31 交付（已推 main），本批为新工作。
+7. **W1 wrapper counter 全语义 / potionRng·monsterHpRng·miscRng 调用点 / Java 路线「近似」摘帽** → 待 L4 后。
+
+### 结论
+
+- **离线侧（L2/L3）已按任务书逐项做完并全部有数字证据**；W0 冻结指标自始至终未变。
+- **任务书整体未完成**：所有 L4 真机项、所有远程/发布项、W7 主力化与 W8 反超均未达成。
+- 按 AGENTS.md「完成一项就停止」与「禁止虚报」，本盘点只陈述已验证事实，不把离线通过说成实机通过、不把编码说成反超。
+
 ## 2026-11-06：W8 第四单元 —— Q44 针对性评分调参实验（阴性结果，L2 离线）
 
 > 任务书 W8「做针对性先验/评分调参」。按 W8-c 根因做一个**可关闭、可量化**的调参实验，

@@ -1,3 +1,32 @@
+## 2026-11-06 20:07：Computer Use 识别游戏内 UI（模式选择，L2/L3 环境级）
+
+> 承接上轮「CU 启动到主菜单」。本轮用 CU 点击主菜单 Play，进入**游戏内模式选择画面**，
+> 验证 CU 能识别并操作游戏本体 UI（非仅启动器/桌面）。仍属用户新指令第二节授权的
+> 「已有安全测试环境内的非破坏性验证」，不进战斗、不改存档、不点自动执行。
+
+- **实际 CU 操作（全部有返回）**：
+  1. 重新以 `CS1_ISOLATED_*` 隔离环境启动 `mts-launcher.jar`（`javaw` pid 10340）；
+     `list_windows` → 「ModTheSpire 3.30.3」(hwnd 1966658)。
+  2. `click(811,891)` Play → 等 14s → 「Modded Slay the Spire」(hwnd 3211734, LWJGL 1366×803)。
+  3. `find("Play")` UIA 稀疏，OCR 定位主菜单 `PIay` @ (371,650)，并读出
+     `Standard / Daily Climb / Custom / Compendium / Statistics / Settings / Patch Notes / Mods / Quit`
+     + `7 mods`；`click(396,663)` 进入游戏内菜单。
+  4. 截图读回确认 **Standard / Daily Climb / Custom 三模式选择画面 + Back 按钮**：
+     `docs/evidence/cu-launch/03-in-game-mode-select.png`（真实桌面截图）。
+- **★ 结论**：**CU 能识别并操作《杀戮尖塔 1》游戏内 UI**（此前该项为 L0）。
+  这是 W1/W2 实机自动化的能力前置，但**不是 L4 真实战斗验证**：
+  未进战斗、未操作卡牌/怪物/药水、未采集 RNG 轨迹、未做 CombatRecorder diff。
+- **非破坏性核验**：启动前后 `saves/1_IRONCLAD.autosave` 恒 `f733fcb1…`、
+  `mods/CombatSolver1.jar` 恒 `e7c8def5…`；`~/.combatsolver1-isolated/` 无新增日志
+  （未进战斗，符合预期）；MTS 日志无 mod 报错（仅角色重建/存档检查 INFO）。
+  验证完 `taskkill /PID 10340 /F` 关闭，终检「无残留 javaw」+ 指纹一致。
+- W0 指标前后对照：本轮**零代码改动** → 75.0% / 35.5、Q1-42 漏优 0.0% 不变。
+- 用户验收：打开 `docs/evidence/cu-launch/03-in-game-mode-select.png` 应看到三模式选择画面。
+- **限制 / 下一步**：要推进 W1 L4，下一轮需点 `Standard` 选铁甲战士、进入第一场战斗，
+  只读采集发牌后的截图 + `LIVE_SEARCH_TRACE.jsonl` + `RngStreams.read()` 六流结果；
+  那会改变存档状态（新开局），按「一次一项、做完就停」本轮先交模式选择证据并等验收。
+  未推远程、未改游戏 mods、未碰存档；`git diff --check` 通过。
+
 ## 2026-11-06 20:00：Computer Use 实机启动验证（W1 L4 前置，L2/L3 环境级）
 
 > 依据用户新指令第二节「已授权：已有安全测试环境内的非破坏性验证 + 主动使用 CU 启动隔离测试环境」。

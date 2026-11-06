@@ -1,3 +1,31 @@
+## 2026-11-06 20:32：整理阶段交付包（离线侧成果，非发布版）
+
+> 按用户早期交付经验（统一「项目名-交付-日期」、附交付说明、打包前搜密钥、
+> 不带 .bak、最后人工看真实效果）整理。本轮**不改任何源文件**，只新建交付目录与 zip。
+
+- 产物（在 `outputs/` 根）：
+  - `CombatSolver1-交付-20261106/`：`repo-snapshot/`（git archive HEAD `dddd9ae`，
+    386 文件 / 15M，排除 artifacts 二进制 jar）、`docs-evidence/`（72 份证据 +
+    6 张 CU 真实截图平铺在 `cu-launch/`）、`CombatSolver1-W0W8-48commits-20261106.bundle`、
+    `CombatSolver1-W0W8-归档说明.md`、`交付说明.md`。
+  - `CombatSolver1-交付-20261106.zip`（28.7MB / 482 条目，SHA-256
+    `9ea8a4289ecfafffa792b9ba7f47d507c002b6d337f417ba9093568f01be92c3`）。
+- **卫生核验（均有命令输出）**：逐文件扫描无 `gho_/ghp_/sk-/AKIA/-----BEGIN` 等真实
+  凭据字面量（45 处命中均为「Token 成本」术语、游戏卡牌名 `Secret Technique`、
+  变量名 `appendToken` 等误报）；无 `.bak`/`.log`/`build/` 临时产物/`artifacts/` jar；
+  `tools/build/*.ps1` 是合法构建脚本，已在校准后的交付说明里注明。
+- **人工看真实效果**：用 `read_image` 打开交付包内 `05-ironclad-ascension20.png`，
+  确认可读、内容为 `The Ironclad / HP 80/80 / Ascension 20 (Max Level) Double Boss /
+  Embark / Set Seed`，非坏文件、非合成图。
+- **如实边界**：这是**离线侧阶段成果**交付包，不是正式发布、不是实机 L4 验收通过版；
+  交付说明首节已写清「完成什么 / 未完成什么 / 各 L 等级」。
+- W0 指标前后对照：零代码改动 → 75.0% / 35.5、Q1-42 漏优 0.0% 不变。
+- 验证等级：**L2 归档/文档整理**；未使用 CU、未启动游戏、未做真机 L4。
+- 用户验收：解压 zip，打开 `交付说明.md` 与 `docs-evidence/cu-launch/05-ironclad-ascension20.png`；
+  `git bundle verify` 包内 `.bundle` → `is okay`。
+- **限制**：49 提交未推送、游戏 mods 仍 r31、W1 L4 / W2 十场 / W3/W4/W7/W8 / 发布未完成；
+  未推远程、未改游戏 mods、未碰存档；`git diff --check` 通过。
+
 ## 2026-11-06 20:24：备份刷新到 48 提交 + 审计/支持矩阵同步 CU 实证（维护）
 
 > 按用户新指令「不重复相同阻断、有实质工作优先做」，本轮不重复开局授权请求，

@@ -17,15 +17,24 @@
   W0 冻结指标不变（75.0% / 35.5、Q1-42 漏优 0.0%）；18+ 自检全绿；
   L3 完整构建 150 条目 major=52、`final_check` 248/248。
 
-**未完成（下一单元，纯代码、不需真机）**：
-- `perCardPredicted` 目前只有 `setPerCardPredicted(String)` 入口，**未从
-  `EngineBridge:353` 的 `Plan.Turn.endState` 自动接线**（`PlanDeployer` 不暴露
-  「当前动作后的逐步预测状态」）。需要：把 `Plan.Turn.endState` 按动作索引映射到
-  部署中的当前动作，并在 `acceptCardUsed` 后设置 `perCardPredicted`。
-- 在此之前，开启开关而没有设置预测会走「predicted=null → 比对失败 → REFUSED」
-  的保守路径（不会误放行），但**不能声称「逐卡与预测已真值核对」**。
-- L4 真机（用户做）：正常战斗全程不误停、注入不匹配停机、逐卡 diff 零差异、
-  节流/次数上限在真机生效。
+**已完成（W3-c，2026-11-06 21:21，L2/L3）**：
+- 查明真值：`EngineBridge:353` 的 `Plan.Turn.endState` 是**回合结束边界** STATE 行
+  （`endsTurn=true` 时写入），引擎**没有逐动作的逐步预测状态**。
+  按 AGENTS.md 4.3「字段缺失必须单列验证受限」，**不编造逐步预测**。
+- `PlanDeployer` 加只读 `currentEndState()` / `atTurnEnd()`；
+  `CombatController` 判定块改为：仅「开启 + `isSettled()` + `atTurnEnd()`」时，
+  取 `currentEndState()`（或手动 `setPerCardPredicted` 覆盖）作预测，
+  调 5 参 `evaluatePerCard(settled, predicted, recaptured, now, auto)`；
+  其余动作**不判定**，避免用回合末状态误判中间动作。
+- L3 完整构建 150 条目 major=52、`final_check` 248/248；
+  L2 全量自检全绿；W0 75.0%/35.5、Q1-42 漏优 0.0% 不变（默认关闭逐位一致）。
+
+**仍受限（如实，不声称完成）**：
+- 「逐动作预测 diff」因引擎不提供逐步 STATE 行而**验证受限**；当前实现只在
+  回合末用 `endState` 判定一次。要做到真正逐张，需引擎侧输出每动作后的 STATE 行
+  （任务书 W7 引擎路线主力化的一部分），非本仓库单方面可补。
+- 默认关闭开关未开；L4 真机（用户做）：正常战斗全程不误停、注入不匹配停机、
+  逐卡 diff 零差异、节流/次数上限在真机生效。
 
 ## 现状（本会话已核验）
 

@@ -130,8 +130,14 @@ public class CombatController {
      */
     PerCardVerify.Verdict evaluatePerCard(boolean settled, String recaptured,
                                           long nowMs, boolean autoReAuth) {
+        return evaluatePerCard(settled, perCardPredicted, recaptured, nowMs, autoReAuth);
+    }
+
+    /** 显式传入预测 STATE 行的重载（供回合末 endState / 后续逐步预测接线使用）。 */
+    PerCardVerify.Verdict evaluatePerCard(boolean settled, String predicted, String recaptured,
+                                          long nowMs, boolean autoReAuth) {
         if (!perCardEnabled) return PerCardVerify.Verdict.PASS;
-        return PerCardVerify.evaluate(settled, perCardPredicted, recaptured,
+        return PerCardVerify.evaluate(settled, predicted, recaptured,
                 perCardBudget, nowMs, autoReAuth);
     }
 
@@ -334,15 +340,23 @@ public class CombatController {
             if (deployer.isActive()) {
                 deployer.update();
                 // W3 逐张重采核对：仅开启且稳定帧时判定；默认关闭时此块完全不生效。
-                if (perCardEnabled && isSettled()) {
-                    PerCardVerify.Verdict verdict = evaluatePerCard(
-                            true, liveStateLine(), System.currentTimeMillis(), true);
-                    if (verdict == PerCardVerify.Verdict.REFUSED
-                            || verdict == PerCardVerify.Verdict.EXHAUSTED) {
-                        CombatLog.info("per-card verify STOP: " + verdict
-                                + " predicted=[" + perCardPredicted + "] live=[" + liveStateLine() + "]");
-                        // 统一走现有停机门，不新增第二套停机机制（AGENTS.md 8.2/8.3）。
-                        deployer.abort("逐张重采核对不通过：" + verdict);
+                // 引擎只在回合边界给 STATE 行（Plan.Turn.endState），没有逐动作逐步预测；
+                // 因此只在 atTurnEnd() 时取回合末预测判定，逐动作预测属「验证受限」、
+                // 不编造（AGENTS.md 4.3）。未到回合末时不判定，避免误停。
+                if (perCardEnabled && isSettled() && deployer.atTurnEnd()) {
+                    String predicted = perCardPredicted != null
+                            ? perCardPredicted : deployer.currentEndState();
+                    if (predicted != null) {
+                        String live = liveStateLine();
+                        PerCardVerify.Verdict verdict = evaluatePerCard(
+                                true, predicted, live, System.currentTimeMillis(), true);
+                        if (verdict == PerCardVerify.Verdict.REFUSED
+                                || verdict == PerCardVerify.Verdict.EXHAUSTED) {
+                            CombatLog.info("per-card verify STOP: " + verdict
+                                    + " predicted=[" + predicted + "] live=[" + live + "]");
+                            // 统一走现有停机门，不新增第二套停机机制（AGENTS.md 8.2/8.3）。
+                            deployer.abort("逐张重采核对不通过：" + verdict);
+                        }
                     }
                 }
                 PlanDeployer.Result result = deployer.consumeResult();

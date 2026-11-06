@@ -111,9 +111,22 @@ public class PlanDeployer {
         readyFrames = 0;
     }
 
+    /**
+     * W3 只读查询：当前部署回合的引擎回合末 STATE 行（{@code Plan.Turn.endState}）。
+     * 注意：引擎只在**回合边界**给 STATE 行，没有逐动作的逐步预测；
+     * 逐动作预测属「验证受限」，不编造（AGENTS.md 4.3）。
+     */
+    public String currentEndState() {
+        return pending == null ? null : pending.endState;
+    }
+
+    /** W3 只读查询：本回合计划动作是否已全部排入/打出（用于只在回合末判定）。 */
+    public boolean atTurnEnd() {
+        return pending != null && cursor >= pending.actions.size();
+    }
+
     /** Called at the native useCard boundary to distinguish a planned use from player intervention. */
-    public boolean acceptCardUsed(AbstractCard card, CardTargetRef target) {
-        ExpectedUse expected = null;
+    public boolean acceptCardUsed(AbstractCard card, CardTargetRef target) {        ExpectedUse expected = null;
         for (ExpectedUse use : expectedUses) {
             if (use.card == card) { expected = use; break; }
         }

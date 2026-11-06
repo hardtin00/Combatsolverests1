@@ -1,3 +1,27 @@
+## 2026-11-06 21:21：W3 预测状态接线（回合末 endState，L2/L3 离线）
+
+> 承接 W3-b。本轮把 `perCardPredicted` 从 `Plan.Turn.endState` 接上，
+> 并查清一个必须如实标注的限制：**引擎不提供逐动作逐步预测**。
+
+- **真值核验**：`EngineBridge:353` 写 `Plan.Turn.endState = s` 且 `endsTurn=true`，
+  即 STATE 行是**回合结束边界**状态；引擎没有「每张牌后」的逐步 STATE 行。
+  按 AGENTS.md 4.3「字段缺失必须单列验证受限、不能计作严格通过」，**不编造逐步预测**。
+- **改动**：
+  - `PlanDeployer` 加只读 `currentEndState()` / `atTurnEnd()`（不改执行逻辑）。
+  - `CombatController` 判定块改为：仅「开启 + `isSettled()` + `atTurnEnd()`」时取
+    `currentEndState()`（或手动 setPerCardPredicted 覆盖）作预测，调 5 参
+    `evaluatePerCard`；其余动作不判定，避免用回合末状态误判中间动作。
+  - `docs/W3_WIRING_PLAN.md` 更新接线进度与受限结论。
+- **验证等级**：**L3 完整构建** 退出 0、150 条目全正斜杠、major=52、
+  `final_check ALL PASSED`（248/248）；**L2** 全量自检（含 PerCardVerifyCheck 12/12、
+  PerCardVerifyWiringCheck 9/9）全 0。
+- **W0 前后对照**：默认关闭逐位不变 → 75.0% (150/200) / 35.5、Q1-42 漏优 0.0% **不变**。
+- **如实边界（重要）**：「逐动作预测 diff」因引擎不提供逐步 STATE 行而**验证受限**；
+  当前只在回合末用 `endState` 判定一次。真正逐张需引擎侧输出每动作 STATE 行
+  （属 W7 引擎路线主力化），非本仓库单方面可补。**不声称 W3 完成、不声称逐卡真值核对**。
+  默认关闭；L4 真机不误停/逐卡 diff 由用户实机验收。
+- 未推远程、未改正式游戏 mods/存档、未使用 CU、未做真机 L4；`git diff --check` 通过。
+
 ## 2026-11-06 21:16：W3 接入本体（默认关闭，L2/L3 离线可验）
 
 > 承接 W3_WIRING_PLAN。本轮把 `PerCardVerify` **接入主仓库运行路径**

@@ -1,3 +1,43 @@
+## 2026-11-06 20:00：Computer Use 实机启动验证（W1 L4 前置，L2/L3 环境级）
+
+> 依据用户新指令第二节「已授权：已有安全测试环境内的非破坏性验证 + 主动使用 CU 启动隔离测试环境」。
+> 本轮**实际使用 Computer Use 启动《杀戮尖塔 1》+ ModTheSpire 并停在主菜单**，
+> 验证 CU 能否识别游戏相关窗口/菜单。此前 40+ 轮把「启动游戏」列为需单独授权是**过度保守**，本轮纠正。
+
+- **本轮边界（严格遵守）**：仅启动到主菜单并停住；**不进战斗、不点自动执行、
+  不改任何 mod 勾选、不写正式 mods 目录、不改存档/偏好**；异常即关进程。
+- **启动前防护**：备份 `saves/` + `preferences/` 到
+  `_build/save-backup-r47-1959/`（352K，与历史 `save-backup-0747` 并存）；
+  记录启动前指纹 `mods/CombatSolver1.jar=e7c8def5…`、`saves/1_IRONCLAD.autosave=f733fcb1…`。
+- **实际 CU 操作与结果（全部有工具返回）**：
+  1. `health` ok、`list_windows` 真实桌面枚举、`screenshot` 真实截图（上一轮已验）。
+  2. `launch_app` 拒绝 `.cmd`（仅支持 .exe/.com/.lnk）→ 改由 `ops_bash` 后台启动
+     `jre/bin/javaw.exe -jar mts-launcher.jar`，显式设 `CS1_ISOLATED_*` 隔离环境变量
+     （与 `启动CombatSolver1.cmd` 一致）；日志显示 ModTheSpire 加载 8 个 workshop 项。
+  3. `list_windows` → **「ModTheSpire 3.30.3」窗口**（hwnd 1444040，pid 13808，828×753）；
+     截图读回确认启动器 UI（mod 列表、Play、Debug、版本 12-18-2022）。
+  4. `find("Play")` UIA 稀疏，OCR 定位 `P1ay` @ (795,885) → `click(811,891)` 派发。
+  5. 等 15s 后 `list_windows` → **「Modded Slay the Spire」游戏窗口**
+     （hwnd 1573900，LWJGL，1366×803，有键盘焦点）；截图读回确认**主菜单**
+     （Play/Compendium/Statistics/Settings/Patch Notes/Mods/Quit + ModTheSpire 3.30.3）。
+  6. 证据截图：`docs/evidence/cu-launch/01-mts-launcher.png`、`02-game-main-menu.png`
+     （**真实桌面截图，非合成**）。
+- **非破坏性核验（关键）**：启动后 `mods/CombatSolver1.jar` 仍 `e7c8def5…`、
+  `saves/1_IRONCLAD.autosave` 仍 `f733fcb1…`，**与启动前完全一致**；
+  未生成新的 `~/.combatsolver1-isolated/` 日志（未进战斗，符合预期）。
+  验证完**主动 `taskkill /PID 13808 /F` 关闭游戏**，关闭后指纹再次复核一致。
+- **L 等级**：本项是 **L2/L3 环境级验证**（CU 能启动/识别启动器与游戏主菜单窗口）；
+  **不是 L4 真实战斗验证**——未进战斗、未操作卡牌/怪物/药水、未采集 RNG 轨迹、
+  未做 CombatRecorder diff。W1 L4 目标（三类随机点逐位一致 / diff 零差异）**仍未完成**。
+- **W0 指标前后对照**：本轮**零代码改动、零默认值改动**，W0 冻结指标不变
+  （75.0% / 35.5、Q1-42 漏优 0.0%）。
+- 用户验收：打开 `docs/evidence/cu-launch/02-game-main-menu.png` 应看到真实主菜单；
+  核对 `git show --stat HEAD` 本轮只加证据与 STATUS。
+- **限制 / 下一步**：游戏内「卡牌/怪物/药水/战斗结算界面」的 CU 识别仍 **L0 未验证**；
+  要推进 W1 L4 需下一轮**进入一场战斗**（会写存档/隔离日志），属用户新指令允许的
+  「按测试流程操作游戏」但会改变存档状态——按「一次一项、做完就停」，
+  本轮先交主菜单证据并等待验收。未推远程、未改游戏 mods、未碰存档（指纹为证）。
+
 ## 2026-11-06：按新指令第三节「逐 W 真实状态审计」（43 提交，只读）
 
 > 用户新指令要求为每个 W 建立「已完成子项 / 证据及 L 等级 / 未完成 / 具体阻断 / 下一最小任务」。

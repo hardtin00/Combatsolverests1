@@ -10,11 +10,11 @@
 未部署、未改游戏 mods 目录。
 
 ```
-commit  : 66a63bd2316141027431abc6b97929acaefe05d3   ← 当前 HEAD（34 个提交后）
+commit  : 74605f91560ea75762ad097cad752e866d70127f   ← 当前 HEAD（38 个提交后）
 version : 1.0.0-rc1
 jar     : build/libs/CombatSolver1.jar  (150 条目，全部正斜杠，Java 8 major=52)
-sha256  : 27F8E35D1E9256A029E51BDCF0E25CA48E98C96830D10D3A762A202F4661CB7F
-built   : 2026-11-06 18:37:10
+sha256  : 05FC8242ECE8E14AFEE7D6B4757735E4D3A4BA3B98E9CC7E8EA69854EABF6BB3
+built   : 2026-11-06 19:08:02
 ```
 
 复算命令（仓库根，需游戏本体 + 创意工坊 ModTheSpire/BaseMod）：

@@ -1,3 +1,25 @@
+## 2026-11-06：当前 HEAD（38 提交）构建复核 + 备份刷新（维护，零代码改动）
+
+> 现有 bundle 停在 34 提交、之后 W1-h/i/j 与整合验收等 4 个提交未受保护。
+> 本轮不新增功能，只复核构建并把可移植备份刷新到最终提交。
+
+- **HEAD** `74605f9`，工作区干净，本地提交 **38** 个（自 `98aa381`）。
+- **L3 完整 Mod 构建复核**：`build-release.ps1` 退出 0；**150 条目全正斜杠**、Java 8 `major=52`；
+  `build/libs/CombatSolver1.jar` SHA-256 `05FC8242ECE8E14AFEE7D6B4757735E4D3A4BA3B98E9CC7E8EA69854EABF6BB3`；
+  `final_check.py` → `ALL CHECKS PASSED`（LoadAll2 248/248）。
+- **备份刷新**：重打 `outputs/CombatSolver1-W0W8-38commits-20261106.bundle`
+  （340K，SHA-256 `ec0f6189c6f63ea744e12b33826d82f2ac159e6fa0716052e14349b982aa2696`，
+  `bundle verify` OK，含 HEAD `74605f9`），恢复抽查 **38/38 提交**、3 个最新 W1 证据文件全在；
+  旧 34 版已删。`CombatSolver1-W0W8-归档说明.md` 与 `docs/W6_RELEASE_SHA256SUMS.txt`
+  已同步到 38 版、无残留旧串（grep 复核）。
+- W0 指标前后对照：本轮**零代码改动** → 冻结指标不变（75.0% / 35.5、Oracle 42 题漏优 0.0%）。
+- 验证等级：**L3 构建 / L2 归档完整性**；非真机 L4。
+- 用户验收：`git bundle verify ../CombatSolver1-W0W8-38commits-20261106.bundle` → `is okay`；
+  `Get-FileHash build\libs\CombatSolver1.jar` 应等于 `05FC8242…BB3`。
+- **限制**：远程 main 仍 `98aa381`、38 个提交**未推送**；游戏 mods 仍是 r31（`e7c8def5…`）；
+  W1 L4 / W2 十场 / W3·W4 运行路径 / W7 主力化 / W8 反超仍全部未完成。
+  未推远程、未改游戏 mods、未碰存档；`git diff --check` 通过。
+
 ## 2026-11-06：W1 第十单元 —— 全部 RNG 调用点流归属表 + 更正 W1-i 过度概括（L2 离线）
 
 > 承接 W1-i「其余 15 处调用点待核对」。本轮逐类用游戏字节码 / vendored C++ 源码核对，

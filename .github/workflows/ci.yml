@@ -40,6 +40,9 @@ jobs:
       - name: W3 逐张重采核对注入式停机自检（12 断言）
         run: java -cp build/solvertest PerCardVerifyCheck
 
+      - name: W5 逐机制真值夹具自检（10 夹具 + 边界声明）
+        run: java -cp build/solvertest MechanismFixtureCheck
+
       - name: W0 参照求解器自检（42 题 × 5 断言）
         run: java -cp build/solvertest SearchQuality --selftest
 

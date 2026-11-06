@@ -1,3 +1,30 @@
+## 2026-11-06：W5 第一单元 —— 逐机制真值夹具骨架（L2 离线，无游戏依赖）
+
+> 任务书 W5：「29 个历史局面扩成逐机制夹具：洗牌/随机目标、每张近似牌、药水、选牌屏、
+> W1 各 RNG 点。纳入 tools/solvertest 与 CI，无游戏依赖可跑。目的：消灭『代选近似』」。
+
+- 调查：`Checks.java` 已有 **130 个断言**覆盖近似牌/怪物/机制；缺口是**洗牌序列、随机目标/插入位置、
+  六流 RNG 点、状态比对口径、逐张重采停机、选牌屏**这些 W1/W3 新机制没有逐机制真值夹具。
+  `fixtures/corpus/` 只有 4 个历史 jsonl，仓库里没有「29 个历史局面」的现成集合可扩。
+- 修改：新增 `tools/solvertest/MechanismFixtureCheck.java`，10 条夹具每条带「机制名 / 真值来源 /
+  实际」三元组，期望值来自**真值来源**而非启发式：
+  ① 洗牌序列（游戏 `CardGroup.shuffle` 字节码 + sts_lightspeed `CardManager.cpp:28` 的
+  `java::Random` 48-bit LCG，与 JDK `Collections.shuffle` 逐位对拍）；
+  ② `shuffleRng.randomLong()` counter 0→1；③ 插入位置归 `cardRandomRng` counter 0→1；
+  ④ 怪物随机归 `aiRng`；⑤ 六流独立；⑥ `murmurHash3(1)` 与 C++ 头一致；
+  ⑦⑧ `EngineRootStateBinding` 匹配/拒绝漂移；⑨⑩ W3 注入式停机与稳定放行。
+  证据 `docs/W5_MECHANISM_FIXTURE_CHECK.txt`。CI 加步骤。
+- **诚实边界**：选牌屏夹具**未覆盖**——输出 `[BOUNDARY] 未覆盖：需玩家选择的牌仍由启发式代选，
+  不在穷举搜索空间`，**不计入通过数**，不冒充已真值校验。`Checks.java` 的 130 断言不重复搬运。
+- 验证等级：**L2 离线**。模拟 CI 精确编译退出 0；`MechanismFixtureCheck` 退出 0、**10/10 通过**；
+  `Solvertest all` 退出 0；`SearchQuality --selftest` **210/0**；`PerCardVerifyCheck`/`ShuffleWireCheck`/
+  `ReplayTruthCheck`/`JavaLcgCheck` 退出 0。
+- W0 指标前后对照（只加自检，未改任何求解/执行行为）：Oracle 42 题 / 210 通过 0 失败 /
+  漏优 0.0% —— **不变**；BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**。
+- 用户验收：`java -cp build/solvertest MechanismFixtureCheck` 应显示「通过 10 项，失败 0」+ 一行 BOUNDARY。
+- **限制/下一步**：每张近似牌/药水的逐项真值夹具、选牌屏真值夹具留后续单元；
+  「29 个历史局面」集合需从历史工作树整理（本轮未找到现成 29 份）。未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W3 第一单元 —— 逐张重采核对判定器（注入式不匹配证明停机，L2 离线）
 
 > 任务书 W3：「部署每张牌后稳定帧重采与预测 diff（与 EngineRootStateBinding 对齐），

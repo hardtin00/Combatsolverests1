@@ -1,0 +1,15 @@
+[FIXTURE] 洗牌-序列  PASS  真值=java::Random(48-bit LCG)+Collections.shuffle  [7, 5, 9, 8, 0]
+[FIXTURE] 洗牌-流消费  PASS  真值=shuffleRng.randomLong() 一次, counter 0→1  seed=30001a6
+[FIXTURE] 插入抽牌堆-流  PASS  真值=cardRandomRng.random(size), counter 0→1  at=1
+[FIXTURE] 怪物随机-流  PASS  真值=aiRng.nextInt(100) 推进状态  seed0 changed
+[FIXTURE] 六流-独立  PASS  真值=6 个独立 RandomXS128 对象  MISC/MONSTER_HP/POTION 未受其它流推进影响
+[FIXTURE] RNG-murmurHash3  PASS  真值=sts_lightspeed Random.h murmurHash3(1)=b456bcfc34c2cb2c  b456bcfc34c2cb2c
+[FIXTURE] 状态比对-匹配  PASS  真值=5 字段相等且 engineTurn+1==liveTurn  turn 1→2
+[FIXTURE] 状态比对-拒绝漂移  PASS  真值=hp 不等 → false  hp 70 vs 64
+[FIXTURE] 逐张重采-不匹配停机  PASS  真值=VERIFYING→REFUSED 停机  injected hp mismatch
+[FIXTURE] 逐张重采-稳定匹配放行  PASS  真值=PASS  stable + match
+[BOUNDARY] 选牌屏-未覆盖：需玩家选择的牌仍由启发式代选，不在穷举搜索空间；本单元无该机制的真值夹具，不计入通过数。
+夹具汇总：通过 10 项，失败 0 项
+L 等级：L2 离线（无游戏依赖）；真值来源：游戏字节码 / sts_lightspeed C++ 头 / Python 独立计算 / 权威比对器
+边界：本单元未覆盖每张近似牌/药水的逐项真值夹具（Checks.java 已有 130 断言，留后续单元）；
+      选牌屏夹具只登记「代选近似」边界，不声称已真值校验。

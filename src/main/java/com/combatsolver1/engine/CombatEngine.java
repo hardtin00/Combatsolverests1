@@ -244,7 +244,9 @@ public final class CombatEngine {
             }
         }
         if (card.power != null && s.hasRelic("Mummified Hand") && !s.hand.isEmpty()) {
-            SimState.Card pick = s.hand.get(s.nextIntFrom(SimState.RngStream.CARD_RANDOM, s.hand.size()));
+            // 木乃伊之手：游戏 CardGroup.getRandomCard 走 wrapper random(size-1)（counter+1）。
+            // randomFrom 与 nextIntFrom 数值等价，仅对齐 counter（W1 wrapper 语义）。
+            SimState.Card pick = s.hand.get(s.randomFrom(SimState.RngStream.CARD_RANDOM, s.hand.size() - 1));
             if (!pick.freeThisTurn) {
                 pick.freeThisTurn = true;
                 s.freeCardsThisTurn.add(pick); // 木乃伊之手：打能力牌后随机一张牌本回合 0 费

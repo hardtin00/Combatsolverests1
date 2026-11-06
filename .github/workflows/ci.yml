@@ -67,6 +67,9 @@ jobs:
       - name: W8-f 定向宽度开关自检（4 断言）
         run: java -cp build/solvertest PotionWidthCheck
 
+      - name: W1 wrapper counter 语义自检（5 断言）
+        run: java -cp build/solvertest RngCounterSemanticsCheck
+
       - name: W0 参照求解器自检（42 题 × 5 断言）
         run: java -cp build/solvertest SearchQuality --selftest
 

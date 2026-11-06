@@ -1,3 +1,31 @@
+## 2026-11-06：W1 第八单元 —— wrapper counter 语义自检 + 首个调用点对齐（L2 离线）
+
+> W1 自 W1-g 起一直登记「其余 wrapper 级调用点仍用底层 nextIntFrom（不 +counter）」。
+> 本单元先用字节码/源码证据固化语义，再**只改 1 个已确证为 wrapper 的调用点**。
+
+- **真值（游戏 `desktop-1.0.jar` 字节码）**：`com.megacrit.cardcrawl.random.Random.random(int)`
+  第一条指令就是 `counter+1`，再 `randomXS128.nextInt(range+1)`；
+  `CardGroup.getRandomCard(Random)` → `random(size-1)`（wrapper 级）。
+- **语义事实（新增 `tools/solvertest/RngCounterSemanticsCheck.java`，5/5 通过）**：
+  `nextIntFrom(STREAM, bound)` 与 `randomFrom(STREAM, bound-1)` **返回值逐位相同**
+  （单值 5 个 bound、连续 20 次序列、未注入旧 xorshift 路径均验证），差别仅在 counter：
+  `nextIntFrom=0 / randomFrom=+1`，20 次调用 counter 差恰为 20。
+  证据 `docs/W1_RNG_COUNTER_SEMANTICS_CHECK.txt`。
+- **实际改动（1 处）**：`CombatEngine:247` 木乃伊之手「随机取手牌」由
+  `nextIntFrom(CARD_RANDOM, hand.size())` → `randomFrom(CARD_RANDOM, hand.size()-1)`。
+  数值等价 → W0 逐位不变，仅让注入真实六流时 counter 与游戏一致。
+- **未改（如实，AGENTS.md 4.3 不猜测式修）**：其余 15+ 处 `nextIntFrom`
+  （怪物伤害随机范围、怪物招式权重、地狱之刃随机攻击牌、奇异勺子、随机取攻击/技能牌等）
+  **流归属与是否 wrapper 级尚未逐处字节码核对**，本轮不动。
+  `potionRng`/`monsterHpRng`/`miscRng` 仍无调用点。
+- 验证等级：**L2 离线**。`javac` 0；全量自检 6 项（Solvertest、selftest 225/0、
+  RngCounterSemanticsCheck 5/5、ShuffleWireCheck、RngInjectionCheck、Historical29Check）全 0。
+- W0 指标前后对照：BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**；
+  Oracle 42 题漏优 0.0% —— **不变**（数值等价的直接结果）。
+- 用户验收：`java -cp build/solvertest RngCounterSemanticsCheck` → 「通过 5 项，失败 0」。
+- **限制**：本单元是**离线语义对齐**，不等于 W1 真机 L4 三类随机点逐位一致；
+  新类仍未进游戏 mods。未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：当前 HEAD（34 提交）整合验收 + 归档重打（L2/L3）
 
 > W8-e/f 又改了 CombatSearch / BatchPlay / SearchQuality，上次完整构建是早期的 `6dff465`。

@@ -1,0 +1,7 @@
+[PASS] nextIntFrom(bound) 与 randomFrom(bound-1) 返回值逐位相同  bounds 2/3/7/10/100
+[PASS] counter 语义：nextIntFrom=0 / randomFrom=+1  a=0 b=1
+[PASS] 连续 20 次数值序列仍逐位相同  20 calls
+[PASS] counter 差恰为调用次数  0 vs 20
+[PASS] 未注入时同样回退 xorshift 且数值相同  legacy path
+自检汇总：通过 5 项，失败 0 项
+L 等级：L2 离线（真值来自游戏 Random.random 字节码）；本单元未改生产代码

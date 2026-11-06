@@ -1,0 +1,11 @@
+[PASS] 未注入：洗牌后抽 1 张，抽牌堆剩 11 张  size=11
+[PASS] 未注入：洗牌顺序确定性（同状态两次一致）  [A, C, D, L]
+[PASS] 注入：洗牌完成  size=11
+[PASS] 注入：shuffleRng counter+1  counter 5->6
+[PASS] 注入：shuffleRng 状态推进  seed0 changed
+[PASS] 注入/未注入洗牌顺序不同（走不同随机源）  real [H, B, G]
+[PASS] 注入：洗牌结果与 java LCG 手工重放逐位一致  [H, B, G, A]
+[PASS] 插入索引在 [0,size] 内  at=0
+[PASS] 插入位置调用使 cardRandomRng counter+1  counter 0->1
+自检汇总：通过 9 项，失败 0 项
+L 等级：L2 离线；尚未做真机 L4 洗牌后牌序对照

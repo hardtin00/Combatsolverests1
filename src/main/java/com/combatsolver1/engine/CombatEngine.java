@@ -410,7 +410,7 @@ public final class CombatEngine {
             for (int i = 0; i < card.addCount; i++) {
                 SimState.Card status = addedCard(card.addCardToDiscard);
                 if (card.shuffleAddedToDraw) {
-                    int at = s.drawPile.isEmpty() ? 0 : s.nextIntFrom(SimState.RngStream.SHUFFLE, s.drawPile.size() + 1);
+                    int at = s.drawPile.isEmpty() ? 0 : s.randomFrom(SimState.RngStream.CARD_RANDOM, s.drawPile.size());
                     s.drawPile.add(at, status);
                 } else {
                     s.discardPile.add(status);
@@ -487,7 +487,7 @@ public final class CombatEngine {
             for (int i = 0; i < card.randomCardCount; i++) {
                 SimState.Card generated = randomCardOf(s, card.randomCardKind);
                 if (card.shuffleAddedToDraw) {
-                    int at = s.drawPile.isEmpty() ? 0 : s.nextIntFrom(SimState.RngStream.SHUFFLE, s.drawPile.size() + 1);
+                    int at = s.drawPile.isEmpty() ? 0 : s.randomFrom(SimState.RngStream.CARD_RANDOM, s.drawPile.size());
                     s.drawPile.add(at, generated);
                 } else {
                     s.hand.add(generated);
@@ -1394,7 +1394,7 @@ public final class CombatEngine {
             for (int i = 0; i < mv.addCount; i++) {
                 SimState.Card status = addedCard(mv.addCard);
                 if (mv.addToDraw) {
-                    int at = s.drawPile.isEmpty() ? 0 : s.nextIntFrom(SimState.RngStream.SHUFFLE, s.drawPile.size() + 1);
+                    int at = s.drawPile.isEmpty() ? 0 : s.randomFrom(SimState.RngStream.CARD_RANDOM, s.drawPile.size());
                     s.drawPile.add(at, status);
                 } else {
                     s.discardPile.add(status);
@@ -1505,18 +1505,31 @@ public final class CombatEngine {
         }
     }
 
-    /** 洗牌：把弃牌堆整堆 Fisher–Yates 后变成新的抽牌堆。 */
+    /**
+     * 洗牌：把弃牌堆整堆洗成新的抽牌堆。
+     *
+     * <p>游戏 {@code CardGroup.shuffle()} 与 sts_lightspeed {@code CardManager.cpp:28} 一致：
+     * 先对流调用一次 {@code shuffleRng.randomLong()}（wrapper counter+1）取种子，
+     * 再用 {@code java.util.Random}(48-bit LCG) 做 {@code Collections.shuffle} 的 Fisher-Yates。
+     * 因此注入真实六流时走 {@code JavaLcg}；未注入时保持旧 {@code nextIntFrom} 路径不变
+     * （近似口径，W0 指标不回退）。
+     */
     private static void shuffleIntoDraw(SimState s) {
         s.shuffles++;
         if (s.shuffles % 3 == 0 && s.hasRelic("Sundial")) {
             s.energy += 2; // 日晷：每 3 次洗牌 +2 能量
         }
         List<SimState.Card> pile = s.discardPile;
-        for (int i = pile.size() - 1; i > 0; i--) {
-            int j = s.nextIntFrom(SimState.RngStream.SHUFFLE, i + 1);
-            SimState.Card tmp = pile.get(i);
-            pile.set(i, pile.get(j));
-            pile.set(j, tmp);
+        if (s.hasTrueRng()) {
+            long seed = s.shuffleSeedFrom(SimState.RngStream.SHUFFLE);
+            JavaLcg.shuffle(pile, new JavaLcg(seed));
+        } else {
+            for (int i = pile.size() - 1; i > 0; i--) {
+                int j = s.nextIntFrom(SimState.RngStream.SHUFFLE, i + 1);
+                SimState.Card tmp = pile.get(i);
+                pile.set(i, pile.get(j));
+                pile.set(j, tmp);
+            }
         }
         s.drawPile.addAll(pile);
         pile.clear();

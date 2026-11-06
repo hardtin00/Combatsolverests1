@@ -1,3 +1,33 @@
+## 2026-11-06：W1 第七单元 —— 洗牌与插入位置调用点接入真实 RNG（L2 离线）
+
+> 承接 W1-f 的字节码结论，把算法层接进 `CombatEngine` 实际调用点。
+
+- 修改：
+  - `CombatEngine.shuffleIntoDraw()`：**注入六流时**改为 `shuffleSeedFrom(SHUFFLE)`（对流调一次
+    `randomLong()`，counter+1）→ `JavaLcg.shuffle(pile, new JavaLcg(seed))`，与游戏
+    `CardGroup.shuffle()` / sts_lightspeed `CardManager.cpp:28` 一致；**未注入时**保留旧
+    `nextIntFrom(SHUFFLE, i+1)` Fisher-Yates，逐位不变（W0 不回退）。
+  - 3 处「插入抽牌堆位置」（413/490/1397）：`nextIntFrom(SHUFFLE, size+1)` →
+    `randomFrom(CARD_RANDOM, size)`，与 `CardManager.cpp:216-221` 的
+    `cardRandomRng.random(drawPile.size()-1)` 对齐；`randomFrom` 在注入时走 wrapper `random`
+    （counter+1），未注入时回退 `nextInt(size+1)`，两者取值范围同为 `[0,size]`。
+  - 新增 `tools/solvertest/ShuffleWireCheck.java`：9 项自检，证据 `docs/W1_SHUFFLE_WIRE_CHECK.txt`。
+- 验证等级：**L2 离线**。`javac --release 8` 退出 0；`ShuffleWireCheck` 退出 0、**9/9 通过**
+  （含「注入洗牌结果与 java LCG 手工重放逐位一致 `[H, B, G, A]`」、未注入洗牌确定性、
+  shuffleRng counter+1 且状态推进、插入索引 `[0,size]` 且 cardRandomRng counter+1）；
+  `Solvertest all` 退出 0；`SearchQuality --selftest` **210/0**；所有 W1 既有自检退出 0。
+- W0 指标前后对照：Oracle 42 题 / 210 通过 0 失败 / PROVABLE 漏优 0.0% / 必胜漏报 1 —— **不变**；
+  BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**。
+  原因：W0 两把尺子跑的都是**未注入**状态，本单元未注入路径逐位保持旧 xorshift。
+- 用户验收：`java -cp build/solvertest ShuffleWireCheck` 应显示「通过 9 项，失败 0」；
+  `java -cp build/solvertest BatchPlay --runs 200` 数字与 `docs/W0_BASELINE.md` 一致。
+- **限制/如实标注**：
+  - 本单元完成的是**离线调用点接入**；注入六流的真机来源（`RngStreams.read()`）仍未 L4 验证、
+    新类未打包进交付 jar。**真机 L4 三类随机点逐位一致 + CombatRecorder diff 零差异仍未完成**。
+  - 其余 wrapper 级调用点（如 `getRandomCard` 对应的随机取手牌）仍用底层 `nextIntFrom`（不 +counter），
+    counter 语义未全对齐；`potionRng`/`monsterHpRng`/`miscRng` 仍无调用点。
+  - 未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W1 第六单元 —— 洗牌 RNG 真实语义对齐（java::Random LCG，L2 离线）
 
 > 任务书 W1：「SimState 按游戏语义实现六流推进（洗牌与 vendored sts_lightspeed 的实现对齐）」。

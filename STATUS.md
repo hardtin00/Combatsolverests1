@@ -1,3 +1,42 @@
+## 2026-11-06 20:37：尝试「临时副本」隔离验证（阴性结果，L2 环境级）
+
+> 用户新指令：「如操作被拦截，先判断是否能利用**已授权的隔离环境、临时副本**
+> 或 Computer Use 完成同等有效的验证」。此前卡在「点 Embark 会写正式 saves」。
+> 本轮尝试把整个游戏目录复制成工作区内的临时副本、从副本启动，
+> 期望存档写入副本、正式存档零改动。
+
+- **执行（全部有命令输出）**：
+  1. `robocopy` 复制游戏目录到 `_build/sts-isolated-copy/`（545M，排除日志/崩溃转储）；
+     关键文件（mts-launcher.jar / desktop-1.0.jar / jre/bin/javaw.exe / mods/*.jar /
+     cs1-engine/*.exe / saves / preferences）全部 OK。
+  2. 记录启动前指纹：正式与副本 autosave 均 `f733fcb1…`、jar 均 `e7c8def5…`。
+  3. 从副本以 `CS1_ISOLATED_*` 启动 MTS（javaw pid 34436）→ 启动器窗口出现；
+     日志 `Got 0 workshop items`（副本缺创意工坊路径）、
+     `FileNotFoundException/AccessDeniedException: AppData\Local\ModTheSpire\*`
+     （启动器仍写**用户级全局配置**，拒绝访问但非致命）。
+  4. 点 Play → **游戏进程启动后随即崩溃**：`OIS::Exception: Not able to init DirectX8 Input!`
+     + `SteamController_*` 共享内存/互斥体创建失败 `GLE: 5` + `AL lib` 音频清理。
+     证据日志 `docs/evidence/cu-launch/07-isolated-copy-launch.log`。
+  5. 按「两次同假设失败即停止猜测」，不再反复试；`taskkill` 关进程、
+     **删除 545M 副本**（工作区内，可回滚重建）。
+- **★ 如实结论（阴性但有价值的进展）**：
+  - **存档隔离有效**：全程正式 `saves/1_IRONCLAD.autosave` 与 `mods/CombatSolver1.jar`
+    指纹恒为 `f733fcb1…` / `e7c8def5…`，副本 saves 亦未被写；
+    「临时副本」这条路在**不碰正式存档**上是成立的。
+  - **失败点**：副本缺 Steam 输入环境（DirectX8 Input / SteamController IPC 全局命名对象冲突），
+    游戏起不来；且启动器仍会写 `AppData\Local\ModTheSpire\`（用户级全局，拒绝访问）。
+  - 因此「同等有效验证」在此环境**未能完成**，不冒充已进战斗、不冒充 L4。
+- **边界判断（保持）**：正式 mods / 存档 / 远程仓库**均未被本轮改动**；
+  点 Embark 写正式存档的红线仍不自行绕过。
+- W0 指标前后对照：零代码改动 → 75.0% / 35.5、Q1-42 漏优 0.0% 不变。
+- 验证等级：**L2 环境级阴性结果**；本轮**未使用 Computer Use 做游戏内操作**
+  （仅 `list_windows`/`click`/`wait` 探测副本启动器），未做真机 L4。
+- 用户验收：读 `docs/evidence/cu-launch/07-isolated-copy-launch.log` 的
+  `OIS::Exception` / `SteamController_*` 段；确认正式存档指纹未变。
+- **限制 / 下一步**：要真正进战斗，仍需用户授权「点 Embark 改写正式 autosave、
+  完事从备份还原」；或提供可运行的独立 Steam/隔离环境。本轮未推远程、未改游戏 mods、未碰存档；
+  `git diff --check` 通过。
+
 ## 2026-11-06 20:32：整理阶段交付包（离线侧成果，非发布版）
 
 > 按用户早期交付经验（统一「项目名-交付-日期」、附交付说明、打包前搜密钥、

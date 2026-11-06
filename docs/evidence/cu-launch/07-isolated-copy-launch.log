@@ -1,0 +1,445 @@
+Searching for Workshop items...
+Using local StS JRE @ C:\Users\3476\Documents\Codex\2026-10-15\jie\outputs\_build\sts-isolated-copy\jre\bin\java.exe
+Setting breakpad minidump AppID = 646570
+SteamInternal_SetMinidumpSteamID:  Caching Steam ID:  76561199060758456 [API loaded no]
+Got 0 workshop items
+java.io.FileNotFoundException: C:\Users\3476\AppData\Local\ModTheSpire\ModTheSpire.properties (¾Ü¾ø·ÃÎÊ¡£)
+	at java.io.FileOutputStream.open0(Native Method)
+	at java.io.FileOutputStream.open(FileOutputStream.java:270)
+	at java.io.FileOutputStream.<init>(FileOutputStream.java:213)
+	at java.io.FileOutputStream.<init>(FileOutputStream.java:162)
+	at com.evacipated.cardcrawl.modthespire.lib.SpireConfig.save(SpireConfig.java:57)
+	at com.evacipated.cardcrawl.modthespire.ui.ModSelectWindow.readWindowPosSize(ModSelectWindow.java:134)
+	at com.evacipated.cardcrawl.modthespire.ui.ModSelectWindow.<init>(ModSelectWindow.java:99)
+	at com.evacipated.cardcrawl.modthespire.Loader.lambda$main$1(Loader.java:366)
+	at java.awt.event.InvocationEvent.dispatch(InvocationEvent.java:311)
+	at java.awt.EventQueue.dispatchEventImpl(EventQueue.java:756)
+	at java.awt.EventQueue.access$500(EventQueue.java:97)
+	at java.awt.EventQueue$3.run(EventQueue.java:709)
+	at java.awt.EventQueue$3.run(EventQueue.java:703)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(ProtectionDomain.java:80)
+	at java.awt.EventQueue.dispatchEvent(EventQueue.java:726)
+	at java.awt.EventDispatchThread.pumpOneEventForFilters(EventDispatchThread.java:201)
+	at java.awt.EventDispatchThread.pumpEventsForFilter(EventDispatchThread.java:116)
+	at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:105)
+	at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
+	at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:93)
+	at java.awt.EventDispatchThread.run(EventDispatchThread.java:82)
+java.nio.file.AccessDeniedException: C:\Users\3476\AppData\Local\ModTheSpire\mod_lists.json
+	at sun.nio.fs.WindowsException.translateToIOException(WindowsException.java:83)
+	at sun.nio.fs.WindowsException.rethrowAsIOException(WindowsException.java:97)
+	at sun.nio.fs.WindowsException.rethrowAsIOException(WindowsException.java:102)
+	at sun.nio.fs.WindowsFileSystemProvider.newByteChannel(WindowsFileSystemProvider.java:230)
+	at java.nio.file.spi.FileSystemProvider.newOutputStream(FileSystemProvider.java:434)
+	at java.nio.file.Files.newOutputStream(Files.java:216)
+	at java.nio.file.Files.write(Files.java:3292)
+	at com.evacipated.cardcrawl.modthespire.ModList.save(ModList.java:214)
+	at com.evacipated.cardcrawl.modthespire.ModList.save(ModList.java:206)
+	at com.evacipated.cardcrawl.modthespire.ui.ModSelectWindow.lambda$null$7(ModSelectWindow.java:352)
+	at java.lang.Thread.run(Thread.java:748)
+java.io.FileNotFoundException: C:\Users\3476\AppData\Local\ModTheSpire\ModTheSpire.properties (¾Ü¾ø·ÃÎÊ¡£)
+	at java.io.FileOutputStream.open0(Native Method)
+	at java.io.FileOutputStream.open(FileOutputStream.java:270)
+	at java.io.FileOutputStream.<init>(FileOutputStream.java:213)
+	at java.io.FileOutputStream.<init>(FileOutputStream.java:162)
+	at com.evacipated.cardcrawl.modthespire.lib.SpireConfig.save(SpireConfig.java:57)
+	at com.evacipated.cardcrawl.modthespire.ui.ModSelectWindow.saveWindowDimensions(ModSelectWindow.java:653)
+	at com.evacipated.cardcrawl.modthespire.ui.ModSelectWindow$1.componentResized(ModSelectWindow.java:153)
+	at java.awt.AWTEventMulticaster.componentResized(AWTEventMulticaster.java:159)
+	at java.awt.Component.processComponentEvent(Component.java:6359)
+	at java.awt.Component.processEvent(Component.java:6313)
+	at java.awt.Container.processEvent(Container.java:2236)
+	at java.awt.Window.processEvent(Window.java:2025)
+	at java.awt.Component.dispatchEventImpl(Component.java:4889)
+	at java.awt.Container.dispatchEventImpl(Container.java:2294)
+	at java.awt.Window.dispatchEventImpl(Window.java:2746)
+	at java.awt.Component.dispatchEvent(Component.java:4711)
+	at java.awt.EventQueue.dispatchEventImpl(EventQueue.java:758)
+	at java.awt.EventQueue.access$500(EventQueue.java:97)
+	at java.awt.EventQueue$3.run(EventQueue.java:709)
+	at java.awt.EventQueue$3.run(EventQueue.java:703)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(ProtectionDomain.java:80)
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(ProtectionDomain.java:90)
+	at java.awt.EventQueue$4.run(EventQueue.java:731)
+	at java.awt.EventQueue$4.run(EventQueue.java:729)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(ProtectionDomain.java:80)
+	at java.awt.EventQueue.dispatchEvent(EventQueue.java:728)
+	at java.awt.EventDispatchThread.pumpOneEventForFilters(EventDispatchThread.java:201)
+	at java.awt.EventDispatchThread.pumpEventsForFilter(EventDispatchThread.java:116)
+	at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:105)
+	at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
+	at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:93)
+	at java.awt.EventDispatchThread.run(EventDispatchThread.java:82)
+java.io.FileNotFoundException: C:\Users\3476\AppData\Local\ModTheSpire\ModTheSpire.properties (¾Ü¾ø·ÃÎÊ¡£)
+	at java.io.FileOutputStream.open0(Native Method)
+	at java.io.FileOutputStream.open(FileOutputStream.java:270)
+	at java.io.FileOutputStream.<init>(FileOutputStream.java:213)
+	at java.io.FileOutputStream.<init>(FileOutputStream.java:162)
+	at com.evacipated.cardcrawl.modthespire.lib.SpireConfig.save(SpireConfig.java:57)
+	at com.evacipated.cardcrawl.modthespire.ui.ModSelectWindow.saveWindowDimensions(ModSelectWindow.java:653)
+	at com.evacipated.cardcrawl.modthespire.ui.ModSelectWindow$1.componentResized(ModSelectWindow.java:153)
+	at java.awt.AWTEventMulticaster.componentResized(AWTEventMulticaster.java:159)
+	at java.awt.Component.processComponentEvent(Component.java:6359)
+	at java.awt.Component.processEvent(Component.java:6313)
+	at java.awt.Container.processEvent(Container.java:2236)
+	at java.awt.Window.processEvent(Window.java:2025)
+	at java.awt.Component.dispatchEventImpl(Component.java:4889)
+	at java.awt.Container.dispatchEventImpl(Container.java:2294)
+	at java.awt.Window.dispatchEventImpl(Window.java:2746)
+	at java.awt.Component.dispatchEvent(Component.java:4711)
+	at java.awt.EventQueue.dispatchEventImpl(EventQueue.java:758)
+	at java.awt.EventQueue.access$500(EventQueue.java:97)
+	at java.awt.EventQueue$3.run(EventQueue.java:709)
+	at java.awt.EventQueue$3.run(EventQueue.java:703)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(ProtectionDomain.java:80)
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(ProtectionDomain.java:90)
+	at java.awt.EventQueue$4.run(EventQueue.java:731)
+	at java.awt.EventQueue$4.run(EventQueue.java:729)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(ProtectionDomain.java:80)
+	at java.awt.EventQueue.dispatchEvent(EventQueue.java:728)
+	at java.awt.EventDispatchThread.pumpOneEventForFilters(EventDispatchThread.java:201)
+	at java.awt.EventDispatchThread.pumpEventsForFilter(EventDispatchThread.java:116)
+	at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:105)
+	at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
+	at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:93)
+	at java.awt.EventDispatchThread.run(EventDispatchThread.java:82)
+java.nio.file.AccessDeniedException: C:\Users\3476\AppData\Local\ModTheSpire\mod_lists.json
+	at sun.nio.fs.WindowsException.translateToIOException(WindowsException.java:83)
+	at sun.nio.fs.WindowsException.rethrowAsIOException(WindowsException.java:97)
+	at sun.nio.fs.WindowsException.rethrowAsIOException(WindowsException.java:102)
+	at sun.nio.fs.WindowsFileSystemProvider.newByteChannel(WindowsFileSystemProvider.java:230)
+	at java.nio.file.spi.FileSystemProvider.newOutputStream(FileSystemProvider.java:434)
+	at java.nio.file.Files.newOutputStream(Files.java:216)
+	at java.nio.file.Files.write(Files.java:3292)
+	at com.evacipated.cardcrawl.modthespire.ModList.save(ModList.java:214)
+	at com.evacipated.cardcrawl.modthespire.ModList.save(ModList.java:206)
+	at com.evacipated.cardcrawl.modthespire.ui.ModSelectWindow.lambda$null$0(ModSelectWindow.java:272)
+	at java.lang.Thread.run(Thread.java:748)
+Version Info:
+ - Java version (1.8.0_144)
+ - Slay the Spire (12-18-2022)
+ - ModTheSpire (3.30.3)
+Mod list:
+ - basemod (5.56.0)
+ - quickRestart2 (2.1.3)
+ - RyoikiTenkai (1.1.5)
+ - stslib (2.12.0)
+ - superfastmode (1.0.8)
+ - combatsolver1 (1.0.0)
+ - ironclad-card-fx (1.0.0)
+
+Failed to unpack /kotlin.jar
+java.io.FileNotFoundException: C:\Users\3476\AppData\Local\Temp\ModTheSpire\kotlin.jar (¾Ü¾ø·ÃÎÊ¡£)
+	at java.io.FileOutputStream.open0(Native Method)
+	at java.io.FileOutputStream.open(FileOutputStream.java:270)
+	at java.io.FileOutputStream.<init>(FileOutputStream.java:213)
+	at java.io.FileOutputStream.<init>(FileOutputStream.java:162)
+	at com.evacipated.cardcrawl.modthespire.Loader.unpackJar(Loader.java:602)
+	at com.evacipated.cardcrawl.modthespire.Loader.runMods(Loader.java:411)
+	at com.evacipated.cardcrawl.modthespire.ui.ModSelectWindow.lambda$null$1(ModSelectWindow.java:285)
+	at java.lang.Thread.run(Thread.java:748)
+Begin patching...
+Patching enums...Done.
+Finding core patches...
+Finding patches...
+Patching Overrides...
+Injecting patches...Done.
+Compiling patched classes...Done.
+Busting enums...Done.
+
+Setting isModded = true...Done.
+
+Adding ModTheSpire to version...Done.
+
+Initializing mods...
+ - BaseMod
+   - basemod.BaseMod
+libgdx version 1.9.5
+12:37:26.457 INFO basemod.BaseMod> initializeGson
+12:37:26.468 INFO basemod.BaseMod> initializeTypeMaps
+12:37:26.469 INFO basemod.BaseMod> Registered MonsterStrings
+12:37:26.470 INFO basemod.BaseMod> Registered PowerStrings
+12:37:26.470 INFO basemod.BaseMod> Registered CardStrings
+12:37:26.470 INFO basemod.BaseMod> Registered RelicStrings
+12:37:26.471 INFO basemod.BaseMod> Registered EventStrings
+12:37:26.471 INFO basemod.BaseMod> Registered PotionStrings
+12:37:26.471 INFO basemod.BaseMod> Registered CreditStrings
+12:37:26.471 INFO basemod.BaseMod> Registered TutorialStrings
+12:37:26.471 INFO basemod.BaseMod> Registered KeywordStrings
+12:37:26.472 INFO basemod.BaseMod> Registered ScoreBonusStrings
+12:37:26.473 INFO basemod.BaseMod> Registered CharacterStrings
+12:37:26.473 INFO basemod.BaseMod> Registered UIStrings
+12:37:26.474 INFO basemod.BaseMod> Registered OrbStrings
+12:37:26.474 INFO basemod.BaseMod> Registered StanceStrings
+12:37:26.474 INFO basemod.BaseMod> Registered RunModStrings
+12:37:26.474 INFO basemod.BaseMod> Registered BlightStrings
+12:37:26.474 INFO basemod.BaseMod> Registered AchievementStrings
+12:37:26.476 INFO basemod.BaseMod> initializePowerMap
+12:37:26.855 INFO basemod.BaseMod> initializeUnderscorePowerIDs
+12:37:26.862 ERROR basemod.DevConsole> Failed to load dev console history: java.nio.file.NoSuchFileException: C:\Users\3476\AppData\Local\ModTheSpire\BaseMod\console-history.txt
+   - 416ms
+ - Quick Restart Modified
+   - me.waterleaf.quickrestart2.QuickRestart2
+   - 2ms
+ - Ryoiki Tenkai£¨ÁìÓòÕ¹¿ª£©
+   - sts.ryoikitenkai.modcore.RyoikiTenkai
+   - 1ms
+ - StSLib
+   - com.evacipated.cardcrawl.mod.stslib.StSLib
+   - 1ms
+ - SuperFastMode
+   - skrelpoid.superfastmode.SuperFastMode
+12:37:26.875 INFO superfastmode.SuperFastMode> Initializing SuperFastMode
+   - 18ms
+ - CombatSolver1
+   - com.combatsolver1.CombatSolver1Mod
+[CombatSolver1] initialized
+   - 1ms
+Done.
+
+Starting game...
+12:37:26.896 INFO desktop.DesktopLauncher> time: 1793968646896
+12:37:26.896 INFO desktop.DesktopLauncher> version: 2022-12-18
+12:37:26.896 INFO desktop.DesktopLauncher> libgdx:  1.9.5
+12:37:26.896 INFO desktop.DesktopLauncher> default_locale: zh_CN
+12:37:26.896 INFO desktop.DesktopLauncher> default_charset: GBK
+12:37:26.897 INFO desktop.DesktopLauncher> default_encoding: GBK
+12:37:26.897 INFO desktop.DesktopLauncher> java_version: 1.8.0_144
+12:37:26.897 INFO desktop.DesktopLauncher> os_arch: amd64
+12:37:26.897 INFO desktop.DesktopLauncher> os_name: Windows 10
+12:37:26.897 INFO desktop.DesktopLauncher> os_version: 10.0
+12:37:26.899 INFO core.SystemStats> MEMORY STATS:
+Free Memory: 130Mb
+Max Memory: 3,575Mb
+Allocated Memory: 712Mb
+Unallocated Memory: 2,863Mb
+Total Free Memory: 2,993Mb
+Used Memory: 581Mb
+
+12:37:26.900 INFO core.SystemStats> DISK STATS:
+Total Space: 474,610Mb
+Usable Space: 99,478Mb
+Free Space: 99,478Mb
+
+12:37:26.902 INFO core.DisplayConfig> Reading info.displayconfig
+12:37:26.934 INFO core.DisplayConfig> DisplayConfig successfully read.
+12:37:26.935 INFO desktop.DesktopLauncher> [WINDOWED_MODE]
+12:37:26.935 INFO desktop.DesktopLauncher> Settings successfully loaded
+12:37:26.935 INFO desktop.DesktopLauncher> Launching application...
+12:37:27.682 INFO ststwitch.TwitchConfig> The 'twitchconfig.txt' already exists, not overwriting it.
+12:37:27.684 INFO core.CardCrawlGame> DistributorPlatform=steam
+12:37:27.684 INFO core.CardCrawlGame> isModded=true
+12:37:27.684 INFO core.CardCrawlGame> isBeta=false
+Setting breakpad minidump AppID = 646570
+SteamInternal_SetMinidumpSteamID:  Caching Steam ID:  76561199060758456 [API loaded no]
+12:37:27.844 INFO steam.SteamIntegration> [SUCCESS] Steam API initialized successfully.
+12:37:27.847 INFO steam.SteamIntegration> BUILD ID: 10180494
+12:37:27.848 INFO steam.SteamIntegration> CURRENT LANG: english
+12:37:27.849 INFO steam.SteamIntegration> ACCOUNT ID: 1100492728
+12:37:27.849 INFO steam.SteamIntegration> requestGlobalStats
+12:37:27.850 INFO steam.SteamTicker> Steam Ticker initialized.
+12:37:27.850 INFO core.CardCrawlGame> No migration
+12:37:27.854 INFO core.Settings> Initializing display settings...
+12:37:27.856 INFO core.DisplayConfig> Reading info.displayconfig
+12:37:27.856 INFO core.DisplayConfig> DisplayConfig successfully read.
+12:37:27.856 INFO core.Settings> Initializing sound settings...
+12:37:27.856 INFO core.Settings> Initializing game settings...
+12:37:27.886 INFO localization.LocalizedStrings> Loc Strings load time: 23ms
+12:37:27.886 INFO basemod.BaseMod> begin editing localization strings
+12:37:27.888 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.RunModStrings
+12:37:27.889 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.UIStrings
+12:37:27.891 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.UIStrings
+12:37:27.891 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.UIStrings
+12:37:27.892 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.UIStrings
+12:37:27.893 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.CardStrings
+12:37:27.893 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.PowerStrings
+12:37:27.895 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.RelicStrings
+12:37:27.895 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.UIStrings
+12:37:27.896 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.CardStrings
+12:37:27.896 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.PowerStrings
+12:37:27.896 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.RelicStrings
+12:37:27.897 INFO basemod.BaseMod> loadJsonStrings: com.megacrit.cardcrawl.localization.UIStrings
+12:37:27.969 INFO audio.MusicMaster> Music Volume: 0.47939613
+12:37:27.970 INFO audio.SoundMaster> Sound Effect Volume: 0.45990413
+12:37:27.970 INFO audio.SoundMaster> Loaded 368 Sound Effects
+12:37:27.970 INFO audio.SoundMaster> SFX load time: 0ms
+12:37:27.971 INFO basemod.BaseMod> begin adding custom sounds
+12:37:27.971 INFO basemod.BaseMod> Added 0 sounds
+12:37:28.122 INFO steam.SSCallback> 1Bloop: 646570
+12:37:28.831 INFO cards.AbstractCard> Card Image load time: 856ms
+12:37:28.831 INFO basemod.BaseMod> editing keywords
+12:37:29.367 INFO helpers.ImageMaster> Texture load time: 527ms
+12:37:29.628 INFO helpers.FontHelper> Font load time: 209ms
+12:37:29.635 INFO unlock.UnlockTracker> RED UNLOCKS:   9/9
+12:37:29.636 INFO unlock.UnlockTracker> GREEN UNLOCKS: 9/9
+12:37:29.636 INFO unlock.UnlockTracker> BLUE UNLOCKS: 9/9
+12:37:29.636 INFO unlock.UnlockTracker> PURPLE UNLOCKS: 9/9
+12:37:29.636 INFO unlock.UnlockTracker> RELIC UNLOCKS: 24/24
+12:37:29.657 INFO unlock.UnlockTracker> CARDS SEEN:    1225/0
+12:37:29.669 INFO unlock.UnlockTracker> RELICS SEEN:   198/0
+12:37:29.670 INFO basemod.BaseMod> publish post refresh - refreshing unlocks
+12:37:29.670 INFO basemod.BaseMod> begin editing cards
+12:37:29.963 INFO panels.TopPanel> Twitch Integration enabled due to presence of 'twitch.properties` file.
+12:37:29.964 INFO panels.TopPanel> Not starting twitch integration because enabled=false
+12:37:30.207 INFO core.DisplayConfig> Reading info.displayconfig
+12:37:30.208 INFO core.DisplayConfig> DisplayConfig successfully read.
+12:37:30.326 INFO helpers.CardLibrary> Card load time: 655ms with 370 cards
+12:37:30.326 INFO basemod.BaseMod> begin editing relics
+12:37:30.400 INFO helpers.RelicLibrary> Relic load time: 74ms
+12:37:30.401 INFO input.InputHelper> Setting input processor to Scroller
+12:37:30.434 INFO unlock.UnlockTracker> Blue Candle should be unlocked.
+12:37:30.435 INFO unlock.UnlockTracker> Dead Branch should be unlocked.
+12:37:30.435 INFO unlock.UnlockTracker> Singing Bowl should be unlocked.
+12:37:30.435 INFO unlock.UnlockTracker> Havoc should be unlocked.
+12:37:30.435 INFO unlock.UnlockTracker> Sentinel should be unlocked.
+12:37:30.436 INFO unlock.UnlockTracker> Exhume should be unlocked.
+12:37:30.436 INFO unlock.UnlockTracker> Wild Strike should be unlocked.
+12:37:30.436 INFO unlock.UnlockTracker> Evolve should be unlocked.
+12:37:30.436 INFO unlock.UnlockTracker> Immolate should be unlocked.
+12:37:30.436 INFO unlock.UnlockTracker> Omamori should be unlocked.
+12:37:30.436 INFO unlock.UnlockTracker> Prayer Wheel should be unlocked.
+12:37:30.437 INFO unlock.UnlockTracker> Shovel should be unlocked.
+12:37:30.437 INFO unlock.UnlockTracker> Heavy Blade should be unlocked.
+12:37:30.437 INFO unlock.UnlockTracker> Spot Weakness should be unlocked.
+12:37:30.437 INFO unlock.UnlockTracker> Limit Break should be unlocked.
+12:37:30.438 INFO unlock.UnlockTracker> Concentrate should be unlocked.
+12:37:30.438 INFO unlock.UnlockTracker> Setup should be unlocked.
+12:37:30.438 INFO unlock.UnlockTracker> Grand Finale should be unlocked.
+12:37:30.438 INFO unlock.UnlockTracker> Art of War should be unlocked.
+12:37:30.438 INFO unlock.UnlockTracker> The Courier should be unlocked.
+12:37:30.439 INFO unlock.UnlockTracker> Pandora's Box should be unlocked.
+12:37:30.439 INFO unlock.UnlockTracker> Cloak And Dagger should be unlocked.
+12:37:30.439 INFO unlock.UnlockTracker> Accuracy should be unlocked.
+12:37:30.439 INFO unlock.UnlockTracker> Storm of Steel should be unlocked.
+12:37:30.441 INFO unlock.UnlockTracker> Du-Vu Doll should be unlocked.
+12:37:30.441 INFO unlock.UnlockTracker> Smiling Mask should be unlocked.
+12:37:30.441 INFO unlock.UnlockTracker> Tiny Chest should be unlocked.
+12:37:30.442 INFO unlock.UnlockTracker> Bane should be unlocked.
+12:37:30.442 INFO unlock.UnlockTracker> Catalyst should be unlocked.
+12:37:30.442 INFO unlock.UnlockTracker> Corpse Explosion should be unlocked.
+12:37:30.443 INFO unlock.UnlockTracker> Emotion Chip should be unlocked.
+12:37:30.443 INFO unlock.UnlockTracker> Symbiotic Virus should be unlocked.
+12:37:30.443 INFO unlock.UnlockTracker> DataDisk should be unlocked.
+12:37:30.444 INFO unlock.UnlockTracker> Cables should be unlocked.
+12:37:30.444 INFO unlock.UnlockTracker> Turnip should be unlocked.
+12:37:30.444 INFO unlock.UnlockTracker> Runic Capacitor should be unlocked.
+12:37:30.444 INFO unlock.UnlockTracker> Hyperbeam should be unlocked.
+12:37:30.444 INFO unlock.UnlockTracker> Recycle should be unlocked.
+12:37:30.444 INFO unlock.UnlockTracker> Core Surge should be unlocked.
+12:37:30.444 INFO unlock.UnlockTracker> Turbo should be unlocked.
+12:37:30.446 INFO unlock.UnlockTracker> Sunder should be unlocked.
+12:37:30.446 INFO unlock.UnlockTracker> Meteor Strike should be unlocked.
+12:37:30.446 INFO unlock.UnlockTracker> Rebound should be unlocked.
+12:37:30.446 INFO unlock.UnlockTracker> Undo should be unlocked.
+12:37:30.446 INFO unlock.UnlockTracker> Echo Form should be unlocked.
+12:37:30.447 INFO unlock.UnlockTracker> StrikeDummy should be unlocked.
+12:37:30.448 INFO unlock.UnlockTracker> TeardropLocket should be unlocked.
+12:37:30.448 INFO unlock.UnlockTracker> CloakClasp should be unlocked.
+12:37:30.448 INFO unlock.UnlockTracker> Akabeko should be unlocked.
+12:37:30.449 INFO unlock.UnlockTracker> Yang should be unlocked.
+12:37:30.449 INFO unlock.UnlockTracker> CeramicFish should be unlocked.
+12:37:30.449 INFO unlock.UnlockTracker> SpiritShield should be unlocked.
+12:37:30.449 INFO unlock.UnlockTracker> Wish should be unlocked.
+12:37:30.449 INFO unlock.UnlockTracker> Wireheading should be unlocked.
+12:37:30.450 INFO unlock.UnlockTracker> ForeignInfluence should be unlocked.
+12:37:30.450 INFO unlock.UnlockTracker> Alpha should be unlocked.
+12:37:30.450 INFO unlock.UnlockTracker> MentalFortress should be unlocked.
+12:37:30.451 INFO unlock.UnlockTracker> Prostrate should be unlocked.
+12:37:30.451 INFO unlock.UnlockTracker> Blasphemy should be unlocked.
+12:37:30.451 INFO unlock.UnlockTracker> Devotion should be unlocked.
+Failed creating file mapping SteamController_Master_mem-IPCWrapper
+src\overlay\common\shmemdrop.h (151) : Assertion Failed: Failed creating file mapping SteamController_Master_mem
+src\overlay\common\shmemdrop.h (151) : Assertion Failed: Failed creating file mapping SteamController_Master_mem
+Failed creating file mapping SteamController_Fast_Master_mem-IPCWrapper
+src\overlay\common\shmemdrop.h (151) : Assertion Failed: Failed creating file mapping SteamController_Fast_Master_mem
+src\overlay\common\shmemdrop.h (151) : Assertion Failed: Failed creating file mapping SteamController_Fast_Master_mem
+Failed creating file mapping SteamController_Slow_Master_mem-IPCWrapper
+src\overlay\common\shmemdrop.h (151) : Assertion Failed: Failed creating file mapping SteamController_Slow_Master_mem
+12:37:30.564 INFO steamInput.SteamInputHelper> Starting input detection...
+12:37:30.568 INFO integrations.SteelSeries> enabled=false
+12:37:30.575 INFO basemod.BaseMod> postCreateStartingRelics for: IRONCLAD
+12:37:30.575 INFO basemod.BaseMod> postCreateStartingRelics adding [ Burning Blood ]
+12:37:30.675 INFO basemod.BaseMod> postCreateStartingRelics for: THE_SILENT
+12:37:30.676 INFO basemod.BaseMod> postCreateStartingRelics adding [ Ring of the Snake ]
+12:37:30.699 INFO basemod.BaseMod> postCreateStartingRelics for: DEFECT
+12:37:30.700 INFO basemod.BaseMod> postCreateStartingRelics adding [ Cracked Core ]
+12:37:30.724 INFO basemod.BaseMod> postCreateStartingRelics for: WATCHER
+12:37:30.724 INFO basemod.BaseMod> postCreateStartingRelics adding [ PureWater ]
+12:37:30.755 INFO basemod.BaseMod> begin editing characters
+12:37:30.758 INFO basemod.BaseMod> publishPostInitialize
+12:37:30.780 INFO basemod.BaseMod> registerModBadge : BaseMod
+12:37:30.781 INFO basemod.ModBadge> initialized mod badge for: BaseMod
+12:37:30.781 INFO basemod.ModBadge> setup hooks for BaseMod mod badge
+12:37:30.782 INFO basemod.BaseMod> initializeUnderscoreCardIDs
+12:37:30.782 INFO basemod.BaseMod> initializeUnderscorePotionIDs
+12:37:30.782 INFO basemod.BaseMod> initializeUnderscoreEventIDs
+12:37:30.782 INFO basemod.BaseMod> initializeUnderscoreRelicIDs
+12:37:30.783 INFO basemod.BaseMod> initializeEncounters
+12:37:30.815 INFO basemod.BaseMod> registerModBadge : quickRestart2
+12:37:30.816 INFO basemod.ModBadge> initialized mod badge for: quickRestart2
+12:37:30.816 INFO basemod.ModBadge> setup hooks for quickRestart2 mod badge
+12:37:30.854 INFO basemod.BaseMod> registerModBadge : Ryoiki Tenkai
+12:37:30.854 INFO basemod.ModBadge> initialized mod badge for: Ryoiki Tenkai
+12:37:30.854 INFO basemod.ModBadge> setup hooks for Ryoiki Tenkai mod badge
+12:37:30.869 INFO basemod.BaseMod> registerModBadge : SuperFastMode
+12:37:30.869 INFO basemod.ModBadge> initialized mod badge for: SuperFastMode
+12:37:30.869 INFO basemod.ModBadge> setup hooks for SuperFastMode mod badge
+[CombatSolver1] game dir: C:\Users\3476\Documents\Codex\2026-10-15\jie\outputs\_build\sts-isolated-copy
+[CombatSolver1] solver source: sts_lightspeed (C:/Program Files (x86)/Steam/steamapps/common/SlayTheSpire/cs1-engine/s2b0_search_3d.exe)
+[CombatSolver1] post-initialize
+12:37:36.071 INFO steamInput.SteamInputDetect> Steam input detect thread interrupted!
+12:37:36.071 INFO steamInput.SteamInputDetect> Steam input detect thread will die now.
+12:37:36.071 INFO steamInput.SteamInputDetect> Steam input detect thread will die now.
+2026-11-06 20:37:36,071 InputDetect ERROR An exception occurred processing Appender Console org.apache.logging.log4j.core.appender.AppenderLoggingException: java.lang.Error: Interrupted attempt to acquire write lock
+	at org.apache.logging.log4j.core.config.AppenderControl.tryCallAppender(AppenderControl.java:165)
+	at org.apache.logging.log4j.core.config.AppenderControl.callAppender0(AppenderControl.java:134)
+	at org.apache.logging.log4j.core.config.AppenderControl.callAppenderPreventRecursion(AppenderControl.java:125)
+	at org.apache.logging.log4j.core.config.AppenderControl.callAppender(AppenderControl.java:89)
+	at org.apache.logging.log4j.core.config.LoggerConfig.callAppenders(LoggerConfig.java:542)
+	at org.apache.logging.log4j.core.config.LoggerConfig.processLogEvent(LoggerConfig.java:500)
+	at org.apache.logging.log4j.core.config.LoggerConfig.log(LoggerConfig.java:483)
+	at org.apache.logging.log4j.core.config.LoggerConfig.log(LoggerConfig.java:417)
+	at org.apache.logging.log4j.core.config.AwaitCompletionReliabilityStrategy.log(AwaitCompletionReliabilityStrategy.java:82)
+	at org.apache.logging.log4j.core.Logger.log(Logger.java:161)
+	at org.apache.logging.log4j.spi.AbstractLogger.tryLogMessage(AbstractLogger.java:2205)
+	at org.apache.logging.log4j.spi.AbstractLogger.logMessageTrackRecursion(AbstractLogger.java:2159)
+	at org.apache.logging.log4j.spi.AbstractLogger.logMessageSafely(AbstractLogger.java:2142)
+	at org.apache.logging.log4j.spi.AbstractLogger.logMessage(AbstractLogger.java:2017)
+	at org.apache.logging.log4j.spi.AbstractLogger.logIfEnabled(AbstractLogger.java:1983)
+	at org.apache.logging.log4j.spi.AbstractLogger.info(AbstractLogger.java:1320)
+	at com.megacrit.cardcrawl.helpers.steamInput.SteamInputDetect.run(SteamInputDetect.java:45)
+	at java.lang.Thread.run(Thread.java:748)
+Caused by: java.lang.Error: Interrupted attempt to acquire write lock
+	at javax.swing.text.AbstractDocument.writeLock(AbstractDocument.java:1349)
+	at javax.swing.text.AbstractDocument.insertString(AbstractDocument.java:701)
+	at javax.swing.text.PlainDocument.insertString(PlainDocument.java:130)
+	at com.evacipated.cardcrawl.modthespire.ui.MessageConsole$ConsoleOutputStream.clearBuffer(MessageConsole.java:226)
+	at com.evacipated.cardcrawl.modthespire.ui.MessageConsole$ConsoleOutputStream.handleAppend(MessageConsole.java:183)
+	at com.evacipated.cardcrawl.modthespire.ui.MessageConsole$ConsoleOutputStream.flush(MessageConsole.java:154)
+	at java.io.PrintStream.write(PrintStream.java:482)
+	at org.apache.logging.log4j.core.util.CloseShieldOutputStream.write(CloseShieldOutputStream.java:53)
+	at org.apache.logging.log4j.core.appender.OutputStreamManager.writeToDestination(OutputStreamManager.java:250)
+	at org.apache.logging.log4j.core.appender.OutputStreamManager.flushBuffer(OutputStreamManager.java:283)
+	at org.apache.logging.log4j.core.appender.OutputStreamManager.flush(OutputStreamManager.java:294)
+	at org.apache.logging.log4j.core.appender.AbstractOutputStreamAppender.directEncodeEvent(AbstractOutputStreamAppender.java:199)
+	at org.apache.logging.log4j.core.appender.AbstractOutputStreamAppender.tryAppend(AbstractOutputStreamAppender.java:190)
+	at org.apache.logging.log4j.core.appender.AbstractOutputStreamAppender.append(AbstractOutputStreamAppender.java:181)
+	at org.apache.logging.log4j.core.config.AppenderControl.tryCallAppender(AppenderControl.java:161)
+	... 17 more
+
+12:37:36.075 INFO controller.CInputHelper> [CONTROLLER] Utilizing DirectInput
+terminate called after throwing an instance of 'OIS::Exception'
+  what():  Win32InputManager::Win32InputManager >> Not able to init DirectX8 Input!
+src\overlay\common\shmemdrop.h (151) : Assertion Failed: Failed creating file mapping SteamController_Slow_Master_mem
+Failed creating mutex SteamController_Master_Command_mutex-IPCWrapper (GLE: 5)
+Failed creating mutex SteamController_Master_Cursor_Control_mutex-IPCWrapper (GLE: 5)
+Failed creating mutex SteamController_Master_Cursor_Data_mutex-IPCWrapper (GLE: 5)
+Failed creating mutex SteamController_Master_Visualization_Data_mutex-IPCWrapper (GLE: 5)
+Failed creating auto reset event SteamController_Master_DataWrittenSteam-IPCWrapper (GLE: 0)
+Failed creating auto reset event SteamController_Master_DataWrittenGame-IPCWrapper (GLE: 0)
+AL lib: (EE) alc_cleanup: 1 device not closed

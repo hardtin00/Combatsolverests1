@@ -50,6 +50,9 @@ jobs:
       - name: W1 六流注入确定性自检（真机捕获三元组，5 断言）
         run: java -cp build/solvertest RngInjectionCheck
 
+      - name: W1 重放分支真实 RNG / 近似口径自检（8 断言）
+        run: java -cp build/solvertest ReplayTruthCheck
+
       - name: W1 六流只读反射自检（需要游戏 jar；CI 无版权依赖，明确记为未执行）
         run: |
           if [ -n "$STS_DIR" ] && [ -f "$STS_DIR/desktop-1.0.jar" ]; then

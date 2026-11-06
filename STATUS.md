@@ -1,3 +1,34 @@
+## 2026-11-06：W1 第五单元 —— 重放分支改真实 RNG 并如实改名（L2 离线）
+
+> 任务书 W1 明列项：「重放分支改用真实 RNG 并如实改名」「完成前 Java 路线所有输出继续标近似」。
+
+- 现象/目标：`CombatSearch.measureRobustness()` 原先把选出的路线在 4 个靠
+  `s.rngState = rootState.rngState + 常数` 伪造的分支里重放，注释自己承认「没有复制游戏真实序列」；
+  `Plan.confidenceNote()` 文案是「N 个随机分支下」，把近似抽样说得像预测。
+- 修改：
+  - `CombatSearch.measureRobustness()`：**已注入真实六流**（`rootState.hasTrueRng()`）时改为
+    `samples=1` 的**确定性重放**，`fork()` 原样复制六流、按真实流推进，不再改种子对冲；
+    **未注入**时保留 4 分支合成种子对冲，但明确归为近似口径。
+  - `Plan.java`：新增 `rngTruthful` 字段；`confidenceNote()` 如实改名——注入时
+    「真实六流确定性重放：扣血 X，取胜/未取胜」，未注入时
+    「N 个合成种子分支（近似，非真实 RNG）：扣血 A~B」。符合「完成前继续标近似」。
+  - `Checks.java` 断言名同步改为「未注入真实 RNG 时给出近似分支承伤区间」，加 `!plan.rngTruthful` 约束。
+  - 新增 `tools/solvertest/ReplayTruthCheck.java`：8 项自检，两种口径各验 samples/rngTruthful/文案/
+    确定性/区间退化。证据 `docs/W1_REPLAY_TRUTH_CHECK.txt`。
+- 验证等级：**L2 离线**。`javac --release 8` 退出 0；`ReplayTruthCheck` 退出 0、**8/8 通过**；
+  `Solvertest all` 退出 0；`SearchQuality --selftest` **210/0**；
+  `RngStreamCheck`/`RngStreamStateCheck`/`RngInjectionCheck` 退出 0。
+- W0 指标前后对照：Oracle 42 题 / 210 通过 0 失败 / PROVABLE 漏优 0.0% / 必胜漏报 1 —— **不变**；
+  BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**。
+- 用户验收：`java -cp build/solvertest ReplayTruthCheck` 应显示「通过 8 项，失败 0」；
+  两条文案分别含「近似，非真实 RNG」与「真实六流确定性重放」。
+- **限制/如实标注**：
+  - 本单元是**离线重放分支**的行为改造；注入六流的真机来源（`RngStreams.read()`）仍未 L4 验证、
+    新类未打包进交付 jar。真机 L4 三类随机点逐位一致 + CombatRecorder diff 零差异**仍未完成**。
+  - W1-c 记录的 wrapper counter 语义缺口（底层 `nextInt` 不 +1）、`potionRng`/`monsterHpRng`/`miscRng`
+    无调用点——**未变**。未注入路径仍标近似。
+  - 本步未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W6-a 仓库卫生（LICENSE + 找回 2 个缺失源文件）
 
 > 任务书 W6「随时穿插」；本轮只做**纯仓库内、不推远程、不动真机**的第一小步。

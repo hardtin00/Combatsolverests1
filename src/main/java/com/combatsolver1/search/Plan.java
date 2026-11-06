@@ -21,13 +21,19 @@ public class Plan {
     public int hpLossBest = -1;
     public int hpLossWorst = -1;
     public boolean robustWin = true;
+    /** true = 来自真实六流的确定性重放；false = 未注入真实 RNG，有限合成种子对冲抽样（近似）。 */
+    public boolean rngTruthful = false;
 
-    /** 面板与日志用的一句话可信度说明。 */
+    /** 面板与日志用的一句话可信度说明。任务书 W1：完成前 Java 路线必须如实标注「近似」。 */
     public String confidenceNote() {
-        if (samples <= 1) {
-            return "未做随机分支复推";
+        if (rngTruthful) {
+            return "真实六流确定性重放：扣血 " + hpLossBest
+                    + (robustWin ? "，取胜" : "，未取胜");
         }
-        return samples + " 个随机分支下：扣血 " + hpLossBest + "~" + hpLossWorst
+        if (samples <= 1) {
+            return "未做随机分支复推（近似）";
+        }
+        return samples + " 个合成种子分支（近似，非真实 RNG）：扣血 " + hpLossBest + "~" + hpLossWorst
                 + (robustWin ? "，均能取胜" : "，存在失败分支");
     }
     /** 路线来源：engine = sts_lightspeed 精确引擎；local = 内置近似求解器。 */

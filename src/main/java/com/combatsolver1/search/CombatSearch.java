@@ -192,24 +192,27 @@ public class CombatSearch {
     }
 
     /**
-     * 随机分支复推：把选出的路线在多个不同的随机分支下重放一遍，
-     * 给出扣血区间与是否存在失败分支。
-     *
-     * 洗牌与随机招式目前用的是模拟器内置 RNG（没有复制游戏真实序列），
-     * 单次结果可能只是"恰好赌到一次好洗牌"。用区间表达不确定性，
-     * 比把一个赌运气的数字当成确定预测要诚实。
+     * 路线重放：已注入真实六流时，未来是已知的，做一次确定性重放即可，
+     * 不再用改种子的"对冲抽样"冒充预测；未注入时保留 4 分支近似对冲，
+     * 但通过 {@code plan.rngTruthful} 明确标注为近似，不冒充真实 RNG。
      */
     private void measureRobustness(List<Plan.Turn> turns, Plan plan) {
-        int samples = 4;
         if (rootState == null || turns.isEmpty()) {
             return;
         }
+        boolean truthful = rootState.hasTrueRng();
+        int samples = truthful ? 1 : 4;
         int best = Integer.MAX_VALUE;
         int worst = 0;
         boolean allWin = true;
         for (int i = 0; i < samples; i++) {
             SimState s = rootState.fork();
-            s.rngState = rootState.rngState + 0x9E3779B97F4A7C15L * (i + 1);
+            if (!truthful) {
+                // 近似口径：没有真实 RNG，只能用不同合成种子做有限对冲抽样，
+                // 结果只是样本，不是概率保证（任务书 W1 完成前保持「近似」标注）。
+                s.rngState = rootState.rngState + 0x9E3779B97F4A7C15L * (i + 1);
+            }
+            // truthful 分支不碰 s 的六流：由 fork() 原样复制，按真实流推进。
             for (Plan.Turn turn : turns) {
                 for (Plan.Action action : turn.actions) {
                     if (action == null || action.cardId == null) {
@@ -232,6 +235,7 @@ public class CombatSearch {
             }
         }
         plan.samples = samples;
+        plan.rngTruthful = truthful;
         plan.hpLossBest = best == Integer.MAX_VALUE ? 0 : best;
         plan.hpLossWorst = worst;
         plan.robustWin = allWin;

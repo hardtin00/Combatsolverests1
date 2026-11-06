@@ -127,9 +127,15 @@ public final class SearchQuality {
         String out = null;
         int onlyFrom = 1;
         int onlyTo = Integer.MAX_VALUE;
+        int overrideBeam = -1;
+        int overrideWithin = -1;
         for (int i = 0; i < args.length; i++) {
             if ("--verbose".equals(args[i])) {
                 verbose = true;
+            } else if ("--beam".equals(args[i]) && i + 1 < args.length) {
+                overrideBeam = Integer.parseInt(args[++i]);
+            } else if ("--within".equals(args[i]) && i + 1 < args.length) {
+                overrideWithin = Integer.parseInt(args[++i]);
             } else if ("--selftest".equals(args[i])) {
                 selftest = true;
             } else if ("--sweep".equals(args[i])) {
@@ -152,6 +158,9 @@ public final class SearchQuality {
         // 无条件按档位取预算：不传 --preset 也必须用运行时默认档，否则基准测的是本文件初值，
         // 与玩家实际配置无关（上一轮就是这么把旧宽度当成已加宽的配置测了一遍，数字毫无变化）。
         applyPreset(presetIndex);
+        // W8-b 诊断选项：显式覆盖宽度，验证「Q43 用 beam=48 是否不漏优」。不传则与 W0 基线完全一致。
+        if (overrideBeam > 0) beamWidth = overrideBeam;
+        if (overrideWithin > 0) withinTurnWidth = overrideWithin;
 
         StringBuilder report = new StringBuilder();
         say(report, "CombatSolver1 搜索质量基准 P0（内置 Beam Search vs 可穷举参照）");

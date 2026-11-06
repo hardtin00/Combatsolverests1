@@ -14,7 +14,7 @@
   `docs/W1_CPP_INDEPENDENT_TRACE.txt`、`docs/W1_JAVA_LCG_TRACE.txt`。
 - **★ 结果（两个 RNG 族各 0 差异）**：
   - `sts::Random`：6 流 × 3 轮 × (`nextLong` / `nextInt(97)` / `random(6)`) = **54 个数值**
-    \+ `murmurHash3(1)=12994781566227106604`，Java 与 Python(C++算法) **逐位一致**，
+    + `murmurHash3(1)=12994781566227106604`，Java 与 Python(C++算法) **逐位一致**，
     `diff` 输出 `DIFF=IDENTICAL (0 处差异)`。
   - `java::Random`（洗牌 LCG）：3 个种子 × 6 轮 × (`nextInt`/`nextInt(97)`) = **36 个数值**
     亦逐位一致（首次 diff 因 Python 返回无符号 32 位、Java 为有符号 `int` 而显示不同，

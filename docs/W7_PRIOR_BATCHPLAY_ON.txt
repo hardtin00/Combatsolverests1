@@ -1,0 +1,24 @@
+=== W0 离线批量对局（同模拟器自打，非真机 L4）===
+口径: CombatSearch(beam, 档位1) 搜索整场计划 -> 同一 CombatEngine 原样重放
+局数=200 种子=20261106+i 预算=档位1(within=32 beam=24 maxTurns=10 maxNodes=60000) 先验=on
+搜索出计划 200 / 重放成功 200
+胜率 76.0% (152/200)
+平均每场 HP 损失 35.4
+每场搜索耗时 平均 373ms 最大 1398ms
+逐遭遇分布（局数/胜/平均失血/重放成功）:
+  Jaw Worm  14/14/32.6/14
+  Cultist  14/13/25.2/14
+  2 Louse  14/12/29.8/14
+  Small Slimes  14/10/26.7/14
+  Gremlin Gang  14/9/37.9/14
+  Blue Slaver  13/11/32.8/13
+  Red Slaver  13/9/37.8/13
+  Exordium Thugs  13/8/36.2/13
+  Exordium Wildlife  13/8/43.6/13
+  Gremlin Nob  13/9/45.8/13
+  Lagavulin  13/12/31.8/13
+  3 Sentries  13/12/26.3/13
+  Hexaghost  13/5/50.1/13
+  Slime Boss  13/11/38.5/13
+  The Guardian  13/9/37.5/13
+注意: 本数字不可与真机胜率、参考项目实机表现或 Oracle 漏优率混同。

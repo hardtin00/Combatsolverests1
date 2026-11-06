@@ -299,7 +299,7 @@ public class CombatSearch {
                             na.add(act);
                             nextStates.add(ns);
                             nextActions.add(na);
-                            nextScores.add(turnScore(state, ns, incoming, na.size()));
+                            nextScores.add(turnScore(state, ns, incoming, na));
                         }
                     } else {
                         SimState ns = st.fork();
@@ -311,7 +311,7 @@ public class CombatSearch {
                         na.add(act);
                         nextStates.add(ns);
                         nextActions.add(na);
-                        nextScores.add(turnScore(state, ns, incoming, na.size()));
+                        nextScores.add(turnScore(state, ns, incoming, na));
                     }
                 }
                 // 药水：只考虑已建模的药水，并计入机会成本（同分时优先不出药水）
@@ -335,7 +335,7 @@ public class CombatSearch {
                             na.add(pa);
                             nextStates.add(ns);
                             nextActions.add(na);
-                            nextScores.add(turnScore(state, ns, incoming, na.size()) - 15.0);
+                            nextScores.add(turnScore(state, ns, incoming, na) - 15.0);
                         }
                     } else {
                         SimState ns = st.fork();
@@ -347,7 +347,7 @@ public class CombatSearch {
                         na.add(pa);
                         nextStates.add(ns);
                         nextActions.add(na);
-                        nextScores.add(turnScore(state, ns, incoming, na.size()) - 15.0);
+                        nextScores.add(turnScore(state, ns, incoming, na) - 15.0);
                     }
                 }
             }
@@ -384,6 +384,17 @@ public class CombatSearch {
             }
         }
         return results;
+    }
+
+    /**
+     * 回合内排序分。W7.5：在基础分上叠加**可关闭的**出牌先验（只影响同分排序，
+     * 见 {@link CardOrderPrior}）。先验默认关闭时本方法与改动前逐位一致，W0 基线不变。
+     */
+    private double turnScore(SimState start, SimState st, int incoming, List<Plan.Action> na) {
+        double base = turnScore(start, st, incoming, na.size());
+        if (!CardOrderPrior.isEnabled() || na.isEmpty()) return base;
+        Plan.Action last = na.get(na.size() - 1);
+        return base + CardOrderPrior.bonus(last == null ? null : last.cardId);
     }
 
     private double turnScore(SimState start, SimState st, int incoming, int cardsPlayed) {

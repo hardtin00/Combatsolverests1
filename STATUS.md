@@ -1,3 +1,32 @@
+## 2026-11-06：W7 第二单元 —— 先验接入 turnScore + W0 前后指标对照（L2 离线）
+
+> 承接 W7-a。任务书 W7 验收要求「W0 指标逐项对照：胜率/失血/漏优率不回退」。
+
+- 修改：
+  - `CombatSearch.turnScore` 增加重载 `turnScore(start, st, incoming, List<Plan.Action> na)`：
+    在基础分上叠加 `CardOrderPrior.bonus(最后一张牌 id)`；4 处 `nextScores.add` 调用改走新重载。
+    **先验默认关闭**（`bonus=0`），因此默认配置下 `turnScore` 返回值与改动前逐位一致。
+    先验只影响同分排序，不删候选、不改 `withinTurnWidth`/`beamWidth` 截断（W7-a 自检已证）。
+  - `BatchPlay` 加 `--prior` 报告选项（纯切换开关，不改评测逻辑），输出标注 `先验=on/off`。
+- **W0 指标前后对照（同 200 局固定种子、档位 1）**：
+  | 指标 | 先验 off（基线） | 先验 on | 变化 |
+  |---|---|---|---|
+  | 胜率 | 75.0% (150/200) | **76.0% (152/200)** | +1.0pp |
+  | 平均每场 HP 损失 | 35.5 | **35.4** | -0.1 |
+  | 每场搜索耗时 平均/最大 | 387ms / 1542ms | 373ms / 1398ms | JVM 抖动 |
+  | Oracle 42 题 PROVABLE 漏优率 | 0.0% (0/42) | **0.0% (0/42)** | 不回退 |
+  | Oracle 必胜漏报 | 1 | 1 | 不回退 |
+  - 证据：`docs/W7_PRIOR_BATCHPLAY_OFF.txt` / `_ON.txt`；先验开启下的 Oracle 三分片结果写入本条。
+  - **如实标注**：+1.0pp 来自 200 局**离线同模拟器自打**小样本，不是实机 L4、不是参考项目胜率，
+    不得据此声称「求解质量已超越参考项目」。按 AGENTS.md 4.6，有数字才陈述，且限定在该样本。
+- 验证等级：**L2 离线**。`javac` 退出 0；`Solvertest all` 退出 0；
+  `SearchQuality --selftest` **210/0**（先验默认关闭）；`CardOrderPriorCheck` **8/8**；
+  `MechanismFixtureCheck`/`PerCardVerifyCheck` 退出 0；先验开启下 Oracle 42 题漏优率不回退。
+- 用户验收：`java -cp build/solvertest BatchPlay --runs 200` 与 `--runs 200 --prior` 两组数字应分别等于上表。
+- **限制/下一步**：W7 其余 4 项（引擎常驻、每场重导 RNG、预算分档、计划精简、逐动作重规划）
+  均未做；先验**默认关闭**，是否作为默认开启需用户决定（本单元未改默认值）。
+  未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W7 第一单元 —— 出牌排序先验（只引导不剪枝，L2 离线）
 
 > 任务书 W7.5：「按 W0 逐遭遇数据为常用牌加排序先验（参考项目 ExpertKnowledge 的思路），

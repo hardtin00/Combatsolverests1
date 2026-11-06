@@ -1,3 +1,32 @@
+## 2026-11-06 20:23：CU 打开 A20 固定种子输入框（只读能力验证，L2/L3 环境级）
+
+> 按用户新指令「不得重复输出相同阻断内容消耗轮次」，本轮不重复上一轮的开局授权请求，
+> 改做授权内、不写存档、上轮未做过的实质推进：验证 CU 能否识别/打开 W0/W2 固定种子入口。
+
+- **实际 CU 操作（全部有返回）**：
+  1. 以 `CS1_ISOLATED_*` 重启 MTS+游戏（javaw pid 12236）；复用已验证坐标链
+     `click(811,891)`→游戏窗口→`(396,663)`主菜单 Play→`(647,361)` Standard→
+     `(725,815)` 第一角色 → 铁甲战士 / A20 确认画面（OCR 复核 `The Ironclad`、
+     `Ascension 20 (Max Level) Double Boss`、`Embark` @1514,814）。
+  2. `find("Set Seed")` UIA 稀疏；OCR 给 `Set S《` @ (328,892)（Seed 被截断）；
+     `click(355,900)` → 截图确认 **`Enter a new Seed` 对话框**打开
+     （输入框 + `Confirm` / `Cancel` + 提示「自定义种子禁用成就与排行榜」）。
+  3. `find("Cancel")` OCR 给 (1043,678)；`click` 取消关闭对话框；**未输入、未 Confirm、
+     未点 Embark、未开局、未进战斗**。
+  4. 证据 `docs/evidence/cu-launch/06-set-seed-dialog.png`（真实桌面截图）。
+- **★ 结论**：**CU 能识别/打开 A20 固定种子输入框**——W2「固定种子对局」与
+  W0「固定种子集」自动化的能力前置已具备（此前 L0）。仍是 **L2/L3 环境级**，
+  **不是 L4**：未开局、未发牌、未采集 RNG/Recorder。
+- **授权边界（保持）**：点 Embark 会写正式 `autosave`，仍需用户单独授权；
+  本轮**未越界**。与上轮同一红线，不重复展开。
+- **非破坏性核验**：全程 `autosave` 恒 `f733fcb1…`、`mods/CombatSolver1.jar` 恒 `e7c8def5…`；
+  隔离目录无新增日志；`taskkill /PID 12236 /F` 后无残留 javaw、指纹一致。
+- W0 指标前后对照：零代码改动 → 75.0% / 35.5、Q1-42 漏优 0.0% 不变。
+- 用户验收：打开 `docs/evidence/cu-launch/06-set-seed-dialog.png` 应看到
+  `Enter a new Seed` 对话框与 `Confirm`/`Cancel`。
+- **限制**：游戏内卡牌/怪物/药水/战斗结算 UI 仍 L0；未推远程、未改游戏 mods、未碰存档；
+  `git diff --check` 通过。
+
 ## 2026-11-06 20:17：CU 导航到 A20 角色确认画面（停在 Embark 前，L2/L3 环境级）
 
 > 承接上轮「CU 识别游戏内 UI」。本轮用 CU 从模式选择一路导航到

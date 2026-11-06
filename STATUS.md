@@ -1,3 +1,36 @@
+## 2026-11-06：W1 第十二单元 —— Java 六流推进与 vendored C++ 源码逐位对拍（L2 离线）
+
+> W1 任务书要求「SimState 按游戏语义实现六流推进，与 sts_lightspeed 对齐」；
+> 此前只有 `RngStreamCheck` 的 18 行 TSV 与历史 `108/108` 记录，本轮做**独立可复现对拍**。
+> 本机**无 g++/clang/cl**（已确认），C++ 侧无法本地重编 → 按 AGENTS.md 3.C 标注未执行，
+> 改为按 C++ 源码算法用 **Python 独立实现**（不复用 Java TrueRng），与 Java 端输出逐位 diff。
+
+- 真值来源：`combatsolver1/vendor/sts_lightspeed/include/game/Random.h`
+  （`sts::Random` XorShift128+ / `java::Random` 48-bit LCG / `murmurHash3`）。
+- 输入：`P0_RNG_EVIDENCE_AUDIT.md §3.1.5` 的**真机捕获六流三元组**
+  （aiRng/cardRandomRng/miscRng/monsterHpRng/potionRng/shuffleRng 的 seed0/seed1/counter）。
+- 临时诊断工具（在 `build/`，**不入库、不入 CI**）：`RngTrace.java`、`LcgTrace.java`、
+  `cpp_rng_independent.py`。证据 `docs/W1_JAVA_VS_CPP_TRACE.txt`、
+  `docs/W1_CPP_INDEPENDENT_TRACE.txt`、`docs/W1_JAVA_LCG_TRACE.txt`。
+- **★ 结果（两个 RNG 族各 0 差异）**：
+  - `sts::Random`：6 流 × 3 轮 × (`nextLong` / `nextInt(97)` / `random(6)`) = **54 个数值**
+    \+ `murmurHash3(1)=12994781566227106604`，Java 与 Python(C++算法) **逐位一致**，
+    `diff` 输出 `DIFF=IDENTICAL (0 处差异)`。
+  - `java::Random`（洗牌 LCG）：3 个种子 × 6 轮 × (`nextInt`/`nextInt(97)`) = **36 个数值**
+    亦逐位一致（首次 diff 因 Python 返回无符号 32 位、Java 为有符号 `int` 而显示不同，
+    修正符号转换后 `LCG DIFF=IDENTICAL`；这是表示差异，不是算法差异）。
+- 结论：**Java 端六流推进与 java LCG 洗牌，与 vendored sts_lightspeed 源码算法逐位对齐**（L2）。
+  加上 W1-g 的洗牌调用点接入、W1-j/k 的流归属表，W1 的**离线数学层**证据链闭合。
+- **限制（如实）**：① 这是**源码算法对拍**，不是 C++ 二进制编译产物对跑（本机无编译器），
+  也不是 L4 真机；② 历史 `RUNTIME_RESULT_2026-10-19.md` 的 108/108 属历史记录，本轮未重复；
+  ③ W1 真机 L4 的 `cardRng` 未捕获 / `monsterHpRng`·`miscRng` 未建模 / `potionRng` 无调用点
+  等结构性缺口仍在，不得据此声称「原生等价」或「全部随机点闭环」。
+- 验证等级：**L2 离线**；本轮**零生产代码改动、零默认值改动**；
+  `git diff --check` 通过。W0 冻结指标不变（75.0% / 35.5、Q1-42 漏优 0.0%）。
+- 用户验收：在仓库根跑 `diff docs/W1_JAVA_VS_CPP_TRACE.txt docs/W1_CPP_INDEPENDENT_TRACE.txt`
+  应无输出；`RngStreamCheck` / `JavaLcgCheck` 仍各自 8/8、7/7。
+- 本轮未使用 Computer Use、未启动游戏、未做真机 L4；未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06 19:48：任务书第三节「历史报告数据复核」（新一轮独立复跑，非沿用旧结论）
 
 > 用户新指令要求把以下 5 项当作**待核实历史报告**逐项复现。

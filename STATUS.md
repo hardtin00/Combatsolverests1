@@ -1,3 +1,31 @@
+## 2026-11-06 21:10：W3 接入前置（非实机，L2 离线）
+
+> 用户新指令：实机部分由用户亲自执行；代理完成非实机部分后统一通知。
+> 逐 W 审计里 W3 最明确的非实机缺口是「`PerCardVerify` 只被自检引用、未接入运行路径」。
+> 本轮做**接入前置**（格式兼容证据 + 可执行接入清单），**不改运行路径**。
+
+- **核验到的关键区分（真值，非猜测）**：
+  - `CombatController.liveStateLine()` = `STATE hp=.. blk=.. en=.. turn=.. hand=[..] mons=..`；
+    `EngineBridge:353` 写 `Plan.Turn.endState`（引擎 STATE 行）→ **可作预测状态**；
+    `CombatSearch:90` 写 `stateSignature = SimState.signature()`（紧凑键）→ **不兼容**
+    `EngineRootStateBinding.matches`，**不能**当预测状态。
+  - `CombatController.isSettled()` 依赖 `AbstractDungeon`，离线不可编译 → 由调用方传 `settled`。
+  - 现有 `ExecutionSafety.FailureLatch` / `onDeployFinished` 停机门可复用，不需新停机机制。
+- 新增 `tools/solvertest/PerCardVerifyWiringCheck.java`：**9/9 通过**（真实格式兼容、
+  匹配→PASS、未稳定→VERIFYING、注入不匹配→REFUSED、2.5s 节流、8 次上限→EXHAUSTED
+  且不自动恢复、紧凑键被拒）。证据 `docs/W3_PER_CARD_WIRING_CHECK.txt`；CI 加步骤。
+- 新增 `docs/W3_WIRING_PLAN.md`：按 AGENTS.md 8.2/8.3/8.9 写清
+  **状态生命周期**（Budget 每场一个 / 写入点 / 读取点 / 失效 / 与 FailureLatch 不双重停机）、
+  **最小接入点**（`PlanDeployer.acceptCardUsed` 逐卡钩子 + `isSettled` 重采）、
+  **默认关闭开关**、**结果处理**、**禁止项**、**L2/L3/L4 分层验收**。
+- **如实边界**：本轮**未接入** `CombatController`/`PlanDeployer`，零运行路径改动；
+  真机不误停与逐卡 diff 由用户后续实机验收，不声称 W3 完成。
+- 验证等级：**L2 离线**；本轮零生产代码改动、零默认值改动；
+  全量自检（含新增 9/9）全绿；W0 前后对照 75.0% / 35.5、Q1-42 漏优 0.0% **不变**。
+- 用户验收：`java -cp build/solvertest PerCardVerifyWiringCheck` → 「通过 9 项，失败 0」；
+  读 `docs/W3_WIRING_PLAN.md`。
+- 未推远程、未改游戏 mods、未碰存档、未使用 CU、未做真机 L4；`git diff --check` 通过。
+
 ## 2026-11-06 20:59：W0 逐遭遇失血分布正式冻结（离线，L2）
 
 > 任务书 W0 要求冻结「胜率 / 平均失血 / **逐遭遇失血分布**」。此前 `docs/W0_BASELINE.md`

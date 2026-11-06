@@ -70,6 +70,9 @@ jobs:
       - name: W1 wrapper counter 语义自检（5 断言）
         run: java -cp build/solvertest RngCounterSemanticsCheck
 
+      - name: W3 接入前置格式/停机自检（9 断言）
+        run: java -cp build/solvertest PerCardVerifyWiringCheck
+
       - name: W0 参照求解器自检（42 题 × 5 断言）
         run: java -cp build/solvertest SearchQuality --selftest
 

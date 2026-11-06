@@ -1,0 +1,11 @@
+[PASS] 引擎 STATE 行 / liveStateLine 行格式与权威比对器兼容  turn 1->2
+[PASS] hp 漂移时权威比对器判 false  hp 70 vs 64
+[PASS] 稳定帧+匹配 -> PASS（继续下一动作）  no mismatch
+[PASS] 未稳定帧 -> VERIFYING  settled=false
+[PASS] 注入式不匹配 -> REFUSED 停机  predicted hp=70 / recaptured hp=64
+[PASS] 2.5s 节流 + 每场 8 次上限生效  t=1s/2s/4s -> VERIFYING/REFUSED/VERIFYING
+[PASS] 每场 8 次上限用尽后第 9 次 EXHAUSTED  exhaustedAt=9
+[PASS] EXHAUSTED 后即便状态匹配也不自动恢复（需 reset）  permanent stop
+[PASS] SimState.signature() 紧凑键不兼容，不能当预测状态  compactKey rejected
+自检汇总：通过 9 项，失败 0 项
+L 等级：L2 离线（接入前置）；PerCardVerify 仍未接入 CombatController 运行路径

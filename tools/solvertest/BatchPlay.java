@@ -34,6 +34,9 @@ public final class BatchPlay {
     private static final int MAX_ACTION_GUARD = 2000;
     /** W7 预算分档诊断：默认 1「中」= W0 冻结基线；--preset 可切换。 */
     private static int preset = 1;
+    /** W8-e 诊断：默认 -1 = 不覆盖，与 W0 冻结基线逐位一致；--within/--beam 可覆盖。 */
+    private static int overrideWithin = -1;
+    private static int overrideBeam = -1;
 
     private BatchPlay() {
     }
@@ -61,6 +64,8 @@ public final class BatchPlay {
             if ("--runs".equals(args[i]) && i + 1 < args.length) runs = Integer.parseInt(args[++i]);
             else if ("--prior".equals(args[i])) prior = true;
             else if ("--preset".equals(args[i]) && i + 1 < args.length) preset = Integer.parseInt(args[++i]);
+            else if ("--within".equals(args[i]) && i + 1 < args.length) overrideWithin = Integer.parseInt(args[++i]);
+            else if ("--beam".equals(args[i]) && i + 1 < args.length) overrideBeam = Integer.parseInt(args[++i]);
         }
         // W7-b: 先验默认关闭，--prior 用于「改动前后指标对照」。纯报告选项，
         // 不改评测/搜索逻辑本身（只是切换 CardOrderPrior 的开关）。
@@ -143,6 +148,8 @@ public final class BatchPlay {
         s.preset = preset;
         CombatSearch.Config cfg = new CombatSearch.Config();
         s.applyTo(cfg);
+        if (overrideWithin > 0) cfg.withinTurnWidth = overrideWithin;
+        if (overrideBeam > 0) cfg.beamWidth = overrideBeam;
         return cfg;
     }
 

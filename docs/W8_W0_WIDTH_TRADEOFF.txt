@@ -1,0 +1,48 @@
+W8-e full W0 before/after comparison: width 32/24 -> 96/64  (2026-11-06)
+Preset 1, all other budgets unchanged. Diagnostic flags only, ZERO default change.
+L2 offline (same-simulator self-play + beam vs exhaustive reference), NOT real-machine L4.
+
+Commands:
+  java -cp build/solvertest BatchPlay --runs 200
+  java -cp build/solvertest BatchPlay --runs 200 --within 96 --beam 64
+  java -cp build/solvertest SearchQuality --only 1-14|15-28|29-42|43-45 [--within 96 --beam 64]
+
+--- BatchPlay 200 games (fixed seeds 20261106+i) ---
+metric                 within=32/24 (baseline)   within=96/64 (wide)    delta
+winrate                75.0% (150/200)           73.5% (147/200)        -1.5pp / -3 games
+avg HP loss            35.5                      34.5                   -1.0
+avg search time        505ms                     2002ms                 ~4.0x
+max search time        2059ms                    6783ms                 ~3.3x
+
+Per-encounter win deltas (wide - baseline):
+  Jaw Worm      +1 (13->14)
+  Cultist       -3 (13->10)   <-- main regression
+  Lagavulin     -1 (11->10)
+  others        0 (2 Louse, Small Slimes, Gremlin Gang, Gremlin Nob,
+                   3 Sentries, Hexaghost, Slime Boss, The Guardian)
+
+--- Oracle 45 questions (4 slices) ---
+slice      baseline                     wide
+Q1-14      14 EXACT / miss 0 / 0.0%     14 EXACT / miss 0 / 0.0%
+Q15-28     14 EXACT / miss 0 / 0.0%     14 EXACT / miss 0 / 0.0%
+Q29-42     14 EXACT / miss 0 / 0.0%     14 EXACT / miss 0 / 0.0%
+Q43-45      3 EXACT / miss 2 / 66.7%     3 EXACT / miss 0 / 0.0%   <-- Q43/Q44 fixed
+win-miss  1 (Q7 potion cost)            1 (unchanged)
+selftest  225/0                         225/0
+
+--- Honest conclusion (AGENTS.md 4.6: numbers only, no quality claim without them) ---
++ Wide budget ELIMINATES the W8 PROVABLE miss (66.7% -> 0.0%): Q43/Q44 both fixed.
++ Avg HP loss improves slightly (35.5 -> 34.5).
+- BUT winrate REGRESSES 75.0% -> 73.5% (Cultist -3, Lagavulin -1), and search
+  time grows ~4x (505ms -> 2002ms avg).
+=> Width is NOT monotonically better: a larger search space changes which leaves
+   the beam keeps, so some whole-battle plans get worse even though short-horizon
+   oracle misses disappear.
+=> DO NOT simply set default withinTurnWidth 32 -> 96. That would violate the
+   mission's "W0 metrics must not regress" requirement.
+
+Possible next step (NOT done, needs separate task + user decision):
+  targeted width (e.g. wider within only for potion-containing states) instead of
+  a global default bump; measure again with the same two W0 rulers.
+
+Default configuration is UNCHANGED by this round; W0 frozen baseline intact.

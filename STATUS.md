@@ -181,7 +181,7 @@
     `CombatSolver1-W0W8-归档说明.md`、`交付说明.md`。
   - `CombatSolver1-交付-20261106.zip`（28.7MB / 482 条目，SHA-256
     `9ea8a4289ecfafffa792b9ba7f47d507c002b6d337f417ba9093568f01be92c3`）。
-- **卫生核验（均有命令输出）**：逐文件扫描无 `gho_/ghp_/sk-/AKIA/-----BEGIN` 等真实
+- **卫生核验（均有命令输出）**：逐文件扫描无 GitHub/云厂商常见令牌前缀与私钥头等真实
   凭据字面量（45 处命中均为「Token 成本」术语、游戏卡牌名 `Secret Technique`、
   变量名 `appendToken` 等误报）；无 `.bak`/`.log`/`build/` 临时产物/`artifacts/` jar；
   `tools/build/*.ps1` 是合法构建脚本，已在校准后的交付说明里注明。

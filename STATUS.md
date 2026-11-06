@@ -1,3 +1,38 @@
+## 2026-11-06 20:17：CU 导航到 A20 角色确认画面（停在 Embark 前，L2/L3 环境级）
+
+> 承接上轮「CU 识别游戏内 UI」。本轮用 CU 从模式选择一路导航到
+> **铁甲战士 / Ascension 20 (Max Level) / Double Boss** 角色确认画面，
+> 验证 W2 检查单所需的 A20 环境真实存在、CU 能定位固定种子入口。
+> **停在 Embark 之前，未开局、未进战斗、未写存档**（按授权边界，开局改 autosave 需单独授权）。
+
+- **实际 CU 操作与结果**：
+  1. 以 `CS1_ISOLATED_*` 重启 MTS+游戏（javaw pid 18092）；`click(811,891)` → 游戏窗口。
+  2. `click(396,663)` 主菜单 Play → 模式选择（Standard/Daily Climb/Custom）。
+  3. **坐标教训（如实）**：前两次点 (470,420)/(470,345) 用「缩放截图坐标」当屏幕坐标，
+     均停留在模式选择（猜测式失败）；改用 `find`/OCR 返回的**原始屏幕坐标**
+     (`Standard` x=582,y=351) 后 `click(647,361)` 成功进入 **Choose Your Character**。
+     按 AGENTS.md「两次同假设失败即停止猜测、回到证据采集」执行，未继续盲点。
+  4. `find("Choose Your Character")` OCR 给 4 个角色按钮 x=671/827/983/1139、y≈761-868；
+     `click(725,815)` 选第 1 个 → **The Ironclad** 确认画面。
+  5. 截图 + OCR 确认：`HP 80/80`、`Gold 99`、`Burning Blood`、
+     **`Ascension 20 (Max Level) Double Boss`**、`Set Seed`、`Embark` @ (1514,814)。
+  6. 证据截图 `docs/evidence/cu-launch/04-choose-character.png`、
+     `05-ironclad-ascension20.png`（真实桌面截图）。
+- **★ 结论**：W2 检查单要的 **A20 环境在真机确实存在且可导航到达**；
+  CU 已能识别/操作游戏内多层菜单（主菜单→模式→角色→确认）。
+  这仍是 **L2/L3 环境级**，**不是 L4**：未进战斗、未发牌、未采集 RNG/Recorder。
+- **边界判断更正（重要）**：前几轮我把「进战斗」说成不需要新授权，是判断失误——
+  **点 Embark 开局会写 `saves/1_IRONCLAD.autosave`**，属于你新指令明确列出的
+  「修改正式游戏存档仍需单独授权」。本轮**纠正并停在 Embark 前**，不自行开局。
+  下一轮若要进战斗，需你明确授权「允许本次测试开局改写 autosave，完事从备份还原」。
+- **非破坏性核验**：全程 `autosave` 恒 `f733fcb1…`、`mods/CombatSolver1.jar` 恒 `e7c8def5…`；
+  `~/.combatsolver1-isolated/` 无新增日志；`taskkill /PID 18092 /F` 后无残留 javaw、指纹一致。
+- W0 指标前后对照：零代码改动 → 75.0% / 35.5、Q1-42 漏优 0.0% 不变。
+- 用户验收：打开 `04-choose-character.png`、`05-ironclad-ascension20.png`，
+  后者应看到 `The Ironclad` + `Ascension 20 (Max Level) Double Boss`。
+- **限制**：游戏内卡牌/怪物/药水/战斗结算 UI 识别仍 L0；未推远程、未改游戏 mods、未碰存档；
+  `git diff --check` 通过。
+
 ## 2026-11-06 20:07：Computer Use 识别游戏内 UI（模式选择，L2/L3 环境级）
 
 > 承接上轮「CU 启动到主菜单」。本轮用 CU 点击主菜单 Play，进入**游戏内模式选择画面**，

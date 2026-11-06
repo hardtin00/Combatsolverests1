@@ -227,5 +227,7 @@ gradlew jar -PstsDir="C:/Program Files (x86)/Steam/steamapps/common/SlayTheSpire
 
 ## 许可
 
-本项目与 CombatSolver、Random Foreseer 均基于 MIT License 精神开源；移植过程中如引入
-他人代码会保留相应版权署名。
+本项目采用 [MIT License](LICENSE)（Copyright (c) 2026 hardtin00）。第三方组件保留各自许可证与署名，
+见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)：怪物 AI 数据整理自 casey-c/Bestiary（MIT，
+Copyright (c) 2021 Casey C），`vendor/sts_lightspeed` 为带上游许可的 vendored 源码。
+移植过程中如引入他人代码会保留相应版权署名。

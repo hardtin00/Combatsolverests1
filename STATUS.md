@@ -1,3 +1,38 @@
+## 2026-11-06：W6-a 仓库卫生（LICENSE + 找回 2 个缺失源文件）
+
+> 任务书 W6「随时穿插」；本轮只做**纯仓库内、不推远程、不动真机**的第一小步。
+
+- 现象/目标：任务书 W6 列三项——补 LICENSE、处置 GitHub 缺失的 2 个文件
+  （`PlayerEndSimulator.java`、`SaveFileFieldAudit.java`）、jar 走 GitHub Releases 且仓库留 SHA256。
+  核对：主仓库无 LICENSE；两文件在历史工作树 `combatsolver1/` 中存在但未 tracked、主仓库无同名无引用；
+  `artifacts/` 下仍有 2 个 jar 被 git 跟踪。
+- 修改（本步只做前两项）：
+  - 新增根目录 `LICENSE`：MIT，Copyright (c) 2026 hardtin00；末尾注明第三方组件保留各自许可
+    （`THIRD_PARTY_NOTICES.md`：casey-c/Bestiary MIT、`vendor/sts_lightspeed` 上游许可）。
+  - `README.md` 许可节：把「基于 MIT License 精神开源」改为明确引用 `LICENSE` 与第三方署名。
+  - **原样找回**两个文件（`sha256` 与 `combatsolver1/` 源一致，未改写一字）：
+    `src/main/java/com/combatsolver1/engine/PlayerEndSimulator.java`（200 行，仅 java.util + 同包 SimState）、
+    `src/main/java/com/combatsolver1/runtime/SaveFileFieldAudit.java`（191 行，依赖游戏 `CardSave/SaveFile`）。
+- 验证等级：
+  - **L2 离线**：模拟 CI 精确命令 `javac -encoding UTF-8 ... engine/*.java search/*.java settings/SolverSettings.java tools/solvertest/*.java`
+    退出 0（新增的 `PlayerEndSimulator` 随 `engine/*.java` 一起编过，无冲突）；`Solvertest all` 退出 0；
+    `SearchQuality --selftest` **210/0**；`RngStreamCheck`/`RngStreamStateCheck`/`RngInjectionCheck` 退出 0。
+    `SaveFileFieldAudit` 在 `runtime/` 包，**不在** solvertest 编译通配内，故不破坏无游戏依赖的 CI。
+  - **L3 完整编译**：两文件用游戏 `desktop-1.0.jar` + mods 作 classpath 编译退出 0。
+  - `git diff --check` 通过。
+- W0 指标前后对照（只加文件与许可证，未改任何代码路径）：Oracle 42 题 / 210 通过 0 失败 / 漏优 0.0%
+  —— **不变**；BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**；
+  耗时 421→383ms 为 JVM 抖动。
+- 用户验收：`test -f LICENSE`；`ls src/main/java/com/combatsolver1/{engine/PlayerEndSimulator.java,runtime/SaveFileFieldAudit.java}`；
+  跑 `tools/solvertest/run.ps1` 无报错。
+- **限制/下一步**：
+  - **jar 走 GitHub Releases 留到 W6-b**：那需要从 git 移除 `artifacts/*.jar` 并发布 Release，
+    涉及删除已跟踪文件与远程操作，按 AGENTS.md 1.6 需单独授权，本步未动。
+  - LICENSE 的版权归属按仓库所有者 `hardtin00` / 首 commit 年份 2026 填写；若实际归属不同请指出，可改。
+  - 两文件为历史孤立源码（主仓库此前无任何引用），本步只保证「存在且可编译」，**未**接入构建产物或运行路径，
+    不声称功能已被使用。
+  - 本步未推送远程；W1-d 的 L4 真机读取验证仍未完成。
+
 ## 2026-11-06：W1 第四单元 —— 六流只读反射读取 + 接入 LiveCapture（L2/L3）
 
 - 目标：把 W1-a/b/c 的离线六流能力接到真实采集入口。新增 runtime 层只读反射读取六条

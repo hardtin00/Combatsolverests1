@@ -1,0 +1,46 @@
+# CombatSolver1 发布产物 SHA-256 清单
+
+> 任务书 W6：「jar 走 GitHub Releases，仓库留 SHA256」。
+> 本文件是**仓库侧留存的哈希清单**（L2 离线可复算）。产物本体应发布到 GitHub Releases，
+> 不应长期留在 git 里（README 第 200 行已有此约定）。
+
+## 当前源码可重建产物（2026-11-06）
+
+由 `tools/build/build-release.ps1`（不带 `-Deploy`）从当前 commit 完整编译，
+未部署、未改游戏 mods 目录。
+
+```
+commit  : 501f3c2c0336bd9fa5d0578b2b03ad0616c9f47c
+version : 1.0.0-rc1
+jar     : build/libs/CombatSolver1.jar  (146 条目，全部正斜杠，Java 8 major=52)
+sha256  : 5D48BA35148FCF6B2CE347F65EC2C3AB726719020770EFF0F4FE7AB30BA6E5FE
+built   : 2026-11-06 12:05:50
+```
+
+复算命令（仓库根，需游戏本体 + 创意工坊 ModTheSpire/BaseMod）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/build/build-release.ps1
+Get-FileHash build\libs\CombatSolver1.jar -Algorithm SHA256
+# 逐项应等于上表 sha256；release-info.txt 也记录同一值
+```
+
+## 历史已跟踪 jar（待迁出 git，见 W6-b 待授权步骤）
+
+| 路径 | SHA-256 | 说明 |
+|---|---|---|
+| artifacts/CombatSolver1-V0.9/CombatSolver1.jar | 9fc8217d42ab93797f5940576fd8037e71f3310f189ca1a3527dd2b2d080d30a | V0.9 冻结试用基线 |
+| artifacts/CombatSolver1-1.0.0/CombatSolver1.jar | e7c8def5f979fb618037161612c89e23e0fcee6e6069a5032868ea09029fc79b | r31 实机版（W1 之前） |
+| artifacts/CombatSolver1-1.0.0/s2b0_search_3d.exe | a25f9afb27e604a08f641bbfbe4c2ea8e4006743b58f71c05b3dd89331eca8ac | 外部搜索引擎 |
+
+> 注意：`artifacts/CombatSolver1-1.0.0/CombatSolver1.jar` 是 **r31**（W1 源码改动之前），
+> 与上表「当前源码可重建产物」**不是同一份**。发布时请以 `build-release.ps1` 从目标 commit
+> 现打的产物为准，不要直接发布仓库里留的旧 jar。
+
+## 发布流程（W6-b 剩余步骤，需单独授权）
+
+1. 从目标 commit 跑 `build-release.ps1`，取 `build/libs/CombatSolver1.jar` 与 `release-info.txt`。
+2. 在 GitHub Releases 建 tag（如 `v1.0.0-rc1`），上传 jar + exe + SHA256SUMS。
+3. 从 git 移除 `artifacts/**/*.jar` 与 `*.exe`（`git rm`），保留本文件与文档里的哈希。
+4. `README.md` 的「仓库不再存放 jar」改为与 Release 链接一致。
+5. 上述 2–4 涉及**远程操作与删除已跟踪文件**，按 AGENTS.md 1.6 需用户明确授权，本单元未执行。

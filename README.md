@@ -196,7 +196,7 @@ powershell -ExecutionPolicy Bypass -File tools/build/build-release.ps1 -Deploy  
 ```
 
 脚本会自动找游戏目录与创意工坊里的 ModTheSpire / BaseMod，编译、打包，并输出
-**版本号、commit SHA、jar 的 SHA-256**（同时写到 `build/libs/release-info.txt`）。
+**版本号、commit SHA、jar 的 SHA-256**（同时写到 `build/libs/release-info.txt`）。 发布产物的 SHA-256 清单见 [W6 Release SHA256 清单](docs/W6_RELEASE_SHA256SUMS.txt)。
 对外发布时请以这份产物的 commit 为准——仓库**不再**存放 jar，避免下载者拿到过期版本。
 
 注意：GitHub Actions 只跑不依赖游戏文件的离线自检；CI 里的"完整 Mod 构建"在仓库没有

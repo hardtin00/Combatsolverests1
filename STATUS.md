@@ -1,3 +1,31 @@
+## 2026-11-06：W6 第二单元（离线准备）—— Release SHA256 清单 + 完整构建复算
+
+> 任务书 W6：「jar 走 GitHub Releases，仓库留 SHA256」。本单元只做**仓库侧离线准备**，
+> 不删 jar、不推远程、不发布 Release（那两步需单独授权）。
+
+- 修改：新增 `docs/W6_RELEASE_SHA256SUMS.txt`，含
+  ① **当前源码可重建产物**的 commit / version / 条目数 / SHA-256 / 构建时间，附复算命令；
+  ② 仓库内 3 个已跟踪二进制（V0.9 jar、r31 jar、引擎 exe）的 SHA-256；
+  ③ 发布流程（W6-b 剩余步骤，明确标注需授权）。
+- 验证等级：
+  - **L3 完整 Mod 构建**：`tools/build/build-release.ps1`（不带 `-Deploy`）从当前 commit
+    `501f3c2c0336bd9fa5d0578b2b03ad0616c9f47c` 编译退出 0；**146 个条目全部正斜杠**、
+    Java 8 字节码 `major=52`；产物 `build/libs/CombatSolver1.jar` SHA-256
+    `5D48BA35148FCF6B2CE347F65EC2C3AB726719020770EFF0F4FE7AB30BA6E5FE`。
+  - `release-info.txt` 与清单哈希逐字核对一致；3 个已跟踪二进制哈希用 `sha256sum` 复核一致。
+  - **L2 离线**：`Solvertest all` 退出 0；`SearchQuality --selftest` **210/0**；
+    `MechanismFixtureCheck` 退出 0。
+- **重要区分（如实标注）**：清单里的 `artifacts/CombatSolver1-1.0.0/CombatSolver1.jar` 是 **r31**
+  （`e7c8def5…`，W1 源码改动之前），与上表「当前源码可重建产物」`5d48ba35…` **不是同一份**。
+  发布时必须以 `build-release.ps1` 从目标 commit 现打产物为准，不得直接发布仓库里留的旧 jar。
+- W0 指标前后对照（只加文档 + 跑构建，未改源码）：Oracle 42 题 / 210 通过 0 失败 /
+  漏优 0.0% —— **不变**；BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**。
+- 用户验收：`Get-FileHash build\libs\CombatSolver1.jar -Algorithm SHA256` 应等于清单里的值；
+  `git status --short` 应只有文档、无 `build/` 产物（已被 .gitignore 覆盖）。
+- **限制/下一步（需授权）**：`git rm artifacts/**/*.jar` + 发布 GitHub Release + 改 README 的
+  「仓库不再存放 jar」措辞 —— 涉及删除已跟踪文件与远程操作，按 AGENTS.md 1.6 本单元**未执行**。
+  未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W5 第一单元 —— 逐机制真值夹具骨架（L2 离线，无游戏依赖）
 
 > 任务书 W5：「29 个历史局面扩成逐机制夹具：洗牌/随机目标、每张近似牌、药水、选牌屏、

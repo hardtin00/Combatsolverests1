@@ -1,3 +1,39 @@
+## 2026-11-06：本会话新增实验性开关的技术债清点（AGENTS.md 8.8/8.9）
+
+> 连续多轮纯离线单元后，核验「默认关闭 / 未接入」的声明是否属实，并登记可执行的清理/接入决策。
+> 本轮**不新增功能、不改代码**，只做带实际命令的核验与记录。
+
+### 核验方法（本轮实跑）
+- `git rev-list --count 98aa381..HEAD` → **27** 个本地提交；`git status --short` 干净。
+- 逐个 grep 引用：确认哪些类**只被自检引用**、哪些**接入生产路径**。
+- `BatchPlay --runs 200`（默认配置）→ **75.0% / 35.5**，证明默认开关确实惰性、W0 逐位未变。
+- `jar tf build/libs/CombatSolver1.jar` 与游戏 `mods/CombatSolver1.jar` 指纹对照。
+
+### 清单（★ = 需用户决策）
+
+| 类 | 默认 | 接入生产路径 | 当前 jar | 处置建议 |
+|---|---|---|---|---|
+| `CardOrderPrior` | 关 | 是（`CombatSearch.turnScore`） | 在 build/libs，不在游戏 mods | ★ 是否设为默认开启（W7-b 有 200 局 75.0→76.0% 对照，但会改 W0 冻结基线） |
+| `W8PotionPrior` | 关 | 是（`CombatSearch` 两处惩罚 + turnScore） | **不在**任何 jar（W8-d 之后才加） | ★ W8-d 已证**阴性**，建议下一轮删除该实验开关（含 `--w8prior` / `W8PotionPriorCheck`），避免死代码 |
+| `PlanReducer` | 无开关 | **否**（仅 `PlanReducerCheck` 引用） | **不在**任何 jar | ★ 要么接入 `CombatSearch.result()` 并做 W0 前后对照，要么删除；不可长期挂着 |
+| `PerCardVerify` | 关 | **否**（仅自检引用） | 在 build/libs，不在游戏 mods | ★ W3-b 接入 `CombatController` 逐动作调用点（需真机不误停验证） |
+| `JavaLcg` | 无 | 是（`CombatEngine.shuffleIntoDraw` 注入时） | 在 build/libs | 保留（W1-f/g 有字节码真值） |
+| `RngStreams` | 无 | 是（`LiveCapture` 反射读取） | 在 build/libs | 保留，但**真机 L4 读取未验证**、未进游戏 mods |
+
+### 两个必须记住的事实（防虚报）
+1. `build/libs/CombatSolver1.jar` 是 commit `6dff465` 完整构建的产物（含 6 个类），
+   **不含**之后新增的 `W8PotionPrior` / `PlanReducer`；游戏 `mods/CombatSolver1.jar` 仍为
+   r31（`e7c8def5…`）。所以「新类已打包进交付 jar」**不成立**，L3/L4 状态以这为准。
+2. 两个默认关闭开关经 `BatchPlay --runs 200` 实跑确认惰性（75.0% / 35.5 未变），
+   但「惰性」≠「默认安全」：`CardOrderPrior` 一旦被设为默认开启就会改变 W0 冻结基线。
+
+### 结论
+- 离线侧继续新增单元的边际收益已很低；**下一步应是决策而非再堆代码**：
+  删掉阴性实验 `W8PotionPrior`、给 `PlanReducer`/`PerCardVerify` 定「接入 or 删除」、
+  或对 27 个提交做一次远程同步（均需用户授权）。
+- 按 AGENTS.md 8.9，以上每条都给出了源码位置、可观察问题、最小处理方案；未测量不声称性能提升。
+- 本轮未推远程、未改游戏 mods、未碰存档；`git diff --check` 通过。
+
 ## 2026-11-06：W5 第三单元 —— 选牌屏字节码真值差异夹具（L2 离线）
 
 > W5-a 把「选牌屏」标为一行 `[BOUNDARY] 未覆盖`。本单元把它升级为

@@ -1,3 +1,40 @@
+## 2026-11-06：W8 第一单元 —— 反超点位 Oracle 专项题目（L2 离线，建立量化基线）
+
+> 任务书 W8：「参考项目自认的弱项即反超清单：燃烧契约调牌序、异蛇之油、特定小循环。
+> 用 Oracle 题库为这些机制建专门题目，做针对性先验/评分调参；每个点位以『参考实现会做错、
+> 本实现做对』的具体对局为证」。本单元只做**建题 + 量化基线**，不调参、不声称反超。
+
+- **反超清单的权威依据（引用，非编造）**：
+  - 参考项目 `Yongzhaooo/sts1-combat-solver` README.md:52：
+    "it still trails top players on some special lines, such as **ordering cards for Burning Pact,
+    Snecko Oil, and small loops** it sometimes fails to find."
+  - 同项目 docs/releases/0.8.0-beta.1.md:19：
+    "Burning Pact mid-selection import and reselection ordering remain deferred."
+- 修改：`tools/solvertest/SearchQuality.java` 在 42 题后新增 **Q43–Q45** 三道专项题
+  （Q43 燃烧契约调牌序、Q44 异蛇之油喝药时机、Q45 零费小循环），全部用已登记非 approx 牌，
+  题库合法性检查通过。报告分片从 3 片改为 4 片（1-14 / 15-28 / 29-42 / 43-45）。
+  证据 `docs/W8_ORACLE_SELFTEST.txt` 与 `docs/W8_ORACLE_SLICE_A..D.txt`。
+- **★ 量化基线（如实记录，这是本单元的核心产出）**：
+  - selftest 从 210/0 → **225/0**（45 题 × 5 断言），新增 3 题全部通过参照可信断言。
+  - W8 三题 PROVABLE 层：**EXACT 3，漏优 2，漏优率 66.7%**；BUDGET 层 3 题全 CAPPED、漏优 0；
+    必胜漏报 0。
+  - **Q43 燃烧契约调牌序**：漏优，`beam=-188` vs 参照 `C(2)=-173`，归因 `BEAM / BEAM+WITHIN`
+    （宽度剪枝漏掉更优出牌顺序）。
+  - **Q44 异蛇之油**：漏优，`beam=995970` vs 参照 `C(2)=999970`，归因「放任何单一预算都找不到」
+    （喝药时机组合属搜索结构性缺陷，非预算不足）。
+  - **Q45 零费小循环**：不漏优（当前 beam 已能找到）。
+  - 结论：这三个点位**当前本实现也没做对**（2/3 漏优），故**不声称「参考实现会做错、本实现做对」**，
+    反超尚未成立；调参/对局证据留后续单元。
+- 验证等级：**L2 离线**。`javac` 退出 0；`Solvertest all` 退出 0；`SearchQuality --selftest` **225/0**；
+  `Historical29Check`/`MechanismFixtureCheck`/`CardOrderPriorCheck`/`PerCardVerifyCheck` 退出 0。
+- W0 指标前后对照：既有 42 题 PROVABLE 漏优 0.0% / 必胜漏报 1 —— **不变**（新题追加在末尾、独立分片）；
+  BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**。
+- 用户验收：`java -cp build/solvertest SearchQuality --selftest` 应显示「通过 225 项，失败 0」；
+  `java -cp build/solvertest SearchQuality --only 43-45` 应复现「漏优 2 / 66.7%」。
+- **限制/如实标注**：本单元**未**做针对性先验/评分调参，**未**产生「本实现做对」的具体对局证据，
+  **未**与参考实现实机对跑（W8 为 P2 可选项，在 W0 稳定后才做）；不声称反超。
+  未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W5 第二单元 —— 29 个历史真机局面纳入主仓库夹具（L2 离线）
 
 > 任务书 W5：「29 个历史局面扩成逐机制夹具…纳入 tools/solvertest 与 CI，无游戏依赖可跑」。

@@ -1171,6 +1171,33 @@ public final class SearchQuality {
                         mob("GremlinNob", "地精大块头", 70, 70, 14, 1),
                         draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Defend_R:1:0:5"))));
 
+        // ══ W8 反超专项题目 ═══════════════════════════════════════════
+        // 依据：参考项目 Yongzhaooo/sts1-combat-solver README.md:52 自认
+        // "ordering cards for Burning Pact, Snecko Oil, and small loops it sometimes fails to find"，
+        // 以及 docs/releases/0.8.0-beta.1.md:19 "Burning Pact mid-selection import and
+        // reselection ordering remain deferred"。本轮只建题，不声称已反超（调参/对局证据留后续）。
+        out.add(new Case("Q43-W8-燃烧契约调牌序",
+                "燃烧契约消耗一张抽两张：出牌先后决定被消耗对象与后续牌序（参考项目自认弱项）",
+                scene(70, 70, 3,
+                        cards("Burning Pact:1:0:0", "Strike_R:1:6:0", "Defend_R:1:0:5", "Pommel Strike:1:9:0"),
+                        mob("Cultist", "邪教徒", 52, 52, 0, 1),
+                        draw("Bash:2:8:0", "Strike_R:1:6:0", "Defend_R:1:0:5"))));
+
+        out.add(new Case("Q44-W8-异蛇之油",
+                "异蛇之油抽 5（费用随机化未建模）：喝药时机与手牌/能量组合（参考项目自认弱项）",
+                withPotion(scene(60, 60, 3,
+                        cards("Strike_R:1:6:0", "Defend_R:1:0:5", "Heavy Blade:2:14:0"),
+                        mob("Sentry", "哨卫", 40, 40, 9, 1),
+                        draw("Bash:2:8:0", "Strike_R:1:6:0", "Cleave:1:8:0:aoe", "Defend_R:1:0:5", "Anger:0:6:0")),
+                        "Snecko Oil")));
+
+        out.add(new Case("Q45-W8-零费小循环",
+                "0 费牌 + 易伤踢击回能小循环：回合内重复顺序与长度（参考项目自认弱项）",
+                scene(65, 65, 3,
+                        cards("Swift Strike:0:7:0", "Anger:0:6:0", "Dropkick:1:5:0", "Bash:2:8:0"),
+                        mob("Lagavulin", "拉格威林", 60, 110, 0, 1),
+                        draw("Strike_R:1:6:0", "Defend_R:1:0:5", "Anger:0:6:0"))));
+
         // 题库自身必须先合法：所有牌已登记、非 approx、不需要玩家选择
         List<String> bad = new ArrayList<String>();
         for (Case c : out) {

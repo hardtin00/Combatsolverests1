@@ -64,6 +64,9 @@ jobs:
       - name: W5 选牌屏字节码真值差异夹具（3 断言 + 6 差异）
         run: java -cp build/solvertest SelectScreenTruthCheck
 
+      - name: W8-f 定向宽度开关自检（4 断言）
+        run: java -cp build/solvertest PotionWidthCheck
+
       - name: W0 参照求解器自检（42 题 × 5 断言）
         run: java -cp build/solvertest SearchQuality --selftest
 

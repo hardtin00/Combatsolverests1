@@ -1,3 +1,35 @@
+## 2026-11-06：W8 第五单元 —— 定向宽度（只对含药水状态加宽），W0 不回退（L2 离线）
+
+> 承接 W8-e：全局加宽修好 Q43/Q44 但胜率回退 1.5pp。BatchPlay 的 200 局**不含药水**，
+> 说明回退来自「给所有状态加宽」。本单元改为**只对含药水状态加宽**，并实测。
+
+- 修改（**默认关闭，W0 冻结基线逐位不变**）：
+  - `CombatSearch.Config` 加 `potionWithinTurnWidth`（默认 0）；`expandTurn` 按
+    `state.potionIds` 是否非空选截断值，按回合起始状态判断一次、整回合稳定。
+  - `SearchQuality --potionwidth N` / `BatchPlay --potionwidth N` 诊断开关。
+  - `tools/solvertest/PotionWidthCheck.java`（4 项）、`docs/W8_F_TARGETED_WIDTH.txt`、
+    `docs/W8_F_POTION_WIDTH_CHECK.txt`；CI 加步骤。
+- **★ 实测（同一对 W0 尺子，证据 `docs/W8_F_TARGETED_WIDTH.txt`）**：
+  | 指标 | 关闭（基线） | 定向宽度 96 | 变化 |
+  |---|---|---|---|
+  | W8 Q43-45 漏优 | 2/3=66.7% | **1/3=33.3%** | **Q44 修好** |
+  | Q44 beam / 参照 | 995970 / 999970 | **999970 / 999970** | 不漏优 |
+  | Q43（不含药水） | 漏优 | 仍漏优 | 按设计，不修 |
+  | BatchPlay 200 胜率 | 75.0% (150/200) | **75.0% (150/200)** | **不回退** |
+  | 平均 HP 损失 | 35.5 | **35.5** | 不回退 |
+  | 搜索耗时 平均 | 336ms | 343ms | JVM 抖动（~2%） |
+  | Oracle Q1-42 / 必胜漏报 / selftest | 0.0% / 1 / 225/0 | 同 | 不变 |
+  - 定向宽度在 200 局上**逐位惰性**（场景无药水 → 宽分支从不触发），解决了 W8-e 的死结。
+- **诚实结论**：定向宽度修好了**含药水**那题（Q44）且 W0 两把尺子不回退；
+  但 **Q43（燃烧契约，不含药水）仍漏优**，W8 反超**仍未成立**。
+  默认**仍关闭**；是否启用需用户决定——200 局尺子没有药水场景，
+  要声称含药水实机不回退还需要含药水的真机 L4 集合。
+- 验证等级：**L2 离线**。`javac` 0；`PotionWidthCheck` 4/4；全量自检 6 项全 0；
+  `git diff --check` 通过。非真机 L4、未部署到游戏 jar。
+- 用户验收：`java -cp build/solvertest SearchQuality --only 43-45 --potionwidth 96` → 漏优 1/33.3%；
+  `java -cp build/solvertest BatchPlay --runs 200 --potionwidth 96` → 仍 75.0% / 35.5。
+- **限制**：未改默认值、未修 Q43、未做含药水真机 L4、未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W8-e 完整 W0 前后对照 —— 宽度调参的权衡（结论：不建议改默认）
 
 > 承接上一轮「Q44 真实根因是 within=32 太窄」。W8-e 若要改默认档位，

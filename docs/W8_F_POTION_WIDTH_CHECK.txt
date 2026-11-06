@@ -1,0 +1,6 @@
+[PASS] 默认关闭（W0 冻结基线逐位不变）  default=0
+[PASS] 开启时定向宽度大于常规宽度  96 > 32
+[PASS] 开关不改动其它预算字段  beam/turns/nodes/time unchanged
+[PASS] 非正值视为关闭  =-1
+自检汇总：通过 4 项，失败 0 项
+L 等级：L2 离线（开关语义）；行为对照见 docs/W8_F_TARGETED_WIDTH.txt

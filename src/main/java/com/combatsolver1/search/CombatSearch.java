@@ -24,6 +24,11 @@ public class CombatSearch {
         public int maxNodes = 4000;
         /** 墙钟时间预算（毫秒）；0 表示不限时，仅用节点/回合预算。 */
         public long timeBudgetMs = 0;
+        /**
+         * W8-f 定向宽度：仅当本回合起始状态携带药水时使用更宽的回合内截断；
+         * 0（默认）= 关闭，所有状态都用 {@link #withinTurnWidth}，W0 基线逐位不变。
+         */
+        public int potionWithinTurnWidth = 0;
     }
 
     private Config cfg;
@@ -260,6 +265,10 @@ public class CombatSearch {
 
         int mobHpAtStart = totalMobHp(state);
         int incoming = incomingDamage(state);
+        // W8-f 定向宽度：含药水状态用更宽的回合内截断（默认关闭）；
+        // 用回合起始状态判断，整个回合内保持一致，避免逐动作抖动。
+        final int turnWidth = (cfg.potionWithinTurnWidth > 0 && !state.potionIds.isEmpty())
+                ? cfg.potionWithinTurnWidth : cfg.withinTurnWidth;
 
         List<SimState> beam = new ArrayList<>();
         List<List<Plan.Action>> actionBeams = new ArrayList<>();
@@ -369,7 +378,7 @@ public class CombatSearch {
             actionBeams = new ArrayList<>();
             java.util.HashSet<String> seen = new java.util.HashSet<>();
             for (int i = 0; i < order.size(); i++) {
-                if (beam.size() >= cfg.withinTurnWidth) {
+                if (beam.size() >= turnWidth) {
                     break;
                 }
                 int idx = order.get(i);

@@ -37,6 +37,8 @@ public final class BatchPlay {
     /** W8-e 诊断：默认 -1 = 不覆盖，与 W0 冻结基线逐位一致；--within/--beam 可覆盖。 */
     private static int overrideWithin = -1;
     private static int overrideBeam = -1;
+    /** W8-f 定向宽度：默认 0 = 关闭（W0 冻结基线逐位不变）。 */
+    private static int potionWidth = 0;
 
     private BatchPlay() {
     }
@@ -66,6 +68,7 @@ public final class BatchPlay {
             else if ("--preset".equals(args[i]) && i + 1 < args.length) preset = Integer.parseInt(args[++i]);
             else if ("--within".equals(args[i]) && i + 1 < args.length) overrideWithin = Integer.parseInt(args[++i]);
             else if ("--beam".equals(args[i]) && i + 1 < args.length) overrideBeam = Integer.parseInt(args[++i]);
+            else if ("--potionwidth".equals(args[i]) && i + 1 < args.length) potionWidth = Integer.parseInt(args[++i]);
         }
         // W7-b: 先验默认关闭，--prior 用于「改动前后指标对照」。纯报告选项，
         // 不改评测/搜索逻辑本身（只是切换 CardOrderPrior 的开关）。
@@ -111,7 +114,8 @@ public final class BatchPlay {
         System.out.println("口径: CombatSearch(beam, 档位1) 搜索整场计划 -> 同一 CombatEngine 原样重放");
         System.out.println("局数=" + runs + " 种子=" + SEED0 + "+i 预算=档位" + preset + "(within=" + within()
                 + " beam=" + beam() + " maxTurns=" + maxTurns() + " maxNodes=" + maxNodes() + ")"
-                + " 先验=" + (prior ? "on" : "off"));
+                + " 先验=" + (prior ? "on" : "off")
+                + " 定向宽度=" + potionWidth);
         System.out.println("搜索出计划 " + searched + " / 重放成功 " + replayed);
         System.out.println("胜率 " + (replayed > 0 ? String.format("%.1f%%", 100.0 * wins / replayed) : "N/A")
                 + " (" + wins + "/" + replayed + ")");
@@ -150,6 +154,7 @@ public final class BatchPlay {
         s.applyTo(cfg);
         if (overrideWithin > 0) cfg.withinTurnWidth = overrideWithin;
         if (overrideBeam > 0) cfg.beamWidth = overrideBeam;
+        if (potionWidth > 0) cfg.potionWithinTurnWidth = potionWidth;
         return cfg;
     }
 

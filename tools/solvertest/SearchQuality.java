@@ -68,6 +68,8 @@ public final class SearchQuality {
     static int maxNodes;
     static long timeBudgetMs;
     static int presetIndex = 1;
+    /** W8-f 定向宽度：默认 0 = 关闭（W0 冻结基线逐位不变），--potionwidth N 开启。 */
+    static int potionWidth = 0;
 
     static boolean verbose = false;
     /** --sweep：宽度网格诊断，只看达到参照值所需的最小宽度与其时间代价。 */
@@ -133,6 +135,8 @@ public final class SearchQuality {
         for (int i = 0; i < args.length; i++) {
             if ("--verbose".equals(args[i])) {
                 verbose = true;
+            } else if ("--potionwidth".equals(args[i]) && i + 1 < args.length) {
+                potionWidth = Integer.parseInt(args[++i]);
             } else if ("--w8prior".equals(args[i])) {
                 w8Prior = true;
             } else if ("--beam".equals(args[i]) && i + 1 < args.length) {
@@ -480,6 +484,7 @@ public final class SearchQuality {
         cfg.maxTurns = horizon;
         cfg.maxNodes = maxNodes;
         cfg.timeBudgetMs = timeBudgetMs;
+        cfg.potionWithinTurnWidth = potionWidth;
         return cfg;
     }
 

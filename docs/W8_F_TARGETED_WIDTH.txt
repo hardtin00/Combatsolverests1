@@ -1,0 +1,42 @@
+W8-f targeted (potion-only) width experiment  (2026-11-06)
+L2 offline. ZERO default change: Config.potionWithinTurnWidth defaults to 0.
+
+Motivation (from W8-e): global width 96/64 fixed W8 oracle misses but REGRESSED
+BatchPlay 200 winrate 75.0% -> 73.5% and cost ~4x. BatchPlay's 200 scenes contain
+NO potions, so that regression came from widening every state, not from potions.
+
+Design: CombatSearch.Config.potionWithinTurnWidth (default 0 = OFF).
+In expandTurn(state), turnWidth = (potionWithinTurnWidth>0 && !state.potionIds.isEmpty())
+        ? potionWithinTurnWidth : withinTurnWidth;
+Judged once per turn on the turn-start state -> stable within the turn.
+Diagnostic flags: SearchQuality --potionwidth N, BatchPlay --potionwidth N.
+
+--- Measured (same two W0 rulers as W8-e) ---
+1) W8 Oracle Q43-45, --potionwidth 96:
+   baseline miss 2/3 = 66.7%   ->   1/3 = 33.3%   (exit=2 is normal "anyMiss")
+   Q44 Snecko Oil (potion state): beam 995970 -> 999970 = ref C(2)  => FIXED
+   Q43 Burning Pact (NO potion): beam -188 vs -173 => still misses, BY DESIGN
+   Q45 zero-cost loop: unchanged, no miss
+2) BatchPlay 200 fixed seeds:
+   --potionwidth 0 (OFF): 75.0% (150/200), avg HP loss 35.5, avg 336ms
+   --potionwidth 96 (ON): 75.0% (150/200), avg HP loss 35.5, avg 343ms
+   => bitwise-identical win/loss and HP loss; time delta is JVM jitter (2%).
+   Reason: 200 scenes contain no potions, so the wider branch is never taken.
+3) Oracle Q1-42 / win-miss / selftest: unchanged (0.0% miss, 1, 225/0).
+4) Full offline checks: Solvertest all, selftest, PotionWidthCheck 4/4,
+   BudgetPresetCheck, PlanReducerCheck, Historical29Check -> all exit 0.
+
+--- Honest conclusion ---
++ Targeted width fixes the POTION-related W8 miss (Q44) with NO W0 regression
+  on the 200-game offline ruler, unlike the global width bump in W8-e.
+- It does NOT fix Q43 (Burning Pact, no potion) - that one needs a different
+  mechanism-specific treatment; W8 counter-surpass is still NOT achieved.
+- Default stays OFF. Whether to enable it (and at what value) is a user decision:
+  it changes search behavior for potion states, and the 200-game ruler has no
+  potion scenes, so a potion-bearing real-machine L4 set would be needed to
+  claim no regression there.
+- L2 offline only; NOT real-machine L4, NOT deployed to the game jar.
+
+Reproduce:
+  java -cp build/solvertest SearchQuality --only 43-45 --potionwidth 96
+  java -cp build/solvertest BatchPlay --runs 200 --potionwidth 96

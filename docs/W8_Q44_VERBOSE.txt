@@ -1,0 +1,48 @@
+CombatSolver1 搜索质量基准 P0（内置 Beam Search vs 可穷举参照）
+预算（取自运行时 SolverSettings.applyTo，档位 1）：beamWidth=24 withinTurnWidth=32 maxTurns=10 maxNodes=60000 timeBudgetMs=8000
+参照预算：stateCap=300000 deadline=12000ms
+口径：双方共用 CombatEngine 结算与 CombatSearch.evaluate 打分；参照候选集 = 终局状态 加 恰好用满预算的回合边界状态，
+      与 beam 取叶子的规则同构，因此参照既是上界又一定是可达值；
+      唯一差别是搜索方式，所以漏优只能来自搜索（截断、去重、预算），不来自规则差异。
+
+题库合法性检查通过：45 个场景，全部为已登记、非 approx、无玩家选择的牌
+
+报告分片：--only 44-44，本片 1 题（题库顺序固定）
+
+══ 参照求解器自检 ══
+  [通过] Q44-W8-异蛇之油 A1 跨回合记忆化不改变参照值  999970.0 vs 999970.0
+  [通过] Q44-W8-异蛇之油 A2 回合内去重不丢候选状态  去重 389 个 vs 暴力 389 个
+  [通过] Q44-W8-异蛇之油 C 参照值可复现
+  [通过] Q44-W8-异蛇之油 B beam 宽预算不超过参照值  beamWide=995970.0 ref=999970.0
+  [通过] Q44-W8-异蛇之油 D beam 路线可原样重放且终局一致  重放分 995970.0 vs Plan.score 995970.0
+自检汇总：通过 5 项，失败 0（参照可信，漏优判定成立）
+
+── Q44-W8-异蛇之油  异蛇之油抽 5（费用随机化未建模）：喝药时机与手牌/能量组合（参考项目自认弱项）
+  PROVABLE(2回合)      EXACT  参照C(2)=999970.0    beam=995970.0     深度2/2 漏优=是  无法归因（放宽后参照穷举不完：WITHIN,BEAM,BEAM+WITHIN,NODES,TIME）
+  BUDGET(10回合)       CAPPED 参照C(10)=995970.0    beam=995970.0     深度10/10 漏优=否  参照仅下界：不能据此判定 beam 最优  [墙钟触顶12000ms]
+  参照路线(CAPPED)：参照最优首回合出牌 5 张: 药水:Snecko Oil Cleave Strike_R->哨卫 Anger->哨卫 Defend_R
+  beam 路线：2 回合 / 1812 节点 / 预测扣血 4 / 获胜
+    第1回合 4 张 -> 56hp: 药水:Snecko Oil Heavy Blade Anger Defend_R
+    第2回合 2 张 -> 56hp: Heavy Blade Cleave
+  BUDGET 参照耗时 12014ms（回合状态 18008，回合内展开 30980），beam 耗时 64ms / 1812 节点 / 2 回合
+  PROVABLE 参照耗时 5527ms（回合状态 41574，回合内展开 27486）
+
+══ 汇总 ══
+判定口径：漏优 = beam 分数低于与它实际展开深度相同的可穷举参照 C(d)；
+          参照未穷举完 CAPPED 时只作提示、不计入漏优，避免跨深度误判。
+PROVABLE 层级（回合预算 2，参照可穷举）：
+  场景 1，参照 EXACT 1，漏优 1，漏优率 100.0%
+BUDGET 层级（回合预算 10，玩家实际设置）：
+  参照 EXACT 0 / CAPPED 1，漏优 0
+参照存在必胜路线但 beam 未给出获胜预测：0 个场景
+每场 beam 搜索耗时（BUDGET 档）：样本 1，平均 64ms，最大 64ms
+漏优归因清单：
+  Q44-W8-异蛇之油:无法归因（放宽后参照穷举不完：WITHIN,BEAM,BEAM+WITHIN,NODES,TIME）
+
+怎么读这些数字：
+  漏优 = 同模型同目标下存在更好的合法路线而 beam 没找到，属搜索缺陷（不是规则错误）。
+  CAPPED = 参照触顶，其值只是下界；该场景“未漏优”不能作为最优证明。
+  WITHIN/BEAM/NODES/TIME = 同深度下放宽该预算后漏优消失，即该层截断是直接原因；
+  RESIDUAL = 同深度放宽全部预算仍漏，需查全局 visited 永久关闭或叶子选择口径；
+  DEAD_OUT = 交出了死亡路线而同深度存在存活路线；若同深度已无存活候选可取，则为宽度剪枝所致（见 WITHIN/BEAM）。
+  本基准不等于现实最优：模拟器 RNG 非真实 RNG；需要玩家选择的牌由引擎启发式代选。

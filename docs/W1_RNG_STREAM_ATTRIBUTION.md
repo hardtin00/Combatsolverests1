@@ -1,5 +1,12 @@
 # W1 六流归属真值核对（2026-11-06，L2 离线）
 
+> **★ 2026-11-06 更正（见 `docs/W1_RNG_CALLSITE_MAP.md`）**：本文件末尾把
+> 「地狱之刃随机攻击牌 / 随机取攻防牌」也归为 `cardRng` 类、天生近似，
+> 是**过度概括**。游戏 `AbstractDungeon.returnTrulyRandomCardInCombat()` 实际用
+> **`cardRandomRng`**（在六流内），这几处映射是正确的；只有
+> `CardGroup.getRandomCard()`（从已有牌堆**取**一张）用 `cardRng`（未捕获）。
+> 原文保留作历史记录，判定以 `W1_RNG_CALLSITE_MAP.md` 为准（AGENTS.md 3.C/7）。
+
 > 本文件核对「引擎里每个 nextIntFrom 调用点映射到哪个游戏 RNG 流」，
 > 结论用于纠正 W1-h 的一处错误对齐，并登记无法用六流精确重放的机制。
 

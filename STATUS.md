@@ -1,3 +1,29 @@
+## 2026-11-06：W1 第十单元 —— 全部 RNG 调用点流归属表 + 更正 W1-i 过度概括（L2 离线）
+
+> 承接 W1-i「其余 15 处调用点待核对」。本轮逐类用游戏字节码 / vendored C++ 源码核对，
+> **只登记、不改代码**（W1-h→W1-i 已证明流错配风险，不做猜测式批量替换）。
+
+- 新增 `docs/W1_RNG_CALLSITE_MAP.md`：18 行逐点映射表（机制 / 游戏真值 / 本引擎流 / 判定）。
+- **★ 更正 W1-i 的过度概括（重要）**：W1-i 写「随机取牌类都走 cardRng、天生近似」。
+  实际游戏有**两个不同的随机牌 RNG**：
+  - `AbstractDungeon.returnTrulyRandomCardInCombat()`（从牌池**生成**）→ **`cardRandomRng`**（六流内）
+    → 地狱之刃、死亡树枝、随机取攻/防牌的 `CARD_RANDOM` 映射 **✓ 正确、可精确重放**；
+  - `CardGroup.getRandomCard()`（从**已有**手牌/牌堆**取**）→ **`cardRng`**（未捕获）
+    → 木乃伊之手这类**只能近似**。
+  已在 `W1_RNG_STREAM_ATTRIBUTION.md` 顶部加更正声明，原文保留作历史。
+- **核对结论**：怪物选招（`aiRng.random(99)`，`Monster.cpp:633` / `AbstractMonster.getMove`）、
+  生成随机牌（`cardRandomRng`）、插入抽牌堆位置（`CardManager.cpp:220`）、
+  洗牌（`CardManager.cpp:28`）→ 映射**正确**；
+  真值缺口剩：① `cardRng` 未捕获（木乃伊之手等"从已有牌取"类）；
+  ② `monsterHpRng`/`miscRng` 未建模（怪物初始 HP / 组构成）；
+  ③ `potionRng` 无调用点；④ 奇异勺子、怪物伤害随机范围的 RNG 归属**待核对**（不猜）。
+  仍**不得声称「全部随机点已闭环」**，但 W1 结构性障碍比 W1-i 写的要小。
+- 验证等级：**L2 离线**（字节码 / vendored C++ 源码）。本轮**零代码改动**；
+  快速自检 4 项（Solvertest、selftest 225/0、RngCounterSemanticsCheck 5/5、RngInjectionCheck）全 0。
+- W0 指标前后对照：零代码改动 → 75.0% / 35.5、Oracle 42 题漏优 0.0% —— **不变**。
+- 用户验收：读 `docs/W1_RNG_CALLSITE_MAP.md`；`java -cp build/solvertest RngCounterSemanticsCheck` → 5/5。
+- **限制**：未改任何调用点、未做真机 L4、未推远程、未改游戏 mods、未碰存档；`git diff --check` 通过。
+
 ## 2026-11-06：W1 第九单元 —— 六流归属真值核对 + 回滚 W1-h 错误对齐（L2 离线）
 
 > 承接 W1-h「其余 15+ 处调用点流归属待核对」。本轮逐处核对游戏字节码与

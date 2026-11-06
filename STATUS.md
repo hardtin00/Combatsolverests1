@@ -18,7 +18,11 @@
 - W0 指标前后对照：本轮**无代码改动**，W0 冻结指标不变（75.0% / 35.5、Oracle 42 题漏优 0.0%）。
 - **边界（如实）**：远程 main 仍 `98aa381`，28 个提交**仍未推送**；未做 L4 真机验收；
   游戏 mods 仍是 r31（`e7c8def5…`），新类未进真机 jar。本归档是**备份**，不是发布、不是 L4。
-- 用户验收：`git bundle verify ../CombatSolver1-W0W8-28commits-20261106.bundle` 应显示 `is okay`；
+- **更正（同轮）**：生成该 bundle 后又提交了 `dd175cc`（本条记录），故已重打为
+  `CombatSolver1-W0W8-29commits-20261106.bundle`（188K，SHA-256
+  `0cf30a77f08781644d3af85e1d2bbeb51c0dd92f4894b721defc8c2e7c449ff8`，`git bundle verify` OK），
+  旧 28 版已删除；归档说明同步更新。恢复步骤不变（文件名换成 29 版）。
+- 用户验收：`git bundle verify ../CombatSolver1-W0W8-29commits-20261106.bundle` 应显示 `is okay`；
   读 `CombatSolver1-W0W8-归档说明.md` 有恢复步骤。
 - 本轮未推远程、未改游戏 mods、未碰存档；`git diff --check` 通过。
 

@@ -1,0 +1,7 @@
+[PASS] 注入真实六流  streams=6
+[PASS] aiRng 初值逐位一致  38809a3519acb30e
+[PASS] 同注入两次搜索+重放终局/六流逐位一致  hp=64 win=true streams=|aiRng:35e4bc6892c62ebba1e4252bd9aa8a7a:1|cardRandomRng:dba539e99aaac28a38809a3519acb30e:0|miscRng:dba539e99aaac28a38809a3519acb30e:0|monsterHpRng:38809a3519acb30e17e8e107d0649317:1|potionRng:93dd144c8f8e78a779c1b828d061fae3:0|shuffleRng:810e81994844aec91399cd33e6f432c2:1
+[PASS] 注入/未注入 nextIntFrom 使用不同随机源  legacy=1654940794 injected=98760504
+[PASS] 洗牌调用点推进 SHUFFLE 流  seed0=5e33482c7da4c690
+自检汇总：通过 5 项，失败 0 项
+L 等级：L2 离线；六流值来自真机捕获但本自检不是真机重放验证

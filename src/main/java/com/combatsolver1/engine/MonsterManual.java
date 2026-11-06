@@ -80,9 +80,9 @@ final class MonsterManual {
                     return mawDrool;
                 }
                 if (mawSlam.id.equals(mob.lastMoveId)) {
-                    return s.nextInt(2) == 0 ? mawNom : mawDrool;
+                    return s.nextIntFrom(SimState.RngStream.AI, 2) == 0 ? mawNom : mawDrool;
                 }
-                return s.nextInt(2) == 0 ? mawSlam : mawNom;
+                return s.nextIntFrom(SimState.RngStream.AI, 2) == 0 ? mawSlam : mawNom;
             }
         });
 
@@ -219,7 +219,7 @@ final class MonsterManual {
                 if ((mob.aiCursor + 1) % 3 == 0) {
                     return shieldSmash; // 第 3、6、9… 回合
                 }
-                return s.nextInt(2) == 0 ? shieldBash : shieldFortify;
+                return s.nextIntFrom(SimState.RngStream.AI, 2) == 0 ? shieldBash : shieldFortify;
             }
         });
 
@@ -234,7 +234,7 @@ final class MonsterManual {
                 if ((mob.aiCursor + 1) % 3 == 0) {
                     return spearSkewer;
                 }
-                return s.nextInt(2) == 0 ? spearBurn : spearPiercer;
+                return s.nextIntFrom(SimState.RngStream.AI, 2) == 0 ? spearBurn : spearPiercer;
             }
         });
 

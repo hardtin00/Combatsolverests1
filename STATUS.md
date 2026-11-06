@@ -1,3 +1,17 @@
+## 2026-11-06：W1 第三单元 —— 引擎随机调用点按六流映射（L2 离线）
+
+- 目标：在 W1-b 的 `SimState` 六流容器基础上，把 `CombatEngine` / `MonsterAi` / `MonsterManual` 里全部 19 处 `s.nextInt(...)` 调用点按游戏语义映射到六个流（洗牌/插入抽牌堆位置 → `SHUFFLE`；随机生成牌/随机取手牌/Strange Spoon/死枝 → `CARD_RANDOM`；怪物随机招式与 AI 决策 → `AI`），统一改走 `SimState.nextIntFrom(stream, bound)`。
+- 修改：`CombatEngine.java` 10 处、`MonsterAi.java` 5 处、`MonsterManual.java` 4 处；`grep -rn "s.nextInt("` 确认为 0 处遗漏。`nextIntFrom` 在**未注入六流时回退旧 xorshift**（W1-b 已断言逐位一致），因此本单元不改变任何现有搜索行为。
+- 新增 `tools/solvertest/RngInjectionCheck.java`：用 2026-10-19 **真机捕获的六流三元组**（`P0_RNG_EVIDENCE_AUDIT.md §3.1.5`，VERIFIED）注入，验证 5 项：注入成功、aiRng 初值逐位一致、同注入两次搜索+重放终局/六流末态逐位一致、注入/未注入 `nextIntFrom` 走不同随机源、洗牌调用点确实推进 `SHUFFLE` 流。证据 `docs/W1_RNG_INJECTION_CHECK.txt`。
+- 验证等级：**L2 离线**。`javac --release 8` 退出 0；`Solvertest all` 退出 0；`SearchQuality --selftest` **210/0**；`RngStreamCheck` / `RngStreamStateCheck` / `RngInjectionCheck` 均退出 0（**5/5 通过**）。
+- W0 指标前后对照（未注入 → 回退旧 xorshift，故应不变）：Oracle 42 题 / 210 通过 0 失败 / PROVABLE 漏优 0.0% / 必胜漏报 1 —— **不变**；BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**；耗时 421→395ms、最大 1566→1443ms 为 JVM 抖动。
+- 用户验收：`java -cp build/solvertest RngInjectionCheck` 应显示「通过 5 项，失败 0」；`java -cp build/solvertest BatchPlay --runs 200` 数字与 W0 基线一致。
+- **限制/如实标注（重要）**：
+  - 调用点已按流分组，但当前 `nextIntFrom` 走 `TrueRng.nextInt()`（底层算子，**不增加 wrapper counter**）；游戏里 `CardGroup.getRandomCard(Random)` 等是 wrapper 级 `random()`（**counter+1**）。两者 seed 推进相同但 counter 语义不同。逐调用点核对游戏 wrapper 语义、把需要 counter 的点改用 `randomFrom(stream, bound-1)`，留作 W1 下一单元，本单元**不声称已与游戏 counter 语义对齐**。
+  - `potionRng` / `monsterHpRng` / `miscRng` 三个流当前没有引擎调用点（游戏里分别用于药水效果、怪物 HP 随机、杂项），映射表待后续按游戏源码补齐。
+  - **仍未**接入 `LiveCapture`（现编种子未动）、**仍未**改 `CombatSearch.measureRobustness`（仍 4 分支伪造抽样）、**未**完成真机 L4 重放验收。Java 路线全部输出继续标「近似」。
+- 下一步单元：① wrapper counter 语义对齐 + 剩余三流映射；② 六流接入 LiveCapture（替换现编种子）；③ 重放分支改用真实 RNG 并如实改名；④ 真机 L4 三类随机点逐位一致 + CombatRecorder diff 零差异。
+
 ## 2026-11-06：W1 第二单元 —— SimState 六流容器（L2 离线）
 
 - 目标：W1-a 已落地 `TrueRng` 数学层，本单元把六流状态作为**可 fork 的容器**接入 `SimState`，为后续「按流推进」与「实机注入」提供落点。严格保持现有行为不变。

@@ -47,6 +47,9 @@ jobs:
       - name: W1 SimState 六流容器自检（12 断言，含旧 xorshift 逐位回归）
         run: java -cp build/solvertest RngStreamStateCheck
 
+      - name: W1 六流注入确定性自检（真机捕获三元组，5 断言）
+        run: java -cp build/solvertest RngInjectionCheck
+
       - name: 校验游戏 ID 提取工具可编译
         run: |
           mkdir -p build/inspect

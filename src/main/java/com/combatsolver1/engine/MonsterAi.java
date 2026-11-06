@@ -342,7 +342,7 @@ public final class MonsterAi {
         if (total == 0) {
             return moves[0];
         }
-        int roll = s.nextInt(total);
+        int roll = s.nextIntFrom(SimState.RngStream.AI, total);
         for (int i = 0; i < moves.length; i++) {
             roll -= weights[i];
             if (roll < 0) {
@@ -400,7 +400,7 @@ public final class MonsterAi {
                     }
                     return best.move;
                 }
-                int roll = s.nextInt(total);
+                int roll = s.nextIntFrom(SimState.RngStream.AI, total);
                 for (int i = 0; i < choices.length; i++) {
                     roll -= weights[i];
                     if (roll < 0) {
@@ -626,9 +626,9 @@ public final class MonsterAi {
             }
             int index = cursor - 2;
             if (index % 2 == 0) {
-                return s.nextInt(2) == 0 ? CHOSEN_DEBILITATE : CHOSEN_DRAIN;
+                return s.nextIntFrom(SimState.RngStream.AI, 2) == 0 ? CHOSEN_DEBILITATE : CHOSEN_DRAIN;
             }
-            return s.nextInt(100) < 40 ? CHOSEN_ZAP : CHOSEN_POKE;
+            return s.nextIntFrom(SimState.RngStream.AI, 100) < 40 ? CHOSEN_ZAP : CHOSEN_POKE;
         }
     };
 
@@ -661,7 +661,7 @@ public final class MonsterAi {
     private static final Script CENTURION = new Script() {
         public Move pick(SimState s, SimState.Mob mob) {
             boolean mysticAlive = allyAlive(s, mob, "Healer");
-            if (s.nextInt(100) < 65) {
+            if (s.nextIntFrom(SimState.RngStream.AI, 100) < 65) {
                 return mysticAlive ? CENT_DEFEND : CENT_FURY;
             }
             return CENT_SLASH;

@@ -244,7 +244,7 @@ public final class CombatEngine {
             }
         }
         if (card.power != null && s.hasRelic("Mummified Hand") && !s.hand.isEmpty()) {
-            SimState.Card pick = s.hand.get(s.nextInt(s.hand.size()));
+            SimState.Card pick = s.hand.get(s.nextIntFrom(SimState.RngStream.CARD_RANDOM, s.hand.size()));
             if (!pick.freeThisTurn) {
                 pick.freeThisTurn = true;
                 s.freeCardsThisTurn.add(pick); // 木乃伊之手：打能力牌后随机一张牌本回合 0 费
@@ -410,7 +410,7 @@ public final class CombatEngine {
             for (int i = 0; i < card.addCount; i++) {
                 SimState.Card status = addedCard(card.addCardToDiscard);
                 if (card.shuffleAddedToDraw) {
-                    int at = s.drawPile.isEmpty() ? 0 : s.nextInt(s.drawPile.size() + 1);
+                    int at = s.drawPile.isEmpty() ? 0 : s.nextIntFrom(SimState.RngStream.SHUFFLE, s.drawPile.size() + 1);
                     s.drawPile.add(at, status);
                 } else {
                     s.discardPile.add(status);
@@ -487,7 +487,7 @@ public final class CombatEngine {
             for (int i = 0; i < card.randomCardCount; i++) {
                 SimState.Card generated = randomCardOf(s, card.randomCardKind);
                 if (card.shuffleAddedToDraw) {
-                    int at = s.drawPile.isEmpty() ? 0 : s.nextInt(s.drawPile.size() + 1);
+                    int at = s.drawPile.isEmpty() ? 0 : s.nextIntFrom(SimState.RngStream.SHUFFLE, s.drawPile.size() + 1);
                     s.drawPile.add(at, generated);
                 } else {
                     s.hand.add(generated);
@@ -496,7 +496,7 @@ public final class CombatEngine {
         }
 
         // 出牌后的去向：消耗或进入弃牌堆（腐化会让技能改成消耗）
-        boolean spooned = s.hasRelic("Strange Spoon") && s.nextInt(100) < 50; // 奇异勺子：50% 不消耗
+        boolean spooned = s.hasRelic("Strange Spoon") && s.nextIntFrom(SimState.RngStream.CARD_RANDOM, 100) < 50; // 奇异勺子：50% 不消耗
         if ((card.exhaustSelf && !spooned) || (s.pCorruption && !card.attack && card.power == null)) {
             s.exhaustPile.add(card);
             onExhaustCard(s, card);
@@ -673,7 +673,7 @@ public final class CombatEngine {
     };
 
     private static SimState.Card randomAttackCard(SimState s) {
-        String[] pick = RANDOM_ATTACKS[s.nextInt(RANDOM_ATTACKS.length)];
+        String[] pick = RANDOM_ATTACKS[s.nextIntFrom(SimState.RngStream.CARD_RANDOM, RANDOM_ATTACKS.length)];
         String id = pick[0];
         int damage = Integer.parseInt(pick[1]);
         CardLibrary.Template t = CardLibrary.get(id);
@@ -925,7 +925,7 @@ public final class CombatEngine {
         }
         if (s.hasRelic("Dead Branch")) {
             // 死亡树枝：每消耗一张牌就往手里塞一张随机牌（牌池按攻击 / 防御近似）
-            s.hand.add(randomCardOf(s, s.nextInt(2) == 0 ? "attack" : "skill"));
+            s.hand.add(randomCardOf(s, s.nextIntFrom(SimState.RngStream.CARD_RANDOM, 2) == 0 ? "attack" : "skill"));
         }
         if (s.hasRelic("Charon's Ashes")) {
             for (SimState.Mob m : s.mobs) {
@@ -1394,7 +1394,7 @@ public final class CombatEngine {
             for (int i = 0; i < mv.addCount; i++) {
                 SimState.Card status = addedCard(mv.addCard);
                 if (mv.addToDraw) {
-                    int at = s.drawPile.isEmpty() ? 0 : s.nextInt(s.drawPile.size() + 1);
+                    int at = s.drawPile.isEmpty() ? 0 : s.nextIntFrom(SimState.RngStream.SHUFFLE, s.drawPile.size() + 1);
                     s.drawPile.add(at, status);
                 } else {
                     s.discardPile.add(status);
@@ -1474,7 +1474,7 @@ public final class CombatEngine {
             return 0;
         }
         if (mv.damageMax > mv.damage) {
-            return mv.damage + s.nextInt(mv.damageMax - mv.damage + 1);
+            return mv.damage + s.nextIntFrom(SimState.RngStream.AI, mv.damageMax - mv.damage + 1);
         }
         return mv.damage;
     }
@@ -1513,7 +1513,7 @@ public final class CombatEngine {
         }
         List<SimState.Card> pile = s.discardPile;
         for (int i = pile.size() - 1; i > 0; i--) {
-            int j = s.nextInt(i + 1);
+            int j = s.nextIntFrom(SimState.RngStream.SHUFFLE, i + 1);
             SimState.Card tmp = pile.get(i);
             pile.set(i, pile.get(j));
             pile.set(j, tmp);
@@ -1529,7 +1529,7 @@ public final class CombatEngine {
         if ("skill".equals(kind)) {
             return CardLibrary.toSimCard("Defend_R", "防御", 1, 0, 5, 1, false, false, false, false);
         }
-        return s.nextInt(2) == 0
+        return s.nextIntFrom(SimState.RngStream.CARD_RANDOM, 2) == 0
                 ? CardLibrary.toSimCard("Swift Strike", "迅捷打击", 0, 7, 0, 1, true, false, true, false)
                 : CardLibrary.toSimCard("Good Instincts", "良好直觉", 0, 0, 6, 1, false, false, false, false);
     }

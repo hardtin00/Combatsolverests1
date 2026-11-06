@@ -1,3 +1,28 @@
+## 2026-11-06：W1 第十一单元 —— 闭合最后两处「待核对」调用点（L2 离线，映射表全判定）
+
+> W1-j 的 18 行映射表里留了两处「待核对」。本轮用字节码把二者查清，
+> `docs/W1_RNG_CALLSITE_MAP.md` 现 **18/18 行全部有判定、无待核对**。
+
+- **奇异勺子（CombatEngine:503）**：`javap -c CardGroup.moveToExhaustPile` 显示它
+  遍历 `player.relics` 调 `onExhaust`，`StrangeSpoon` 类自身无 RNG 调用；
+  jar 内相关随机仅见 `MathUtils.random`（libGDX 全局）。→ **非六流、只能近似**。
+- **怪物伤害随机范围（CombatEngine:1481）**：游戏 `DamageInfo` 字段只有 `base/output`
+  （固定伤害，javap 已核），`AbstractMonster` 里那条 `MathUtils.random(0,3)` 是音乐分支、
+  与伤害无关；本引擎 `MonsterAi.damageMax` 是对 Bestiary 区间数据的**自造近似字段**。
+  → **引擎内部近似，无对应游戏 RNG 流**，不是流归属错误，也不该算进「六流闭环」。
+- **W1 离线侧最终结论（如实）**：
+  - 已正确映射并可用六流重放：怪物选招（`aiRng`）、生成随机牌/插入位置（`cardRandomRng`）、
+    洗牌（`shuffleRng`）——共 14 处。
+  - 已确认**不在六流、只能近似**：木乃伊之手（`cardRng` 未捕获）、奇异勺子
+    （`MathUtils`）、怪物伤害范围（引擎自造）——共 3 处。
+  - 未建模缺口：`monsterHpRng`（怪物初始 HP）、`miscRng`（怪物组构成）、`potionRng` 无调用点。
+  - **不得声称「全部随机点已闭环」**；W1 真机 L4 的逐位一致仅在「上述 14 处覆盖到的机制」上
+    有条件成立，其余是已知、已列明的近似/缺口。
+- 验证等级：**L2 离线**（字节码 / vendored C++ 源码）。本轮**零代码改动**；
+  `git diff --check` 通过；W0 冻结指标不变（75.0% / 35.5、Oracle 42 题漏优 0.0%）。
+- 用户验收：读 `docs/W1_RNG_CALLSITE_MAP.md`，确认 18 行无「待核对」。
+- **限制**：未做真机 L4、未改任何调用点、未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：当前 HEAD（38 提交）构建复核 + 备份刷新（维护，零代码改动）
 
 > 现有 bundle 停在 34 提交、之后 W1-h/i/j 与整合验收等 4 个提交未受保护。

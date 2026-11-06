@@ -1,0 +1,12 @@
+[PASS] 6 张选牌类牌在 CardLibrary 均已登记  registered=6
+── 游戏真值(字节码) vs 引擎代选 差异清单 ──
+[DIFF] Burning Pact | 游戏=ExhaustAction(1,false) + DrawCardAction(magicNumber) | 游戏选择主体=玩家从手牌选 1 张消耗 | 引擎=exhaustOneDrawTwo(): 消耗最差的一张并抽二 | 等价=否
+[DIFF] Warcry | 游戏=VFXAction + DrawCardAction + PutOnDeckAction(...,1,false) | 游戏选择主体=玩家选 1 张放回牌堆顶 | 引擎=putBackWorst(): 放回最差的一张 | 等价=否
+[DIFF] True Grit | 游戏=GainBlockAction + ExhaustAction(1,false) + ExhaustAction(1,true,false,false) | 游戏选择主体=玩家选 1 张消耗（另有随机/任意分支） | 引擎=CardLibrary 仅登记为普通牌（无显式选择建模） | 等价=否
+[DIFF] Armaments | 游戏=GainBlockAction + ArmamentsAction(false) | 游戏选择主体=玩家选 1 张升级 | 引擎=upgradeHand(): 升级手牌中最好的一张 | 等价=否
+[DIFF] Headbutt | 游戏=DamageAction + DiscardPileToTopOfDeckAction | 游戏选择主体=玩家选 1 张弃牌堆牌置顶 | 引擎=discardToDraw(): 取回最优的一张 | 等价=否
+[DIFF] Exhume | 游戏=ExhumeAction(false) | 游戏选择主体=玩家选 1 张已消耗牌回手 | 引擎=exhaustToHand(): 取回最优的一张 | 等价=否
+[PASS] 6 张全部登记为「不等价」差异（不伪造覆盖）  differences=6
+[PASS] 引擎侧的「已登记」与真值侧的「玩家选择」差异已单列  见 DIFF 行；不把登记当作完整建模
+自检汇总：通过 3 项，失败 0 项，已登记差异 6 项
+L 等级：L2 离线（游戏字节码真值）；选牌屏仍为代选近似，未覆盖、未做实机 L4

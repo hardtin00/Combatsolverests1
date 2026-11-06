@@ -1,3 +1,32 @@
+## 2026-11-06：W5 第三单元 —— 选牌屏字节码真值差异夹具（L2 离线）
+
+> W5-a 把「选牌屏」标为一行 `[BOUNDARY] 未覆盖`。本单元把它升级为
+> **有游戏字节码真值来源 + 逐张差异清单**的可核对夹具，但**如实仍标未覆盖**，不伪造通过数。
+
+- 真值来源（游戏 `desktop-1.0.jar` 字节码，逐张 `javap -c` 核对，未凭印象）：
+  - `BurningPact.use` → `ExhaustAction(1,false)`（`isRandom=false` → 开
+    `handCardSelectScreen` 由**玩家选** 1 张消耗）+ `DrawCardAction(magicNumber)`；
+  - `TrueGrit.use` → `GainBlockAction` + `ExhaustAction(1,false)` + `ExhaustAction(1,true,false,false)`；
+  - `Warcry.use` → `VFXAction` + `DrawCardAction` + `PutOnDeckAction(...,1,false)`；
+  - `Armaments.use` → `ArmamentsAction(false)`；`Headbutt.use` → `DiscardPileToTopOfDeckAction`；
+    `Exhume.use` → `ExhumeAction(false)` —— 均打开选择屏由玩家选。
+- 修改：新增 `tools/solvertest/SelectScreenTruthCheck.java`：把 6 张牌的
+  「游戏原生动作 / 游戏选择主体 / 引擎代选规则 / 是否等价」逐张登记，
+  6 条差异**单列**，不把差异计作通过、不删除断言（AGENTS.md 4.3）。
+  证据 `docs/W5_SELECT_SCREEN_TRUTH_CHECK.txt`；CI 加步骤。
+- **结论（如实）**：引擎这 6 张牌虽标 `approx=false`，实际是**启发式代选**
+  （「消耗/放回最差」「取回/升级最优」），与「玩家可选任意一张」**不等价**。
+  选牌屏**仍是未覆盖的代选近似**，本单元只把边界从一句话变成可核对的差异清单，
+  不声称已真值覆盖。
+- 验证等级：**L2 离线**。`javac` 0；`SelectScreenTruthCheck` 退出 0、**3/3 通过 + 6 条差异**；
+  全量自检（Solvertest all、SearchQuality --selftest 225/0、PlanReducerCheck、
+  MechanismFixtureCheck、Historical29Check）全 0。
+- W0 指标前后对照（只加自检，未改任何生产代码）：BatchPlay 200 局胜率
+  **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**；Oracle 42 题漏优 0.0% —— **不变**。
+- 用户验收：`java -cp build/solvertest SelectScreenTruthCheck` → 「通过 3 项，失败 0，已登记差异 6 项」，
+  并逐行看到 6 条 DIFF。
+- **限制**：未做实机 L4、未把选牌屏纳入搜索空间、未修代选启发式；未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W7 第四单元 —— 计划精简有界删除（L2 离线，未接入交付路径）
 
 > 任务书 W7.4「计划精简」。借鉴参考项目 `overlay/plan_reduction.py`（MIT，仅读思路、未移植代码）：

@@ -1,0 +1,13 @@
+[PASS] potion_actions_mode = gLoadedPotions>0 ? on : off  0→off, 1→on, 2→on
+[PASS] 非法负数装载不判为 on  -1→off
+[PASS] PLANPOTION 多词 id 保留  Dexterity Potion
+[PASS] PLANPOTION 三词 id 保留  Heart of Iron
+[PASS] 缺 target 分隔符被拒  malformed rejected
+[PASS] 缺 id 被拒  malformed rejected
+[PASS] 非药水协议行被拒  PLANCARD rejected
+[PASS] USE_POTION 步骤含 wire id / slot / target  USE_POTION FIRE_POTION potion_slot=0 target_slot=1
+[PASS] USE_POTION 用引擎 wire 名（不是显示名）  FIRE_POTION
+[PASS] 原生/协议药水 id 精确一致才放行  exact match
+[PASS] 近似 id 被拒  prefix rejected
+自检汇总：通过 11 项，失败 0 项
+L 等级：L2 离线（协议自检）；potion_actions_mode=on 的真机含药路线全链证据未完成

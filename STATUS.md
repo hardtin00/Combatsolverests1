@@ -1,3 +1,36 @@
+## 2026-11-06：W4 第一单元 —— 引擎路径药水协议离线自检（L2 离线）
+
+> 任务书 W4：「potion_actions_mode=on；含药路线在逐步核对兜底下执行；真机一场含药路线全链证据；
+> 文档同步更新」，依赖 W3。本单元只做**离线协议自检**，真机含药路线与文档同步留后续单元。
+
+- 调查（真值来源，非凭印象）：
+  - 外部引擎适配层 `_build/cs1_search.cpp:775` 实为
+    `out["potion_actions_mode"] = gLoadedPotions > 0 ? "on" : "off"`——**引擎侧开关已按装载数打开**；
+    第 646 行 POTION 动作写 `USE_POTION <WIRE_ID> potion_slot=<n> target_slot=<m>`；
+    第 710 行输出 `plan_potions`。
+  - 主仓库 `src/main/java` **没有** `plan_potions` / `consumed_potions` / `potion_actions_mode` 的
+    Java 消费代码（这些在 `combatsolver1-integration/` 的 isolated overlay / jar 层，不在主仓库 git 源码）。
+  - **文档不一致（如实记录，未越界修改）**：`combatsolver1-integration/delivery/README.md` 与
+    `KNOWN_LIMITS.md` 仍写「药水不纳入搜索、potion_actions_mode=off、手动喝即可」，与引擎现状矛盾。
+    该目录**不在主仓库 git 跟踪内**，修正它需要交付同步+重打包，留 W4 后续单元单独处理。
+- 修改：
+  - 新增 `tools/recordercheck/PotionModeCheck.java`（`com.combatsolver1.runtime` 包，与
+    `EnginePotionProtocolCheck` 同体系，因 `EngineProtocolFields` 是包级私有）+ `run-potion-mode-check.ps1`：
+    11 项自检，覆盖 `potion_actions_mode` 判定口径（0→off / 1,2→on / 负数不判 on）、
+    PLANPOTION 多词 id/畸形拒绝、`USE_POTION` 的 wire id + slot + target 格式、身份严格比对。
+    证据 `docs/W4_POTION_MODE_CHECK.txt`。CI 加步骤（用独立脚本，因 solvertest classpath 不含该包）。
+- 验证等级：**L2 离线**。`run-potion-mode-check.ps1` 退出 0、**11/11 通过**；
+  `Solvertest all` 退出 0；`SearchQuality --selftest` **210/0**；`MechanismFixtureCheck`/
+  `PerCardVerifyCheck` 退出 0。
+- W0 指标前后对照（只加自检，未改任何求解/执行行为）：Oracle 42 题 / 210 通过 0 失败 /
+  漏优 0.0% —— **不变**；BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**。
+- 用户验收：`powershell -File tools/recordercheck/run-potion-mode-check.ps1` 应显示「通过 11 项，失败 0」。
+- **限制/下一步（如实标注）**：
+  - **真机一场含药路线全链证据未完成**；`potion_actions_mode=on` 的实机验证、含药路线逐步核对兜底
+    （W3 接入后）均未做，不声称 W4 完成。
+  - 交付目录 README/KNOWN_LIMITS 的过时描述未改（不在主仓库 git 内）。
+  - 未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W6 第二单元（离线准备）—— Release SHA256 清单 + 完整构建复算
 
 > 任务书 W6：「jar 走 GitHub Releases，仓库留 SHA256」。本单元只做**仓库侧离线准备**，

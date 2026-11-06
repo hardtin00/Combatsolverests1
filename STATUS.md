@@ -1,3 +1,29 @@
+## 2026-11-06：当前 HEAD（34 提交）整合验收 + 归档重打（L2/L3）
+
+> W8-e/f 又改了 CombatSearch / BatchPlay / SearchQuality，上次完整构建是早期的 `6dff465`。
+> 本轮**不新增功能、不改代码**，只做累积自洽验证与防丢失备份同步。
+
+- **HEAD** `66a63bd`，工作区干净，本地提交 **34** 个（自 `98aa381`）。
+- **L3 完整 Mod 构建**：`build-release.ps1` 退出 0；**150 条目全正斜杠**、Java 8 `major=52`；
+  `build/libs/CombatSolver1.jar` SHA-256 `27F8E35D1E9256A029E51BDCF0E25CA48E98C96830D10D3A762A202F4661CB7F`；
+  `final_check.py` → `ALL CHECKS PASSED`（LoadAll2 `loaded=248 failed=0`）。
+- **L2 全量**：17 项 solvertest 自检**全部退出 0**（含 `SearchQuality --selftest` 225/0、
+  W8-f `PotionWidthCheck` 4/4）；3 个脚本自检（root-replay 30/30、potion 11/11、rngstreams 6/6）。
+- **W0 两把尺子（与冻结基线逐项一致，无回归）**：Oracle 4 分片（Q1-14/15-28/29-42 各
+  14 EXACT / 漏优 0 / 0.0%，必胜漏报 1；W8 Q43-45 漏优 2/66.7% 为既有未修复项）；
+  BatchPlay 200 局 **75.0% (150/200) / 平均失血 35.5**（默认 `within=32 / 定向宽度=0`）。
+- **防丢失备份同步**：重打 `outputs/CombatSolver1-W0W8-34commits-20261106.bundle`
+  （316K，SHA-256 `a30f09601b55f21593378e7d73b4ea443173ed30ed124a8f9b9d4f2bb3dec52e`，
+  `bundle verify` OK，含 HEAD `66a63bd`），旧 29 版已删；恢复抽查 34/34 提交、3 个新证据文件全在。
+  `CombatSolver1-W0W8-归档说明.md` 与 `docs/W6_RELEASE_SHA256SUMS.txt` 同步到当前产物哈希。
+- `git diff --check` 通过。
+- **限制（如实）**：本轮是 L2/L3 离线整合验收，**不是 L4 实机**；远程 main 仍 `98aa381`、
+  34 个提交**未推送**；游戏 mods 仍是 r31（`e7c8def5…`），新类未进真机 jar。
+  W1 L4 / W2 十场 / W3/W4 运行路径 / W7 主力化 / W8 反超仍全部未完成。
+- 用户验收：`git bundle verify ../CombatSolver1-W0W8-34commits-20261106.bundle` → `is okay`；
+  `Get-FileHash build\libs\CombatSolver1.jar` 应等于 `27F8E35D…CB7F`。
+- 本轮未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W8 第五单元 —— 定向宽度（只对含药水状态加宽），W0 不回退（L2 离线）
 
 > 承接 W8-e：全局加宽修好 Q43/Q44 但胜率回退 1.5pp。BatchPlay 的 200 局**不含药水**，

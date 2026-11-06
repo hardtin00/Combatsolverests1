@@ -35,6 +35,9 @@ jobs:
       - name: 运行全部离线自检
         run: java -cp build/solvertest Solvertest all
 
+      - name: W0 参照求解器自检（42 题 × 5 断言）
+        run: java -cp build/solvertest SearchQuality --selftest
+
       - name: 校验游戏 ID 提取工具可编译
         run: |
           mkdir -p build/inspect

@@ -1,3 +1,16 @@
+## 2026-11-06：W0 求解质量基准（Oracle 题库 12 → 42 题，基线冻结）
+
+- 现象/目标：任务书 W0 要求固定评测集并冻结，作为此后一切搜索/评估/RNG/药水改动的度量尺。原题库仅 12 题，缺耗时指标，全量报告单进程超时。
+- 修改：`tools/solvertest/SearchQuality.java` 新增 Q13–Q42 共 30 题（能量/X 费、多段、群体易伤、格挡成长、斩杀阈值、虚弱链、过牌先后、双目标分配；Warcry / True Grit / Burning Pact / Headbutt / Dual Wield / Exhume / Feed / Havoc / Infernal Blade / Sword Boomerang 等机制牌与随机目标；Anger / Perfected Strike / Rampage / Whirlwind / Pummel / Dropkick / Blood for Blood；残血药水、单敌长线、双敌齐射、零费上限、易伤叠加）；新增 `--only A-B` 报告分片参数（纯报告选项，不改预算/评估/Oracle）；汇总补「每场 beam 搜索耗时」平均/最大。全部题目使用已登记、非 approx 牌，题库合法性检查通过。
+- 验证等级：L2 离线。JDK 17 `--release 8` 编译 engine/search/settings/solvertest 退出 0；`Solvertest all` 退出 0；`SearchQuality --selftest` 42 题 × 5 断言 = **通过 210 / 失败 0**；全量报告分 3 片（Q1-14 / Q15-28 / Q29-42）跑完，报告存 `docs/W0_BASELINE_slice-{a,b,c}.txt`。
+- 基线数字（档位 1「中」within=32 beam=24 maxTurns=10 maxNodes=60000 墙钟 8000ms；参照 stateCap=300000 deadline=12000ms）：
+  - 场景 42；PROVABLE(2 回合) 参照 EXACT 42，漏优 0，漏优率 **0.0%**。
+  - BUDGET(10 回合) 参照 EXACT 2 / CAPPED 40，EXACT 子集漏优 0；必胜路线漏报 **1**（Q7 药水成本，历史已知）。
+  - 每场 beam 耗时：分片 a 平均 102ms / 最大 372ms；b 平均 87ms / 最大 184ms；c 平均 94ms / 最大 224ms；42 题合计平均约 94ms、最大 372ms。
+  - 详细定义、冻结清单与复跑命令见 `docs/W0_BASELINE.md`。
+- 限制：Oracle 是「同模拟器 + 同目标函数 + 同预算」内的可穷举上界，不是现实游戏全局最优；模拟器 RNG 非真实 RNG（W1 处理），需要玩家选择的牌由启发式代选；`approx` 牌按既有口径排除在题库外（由 W5 真值夹具单独处理）。W0 另一半「≥200 局 A20 自动对局集」尚缺可复现 harness，本轮未做，不声称完成。
+- 用户验收：复跑 `powershell -ExecutionPolicy Bypass -File tools/solvertest/run.ps1` 与 `java -cp build/solvertest SearchQuality --selftest`；三份分片报告数字与本节一致即通过。
+
 ## 2026-10-21：修复 Actions 离线自检编译依赖遗漏
 
 - 现象/证据：Actions run `39446815484` 在提交 `2a96145dcefbdc2b5287908e12413ff35c1cfc83` 的离线编译步骤失败；`SearchQuality.java:458` 引用 `SolverSettings`，而 `.github/workflows/ci.yml` 的 `javac` 输入未包含设置包，导致后续自检被跳过。

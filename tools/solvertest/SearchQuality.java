@@ -125,6 +125,8 @@ public final class SearchQuality {
     public static void main(String[] args) {
         boolean selftest = false;
         String out = null;
+        int onlyFrom = 1;
+        int onlyTo = Integer.MAX_VALUE;
         for (int i = 0; i < args.length; i++) {
             if ("--verbose".equals(args[i])) {
                 verbose = true;
@@ -136,6 +138,13 @@ public final class SearchQuality {
                 wide = true;
             } else if ("--preset".equals(args[i]) && i + 1 < args.length) {
                 presetIndex = Integer.parseInt(args[++i]);
+            } else if ("--only".equals(args[i]) && i + 1 < args.length) {
+                // W0: the 42-question full report exceeds one shell timeout. Run it in slices
+                // (e.g. --only 1-14) and concatenate. This is a REPORTING option only: it selects
+                // which frozen cases appear, it never changes budgets, evaluation or the oracle.
+                String[] ab = args[++i].split("-");
+                onlyFrom = Integer.parseInt(ab[0]);
+                onlyTo = ab.length > 1 ? Integer.parseInt(ab[1]) : onlyFrom;
             } else if ("--out".equals(args[i]) && i + 1 < args.length) {
                 out = args[++i];
             }
@@ -156,6 +165,16 @@ public final class SearchQuality {
         say(report, "");
 
         List<Case> cases = buildCorpus(report);
+        if (onlyFrom > 1 || onlyTo < Integer.MAX_VALUE) {
+            List<Case> slice = new ArrayList<Case>();
+            for (int i = 0; i < cases.size(); i++) {
+                int n = i + 1;
+                if (n >= onlyFrom && n <= onlyTo) slice.add(cases.get(i));
+            }
+            cases = slice;
+            say(report, "报告分片：--only " + onlyFrom + "-" + onlyTo + "，本片 " + cases.size() + " 题（题库顺序固定）");
+            say(report, "");
+        }
 
         if (wide) {
             int f = runWideProbe(cases, report);
@@ -814,6 +833,19 @@ public final class SearchQuality {
         say(report, "  参照 EXACT " + bExact + " / CAPPED " + (rows.size() - bExact) + "，漏优 " + bMiss
                 + (bExact > 0 ? String.format("，EXACT 子集漏优率 %.1f%%", 100.0 * bMiss / bExact) : ""));
         say(report, "参照存在必胜路线但 beam 未给出获胜预测：" + winMiss + " 个场景");
+        // W0: 每场搜索耗时是冻结指标之一，默认报告也要给出，不必依赖 --verbose。
+        long totalBeamMs = 0L;
+        long maxBeamMs = 0L;
+        int timed = 0;
+        for (Row r : rows) {
+            if (r.budget.beamMs > 0L) {
+                totalBeamMs += r.budget.beamMs;
+                if (r.budget.beamMs > maxBeamMs) maxBeamMs = r.budget.beamMs;
+                timed++;
+            }
+        }
+        say(report, "每场 beam 搜索耗时（BUDGET 档）：样本 " + timed + "，平均 "
+                + (timed > 0 ? (totalBeamMs / timed) : 0L) + "ms，最大 " + maxBeamMs + "ms");
         if (!attrib.isEmpty()) {
             say(report, "漏优归因清单：");
             for (String a : attrib) {
@@ -922,6 +954,222 @@ public final class SearchQuality {
                         mob("GremlinNob", "地精大块头", 48, 48, 0, 1),
                         mob("Sentry", "哨卫", 24, 24, 9, 1),
                         draw("Strike_R:1:6:0", "Defend_R:1:0:5", "Thunderclap:1:4:0:aoe"))));
+
+        // ══ W0 扩题 Q13-Q42（30 题，覆盖机制牌 / 随机目标 / 能量 / 长线）══
+        out.add(new Case("Q13-能量与X费",
+                "0 费迅捷打击配 2 费重刃：能量分配的精确枚举",
+                scene(70, 70, 3,
+                        cards("Swift Strike:0:7:0", "Heavy Blade:2:14:0", "Defend_R:1:0:5"),
+                        mob("Cultist", "邪教徒", 52, 52, 0, 1),
+                        draw("Strike_R:1:6:0", "Defend_R:1:0:5", "Bash:2:8:0"))));
+
+        out.add(new Case("Q14-多段伤害",
+                "双打 2 段与单体重击在易伤下的取舍",
+                scene(70, 70, 3,
+                        cards("Twin Strike:1:5:0", "Heavy Blade:2:14:0", "Bash:2:8:0"),
+                        mob("Lagavulin", "拉格威林", 60, 110, 0, 1),
+                        draw("Strike_R:1:6:0", "Defend_R:1:0:5", "Strike_R:1:6:0"))));
+
+        out.add(new Case("Q15-群体易伤",
+                "雷鸣践踏群体易伤后接回旋镖的段数价值",
+                twoMobScene(60, 60, 3,
+                        cards("Thunderclap:1:4:0:aoe", "Sword Boomerang:1:5:0", "Strike_R:1:6:0"),
+                        mob("Sentry", "哨卫", 30, 30, 9, 1),
+                        mob("Sentry", "哨卫", 20, 30, 9, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Cleave:1:8:0:aoe"))));
+
+        out.add(new Case("Q16-格挡成长",
+                "铁斩波叠格挡后 Body Slam 的伤害转化",
+                scene(70, 70, 3,
+                        cards("Iron Wave:1:5:5", "Body Slam:1:0:0", "Defend_R:1:0:5"),
+                        mob("JawWorm", "大颚虫", 44, 44, 11, 1),
+                        draw("Strike_R:1:6:0", "Shrug It Off:1:0:5", "Bash:2:8:0"))));
+
+        out.add(new Case("Q17-斩杀阈值",
+                "低血敌人恰好可斩时是否浪费额外防御",
+                scene(70, 70, 3,
+                        cards("Strike_R:1:6:0", "Strike_R:1:6:0", "Defend_R:1:0:5", "Clothesline:2:12:0"),
+                        mob("AcidSlime_M", "酸液史莱姆（中）", 17, 17, 10, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Bash:2:8:0"))));
+
+        out.add(new Case("Q18-虚弱链",
+                "衣装缴械降敌力量后多回合收益",
+                scene(60, 60, 3,
+                        cards("Clothesline:2:12:0", "Intimidate:0:0:0", "Strike_R:1:6:0"),
+                        mob("GremlinNob", "地精大块头", 60, 60, 14, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Defend_R:1:0:5"))));
+
+        out.add(new Case("Q19-过牌先后",
+                "剑柄打击先抽后打与先打后抽的顺序差",
+                scene(70, 70, 3,
+                        cards("Pommel Strike:1:9:0", "Heavy Blade:2:14:0", "Defend_R:1:0:5"),
+                        mob("Cultist", "邪教徒", 45, 45, 0, 1),
+                        draw("Bash:2:8:0", "Strike_R:1:6:0", "Defend_R:1:0:5"))));
+
+        out.add(new Case("Q20-双目标分配",
+                "群体劈砍与单体打击在两只不同血量敌人上的分配",
+                twoMobScene(60, 60, 3,
+                        cards("Cleave:1:8:0:aoe", "Strike_R:1:6:0", "Strike_R:1:6:0"),
+                        mob("Sentry", "哨卫", 16, 16, 9, 1),
+                        mob("JawWorm", "大颚虫", 10, 10, 11, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Cleave:1:8:0:aoe"))));
+
+        out.add(new Case("Q21-战吼选牌",
+                "Warcry 抽 1 放回最差牌的代选启发式是否漏优",
+                scene(70, 70, 3,
+                        cards("Warcry:0:0:0", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("Cultist", "邪教徒", 40, 40, 0, 1),
+                        draw("Bash:2:8:0", "Strike_R:1:6:0", "Defend_R:1:0:5"))));
+
+        out.add(new Case("Q22-重振精神",
+                "True Grit 消耗最差牌的代选与格挡收益",
+                scene(70, 70, 3,
+                        cards("True Grit:1:0:7", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("JawWorm", "大颚虫", 44, 44, 11, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Bash:2:8:0"))));
+
+        out.add(new Case("Q23-燃烧契约",
+                "Burning Pact 消耗一张抽两张的牌序价值",
+                scene(70, 70, 3,
+                        cards("Burning Pact:1:0:0", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("AcidSlime_M", "酸液史莱姆（中）", 30, 30, 10, 1),
+                        draw("Bash:2:8:0", "Cleave:1:8:0:aoe", "Defend_R:1:0:5"))));
+
+        out.add(new Case("Q24-头槌回抽",
+                "Headbutt 从弃牌堆取回牌到牌堆顶的跨回合价值",
+                scene(70, 70, 3,
+                        cards("Headbutt:1:9:0", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("Cultist", "邪教徒", 52, 52, 0, 1),
+                        draw("Strike_R:1:6:0", "Defend_R:1:0:5", "Bash:2:8:0"))));
+
+        out.add(new Case("Q25-双持复制",
+                "Dual Wield 复制手牌最好攻击牌的组合价值",
+                scene(70, 70, 3,
+                        cards("Dual Wield:1:0:0", "Heavy Blade:2:14:0", "Strike_R:1:6:0"),
+                        mob("Lagavulin", "拉格威林", 60, 110, 0, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Defend_R:1:0:5"))));
+
+        out.add(new Case("Q26-掘墓回收",
+                "Exhume 取回已消耗牌的时机",
+                scene(70, 70, 3,
+                        cards("Exhume:1:0:0", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("Cultist", "邪教徒", 48, 48, 0, 1),
+                        draw("Bash:2:8:0", "Strike_R:1:6:0", "Defend_R:1:0:5"))));
+
+        out.add(new Case("Q27-吞噬斩杀",
+                "Feed 击杀提升最大生命的斩杀时机",
+                scene(60, 60, 3,
+                        cards("Feed:1:10:0", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("Sentry", "哨卫", 14, 14, 9, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Bash:2:8:0"))));
+
+        out.add(new Case("Q28-浩劫翻顶",
+                "Havoc 打出牌堆顶并消耗该牌的顺序依赖",
+                scene(70, 70, 3,
+                        cards("Havoc:1:0:0", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("Cultist", "邪教徒", 40, 40, 0, 1),
+                        draw("Bash:2:8:0", "Strike_R:1:6:0", "Defend_R:1:0:5"))));
+
+        out.add(new Case("Q29-地狱之刃",
+                "Infernal Blade 生成随机攻击牌的期望价值",
+                scene(70, 70, 3,
+                        cards("Infernal Blade:1:0:0", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("AcidSlime_M", "酸液史莱姆（中）", 30, 30, 10, 1),
+                        draw("Bash:2:8:0", "Defend_R:1:0:5", "Strike_R:1:6:0"))));
+
+        out.add(new Case("Q30-随机目标",
+                "Sword Boomerang 三段随机目标在多敌人下的分配",
+                twoMobScene(70, 70, 3,
+                        cards("Sword Boomerang:1:5:0", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("Sentry", "哨卫", 24, 24, 9, 1),
+                        mob("Sentry", "哨卫", 16, 24, 9, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Cleave:1:8:0:aoe"))));
+
+        out.add(new Case("Q31-愤怒复制",
+                "Anger 复制自身进弃牌堆的循环",
+                scene(70, 70, 3,
+                        cards("Anger:0:6:0", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("Cultist", "邪教徒", 45, 45, 0, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Bash:2:8:0"))));
+
+        out.add(new Case("Q32-完美打击",
+                "Perfected Strike 按打击数加伤的牌组构成",
+                scene(70, 70, 3,
+                        cards("Perfected Strike:2:6:0", "Strike_R:1:6:0", "Strike_R:1:6:0"),
+                        mob("Cultist", "邪教徒", 50, 50, 0, 1),
+                        draw("Strike_R:1:6:0", "Defend_R:1:0:5", "Bash:2:8:0"))));
+
+        out.add(new Case("Q33-暴走成长",
+                "Rampage 每次使用永久加伤的长线价值",
+                scene(70, 70, 3,
+                        cards("Rampage:1:8:0", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("Lagavulin", "拉格威林", 80, 110, 0, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Defend_R:1:0:5"))));
+
+        out.add(new Case("Q34-旋风斩X费",
+                "Whirlwind X 费群体在能量约束下的分配",
+                twoMobScene(70, 70, 3,
+                        cards("Whirlwind:0:5:0:aoe", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("Sentry", "哨卫", 30, 30, 9, 1),
+                        mob("Sentry", "哨卫", 20, 30, 9, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Bash:2:8:0"))));
+
+        out.add(new Case("Q35-四段连击",
+                "Pummel 四段 + 自身消耗在易伤下的价值",
+                scene(70, 70, 3,
+                        cards("Pummel:1:2:0", "Bash:2:8:0", "Strike_R:1:6:0"),
+                        mob("Lagavulin", "拉格威林", 60, 110, 0, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Defend_R:1:0:5"))));
+
+        out.add(new Case("Q36-踢击循环",
+                "Dropkick 在易伤目标上抽牌回能的循环",
+                scene(70, 70, 3,
+                        cards("Dropkick:1:5:0", "Bash:2:8:0", "Strike_R:1:6:0"),
+                        mob("Cultist", "邪教徒", 48, 48, 0, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Defend_R:1:0:5"))));
+
+        out.add(new Case("Q37-血债血偿",
+                "Blood for Blood 费用随掉血降低的时机",
+                scene(55, 80, 3,
+                        cards("Blood for Blood:4:18:0", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("JawWorm", "大颚虫", 44, 44, 11, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Bash:2:8:0"))));
+
+        out.add(new Case("Q38-残血药水",
+                "残血时火焰药水与防御的取舍",
+                withPotion(scene(20, 80, 3,
+                        cards("Strike_R:1:6:0", "Defend_R:1:0:5", "Defend_R:1:0:5"),
+                        mob("Sentry", "哨卫", 40, 40, 9, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Shrug It Off:1:0:5")), "Fire Potion")));
+
+        out.add(new Case("Q39-单敌长线",
+                "高血敌 10 回合预算下的防御节奏",
+                scene(80, 80, 3,
+                        cards("Strike_R:1:6:0", "Defend_R:1:0:5", "Defend_R:1:0:5"),
+                        mob("Lagavulin", "拉格威林", 100, 100, 0, 1),
+                        draw("Strike_R:1:6:0", "Defend_R:1:0:5", "Bash:2:8:0"))));
+
+        out.add(new Case("Q40-双敌齐射",
+                "两只哨卫各 9 点攻击的格挡分配",
+                twoMobScene(30, 80, 3,
+                        cards("Defend_R:1:0:5", "Defend_R:1:0:5", "Strike_R:1:6:0"),
+                        mob("Sentry", "哨卫", 35, 35, 9, 1),
+                        mob("Sentry", "哨卫", 35, 35, 9, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Shrug It Off:1:0:5"))));
+
+        out.add(new Case("Q41-零费上限",
+                "多张 0 费牌在单回合 12 步上限内的组合",
+                scene(70, 70, 3,
+                        cards("Swift Strike:0:7:0", "Anger:0:6:0", "Strike_R:1:6:0", "Defend_R:1:0:5"),
+                        mob("AcidSlime_M", "酸液史莱姆（中）", 35, 35, 10, 1),
+                        draw("Strike_R:1:6:0", "Defend_R:1:0:5", "Bash:2:8:0"))));
+
+        out.add(new Case("Q42-易伤叠加",
+                "重锤易伤 + 上勾拳虚弱的多层状态组合",
+                scene(70, 70, 3,
+                        cards("Bash:2:8:0", "Uppercut:2:13:0", "Strike_R:1:6:0"),
+                        mob("GremlinNob", "地精大块头", 70, 70, 14, 1),
+                        draw("Defend_R:1:0:5", "Strike_R:1:6:0", "Defend_R:1:0:5"))));
 
         // 题库自身必须先合法：所有牌已登记、非 approx、不需要玩家选择
         List<String> bad = new ArrayList<String>();

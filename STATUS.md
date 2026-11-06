@@ -1,3 +1,39 @@
+## 2026-11-06：W1 第六单元 —— 洗牌 RNG 真实语义对齐（java::Random LCG，L2 离线）
+
+> 任务书 W1：「SimState 按游戏语义实现六流推进（洗牌与 vendored sts_lightspeed 的实现对齐）」。
+
+- 调查（**字节码/源码证据，非凭印象**）：
+  - 游戏 `CardGroup.shuffle()` 字节码：`new java.util.Random(AbstractDungeon.shuffleRng.randomLong())`
+    → `Collections.shuffle(group, rnd)`。即 **shuffleRng 只被 wrapper 级 `randomLong()` 消费一次
+    （counter+1）**，随后用 **java 48-bit LCG** 做 Fisher-Yates，不是 XorShift128+ 逐次抽索引。
+  - 游戏 `CardGroup.getRandomCard(Random)` 字节码：`Random.random(size-1)`（wrapper，counter+1）。
+  - `vendor/sts_lightspeed/src/combat/CardManager.cpp:28`：
+    `java::Collections::shuffle(idxs, java::Random(bc.shuffleRng.randomLong()))` —— 与游戏一致。
+  - `CardManager.cpp:216-221`：插入抽牌堆位置用 **`cardRandomRng.random(drawPile.size()-1)`**（不是 shuffleRng）。
+  - 由此确认 W1-c 的映射有**两处语义偏差**：洗牌用 `SHUFFLE.nextInt` 逐步抽（应为 `SHUFFLE.randomLong()`
+    一次 + java LCG）；插入位置误归 `SHUFFLE`（应归 `CARD_RANDOM`）。本单元先落地算法层，调用点改接留下一单元。
+- 修改：
+  - 新增 `src/main/java/com/combatsolver1/engine/JavaLcg.java`：复刻 `java::Random`（48-bit LCG：
+    `seed=(seed*0x5DEECE66D+0xB)&mask`、`next(bits)`、`nextInt(bound)` 的 2 幂/拒绝采样分支、
+    `shuffle()` 的 Fisher-Yates）。
+  - `SimState.java` 新增 `shuffleSeedFrom(RngStream)`：对指定流调用一次 `randomLong()`（wrapper counter+1）
+    返回 LCG 种子；未注入返回 0 供调用方回退。
+  - 新增 `tools/solvertest/JavaLcgCheck.java`：7 项自检，含 **Python 独立计算的 LCG 期望序列对拍**、
+    `JavaLcg.shuffle` 与 JDK `java.util.Collections.shuffle` 逐位一致、`shuffleSeedFrom` 的 counter+1 与流隔离。
+    证据 `docs/W1_JAVA_LCG_CHECK.txt`。
+- 验证等级：**L2 离线**。`javac --release 8` 退出 0；`JavaLcgCheck` 退出 0、**7/7 通过**；
+  `Solvertest all` 退出 0；`SearchQuality --selftest` **210/0**；所有 W1 既有自检退出 0。
+- W0 指标前后对照（只加新类/新方法，**未改任何调用点**）：Oracle 42 题 / 210 通过 0 失败 /
+  漏优 0.0% —— **不变**；BatchPlay 200 局胜率 **75.0% (150/200)**、平均 HP 损失 **35.5** —— **不变**。
+- 用户验收：`java -cp build/solvertest JavaLcgCheck` 应显示「通过 7 项，失败 0」。
+- **限制/下一步（如实标注）**：
+  - `CombatEngine.shuffleIntoDraw` 仍用旧 Fisher-Yates + `nextIntFrom(SHUFFLE, i+1)`；
+    3 处插入抽牌堆位置仍归 `SHUFFLE`。**本单元未改调用点**，故 W0 指标不变、也**不声称洗牌已真机对齐**。
+  - 下一单元：把 `shuffleIntoDraw` 改为 `JavaLcg.shuffle(pile, new JavaLcg(shuffleSeedFrom(SHUFFLE)))`、
+    插入位置改 `randomFrom(CARD_RANDOM, size)`（注意 `bound-1` 语义），并做 W0 前后对照。
+  - W1 真机 L4 验收、wrapper 其余调用点 counter 语义、剩余三流调用点、新类打包进 jar —— 全部**未变/未完成**。
+  - 本步未推远程、未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W1 第五单元 —— 重放分支改真实 RNG 并如实改名（L2 离线）
 
 > 任务书 W1 明列项：「重放分支改用真实 RNG 并如实改名」「完成前 Java 路线所有输出继续标近似」。

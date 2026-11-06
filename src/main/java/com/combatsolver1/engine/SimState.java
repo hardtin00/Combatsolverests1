@@ -203,6 +203,17 @@ public class SimState {
         return r == null ? nextInt(range + 1) : r.random(range);
     }
 
+    /**
+     * 洗牌专用：游戏 {@code CardGroup.shuffle()} 与 sts_lightspeed {@code CardManager.cpp:28}
+     * 都只对流调用一次 {@code shuffleRng.randomLong()}（wrapper counter+1），
+     * 再用返回的长整型作 {@code java.util.Random} 种子做 Fisher-Yates。
+     * 返回该 LCG 的初始 seed；未注入时返回 0（由调用方决定是否回退旧路径）。
+     */
+    public long shuffleSeedFrom(RngStream stream) {
+        TrueRng r = rngStream(stream);
+        return r == null ? 0L : r.randomLong();
+    }
+
     /** 六流状态的只读快照，供 searchKey / 诊断。 */
     public String rngStreamsKey() {
         if (rngStreams == null) return "";

@@ -1,0 +1,9 @@
+[PASS] nextInt() 序列与 java::Random 逐位一致  [1553932502, -2090749135, -287790814, -355989640, -716867186, 161804169, 1402202751, 535445604]
+[PASS] nextInt(bound) 各边界在 [0,bound) 内  1,1,3,7,1,48,274890278,
+[PASS] JavaLcg.shuffle 与 java.util.Collections.shuffle 逐位一致  [11, 14, 15, 9, 4]...
+[PASS] shuffleSeedFrom 推进 SHUFFLE 流状态  seed=5000080802800145
+[PASS] shuffleSeedFrom 使 counter+1（wrapper 语义）  counter 5->6
+[PASS] shuffleSeedFrom 不推进其它五流  ai unchanged
+[PASS] 未注入时 shuffleSeedFrom 返回 0  fallback signal
+自检汇总：通过 7 项，失败 0 项
+L 等级：L2 离线（JavaLcg 数学自检；尚未接入 CombatEngine.shuffleIntoDraw）

@@ -1,3 +1,28 @@
+## 2026-11-06：当前 HEAD 全量离线总验收（L2/L3）
+
+> 在 21 个累积提交后，从头跑一遍全部自检、W0 两把尺子、三个脚本自检、完整 Mod 构建，
+> 确认累积改动自洽、可构建成 Java 8 jar。此为**整合验收**，不引入新功能。
+
+- **HEAD**：`2b63c2e90507cf4b107a96c6846c3d97bef5d236`（工作区干净）。
+- **L2 全量自检（12 项，均退出 0）**：`Solvertest all`、`SearchQuality --selftest`（**225/0**，45 题）、
+  `RngStreamCheck`(8)、`RngStreamStateCheck`(12)、`RngInjectionCheck`(5)、`ReplayTruthCheck`(8)、
+  `JavaLcgCheck`(7)、`ShuffleWireCheck`(9)、`PerCardVerifyCheck`(12)、`MechanismFixtureCheck`(10)、
+  `Historical29Check`(10)、`CardOrderPriorCheck`(8)。CI 精确编译命令 `javac` 退出 0。
+- **L2 脚本类自检（3 项）**：`run-root-replay-diff.ps1 -SelfTest` → `ROOT_REPLAY_DIFF_TESTS=PASS checks=30`；
+  `run-potion-mode-check.ps1` → 11/11；`run-rngstreams-read-check.ps1` → 6/6。
+- **W0 两把尺子（与冻结基线逐项一致）**：
+  - Oracle 4 分片：Q1-14 / Q15-28 / Q29-42 各 `14 EXACT / 漏优 0 / 0.0%`，必胜漏报合计 1；
+    W8 分片 Q43-45 `3 EXACT / 漏优 2 / 66.7%`（W8-a 已记录的**未修复**基线，非回退）。
+  - BatchPlay 200 局：胜率 **75.0% (150/200)**、平均 HP 损失 **35.5**。
+- **L3 完整 Mod 构建**：`tools/build/build-release.ps1`（不带 `-Deploy`）退出 0；
+  **147 个条目全部正斜杠**、Java 8 字节码 `major=52`；
+  产物 `build/libs/CombatSolver1.jar` SHA-256 `387638A4072F9B0855E4201F05A6C883212197D3ACE6B633597FAEE13695F5F9`。
+- `final_check.py` → `RESULT: ALL CHECKS PASSED`（`LoadAll2 loaded=248 failed=0`）；`git diff --check` 通过。
+- **结论**：21 个提交累积的代码可完整编译为 Java 8 mod jar，全部离线自检与 W0 数字一致，
+  无回归。**W0 基线未变**；W8 的 66.7% 漏优是既有的、如实标注的未修复项，不是本次引入。
+- **限制**：本轮是 L2/L3 离线整合验收，**不是 L4 实机验收**；真机 L4（W1/W2/W3/W4）、
+  Release 发布、远程推送仍全部待用户授权，本轮未执行。未改游戏 mods、未碰存档。
+
 ## 2026-11-06：W8 第三单元 —— Q44 异蛇之油漏优的具体对局与根因定位（L2 离线）
 
 > 任务书 W8 要求「以『参考实现会做错、本实现做对』的具体对局为证」。本单元给出

@@ -6,6 +6,9 @@
 
 ## 当前源码可重建产物（2026-11-06）
 
+> 注：jar SHA 随 `built` 时间戳变化（`release-info.txt` 一并打包），
+> **不是可复现指标**；可复现的是「构建退出 0 / 条目数 / major=52 / final_check ALL PASSED」。
+
 由 `tools/build/build-release.ps1`（不带 `-Deploy`）从当前 commit 完整编译（2026-11-06 16:56 全量总验收时重跑），
 未部署、未改游戏 mods 目录。
 
@@ -13,8 +16,8 @@
 commit  : 74605f91560ea75762ad097cad752e866d70127f   ← 当前 HEAD（38 个提交后）
 version : 1.0.0-rc1
 jar     : build/libs/CombatSolver1.jar  (150 条目，全部正斜杠，Java 8 major=52)
-sha256  : 05FC8242ECE8E14AFEE7D6B4757735E4D3A4BA3B98E9CC7E8EA69854EABF6BB3
-built   : 2026-11-06 19:08:02
+sha256  : 4BD994C53956903580EB91F0F76B95BE8D1CDFFA0F9B2B33316EFBE0C510478B
+built   : 2026-11-06 19:48:43
 ```
 
 复算命令（仓库根，需游戏本体 + 创意工坊 ModTheSpire/BaseMod）：

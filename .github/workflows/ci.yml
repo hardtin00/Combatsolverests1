@@ -41,6 +41,9 @@ jobs:
       - name: W0 离线批量对局冒烟（10 局，同模拟器自打口径）
         run: java -cp build/solvertest BatchPlay --runs 10
 
+      - name: W1 真 RNG 数学层自检（8 断言 + 18 行 TSV）
+        run: java -cp build/solvertest RngStreamCheck
+
       - name: 校验游戏 ID 提取工具可编译
         run: |
           mkdir -p build/inspect

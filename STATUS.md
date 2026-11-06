@@ -1,3 +1,20 @@
+## 2026-11-06：W1 第一单元 —— 真 RNG 数学层落地（TrueRng，L2 离线）
+
+- 现象/目标：任务书 W1 要求「真 RNG 闭环」作为搜索质量前提。现状 `LiveCapture.captureRoot()` 用现编种子、`SimState.nextInt()` 用 xorshift、`CombatSearch.measureRobustness()` 用 4 分支伪造抽样。本单元先落地**可独立验收的数学层**：与 `vendor/sts_lightspeed/include/game/Random.h` 的 `sts::Random` / 游戏 `RandomXS128` 逐位对齐的六流 RNG 实现，供后续接入 LiveCapture 与 SimState 使用。
+- 调查结论：`Reader.java:822-863` 的六流反射读取（`aiRng/cardRandomRng/miscRng/monsterHpRng/potionRng/shuffleRng` → `seed0/seed1/counter`）本身**只读、不要求稳定边界**，且 `read_consistency` 会校验读前/读后不变；`RUNTIME_RESULT_2026-10-19.md` 已记录 L4 证据：六流只读、Java/C++ 同一 18 算子 **108/108 行逐位一致**、边界检查通过。但「真机用户可见随机事件 + 独立副本预测一致」仍 BLOCKED（缺同一事件 pre-state），不由本单元完成。
+- 修改：
+  - 新增 `src/main/java/com/combatsolver1/engine/TrueRng.java`：XorShift128+，`murmurHash3` 初始化、底层 `nextLong/nextInt/nextFloat/nextDouble/nextBoolean` 与 wrapper 层 `random*`（每次 `counter+1`）、`setCounter` 全部按 C++ 头实现；六流 `STREAM_NAMES` 与 Reader 顺序一致；`copy()` 支持 fork/重放。纯 Java 8，无游戏依赖。
+  - 新增 `tools/solvertest/RngStreamCheck.java`：8 项自检（murmur 常量对拍、同状态两次 18 行 trace 逐位一致、copy 隔离、counter 语义、六流独立、setCounter），并输出与 `cpp_rng_trace.cpp` 同格式的 18 行 TSV。
+  - 新增 `tools/rng-capture-validation/run-java-cpp-diff.ps1`：有 g++ 时一键编译 C++ trace 并逐行 diff；**无 g++ 时明确报错退出 3，不声称对照结果**。
+  - `.github/workflows/ci.yml` 加 `RngStreamCheck` 步骤。
+- 验证等级：**L2 离线**。JDK 17 `--release 8` 编译 engine/search/settings/solvertest 退出 0；`RngStreamCheck` 退出 0、**通过 8 / 失败 0**，18 行 TSV 存 `docs/W1_RNG_STREAM_CHECK.txt`；`Solvertest all` 退出 0；`SearchQuality --selftest` **210/0**。
+  - **C++ 侧逐位对照本环境未执行**：无 g++/clang/MSVC，脚本如实报「NOT executed」。历史 L4 证据（108/108，同一 `cpp_rng_trace.cpp`）见 `tools/rng-capture-validation/RUNTIME_RESULT_2026-10-19.md`，不重复、不降级、不编造新结果。
+- W0 指标前后对照（本单元**未改任何搜索/评估/RNG 调用路径**，故应不变）：
+  - Oracle：42 题 / selftest 210 通过 0 失败 / PROVABLE 漏优 0.0% —— **不变**。
+  - BatchPlay 200 局：胜率 75.0% (150/200)、平均 HP 损失 35.5 —— **不变**；搜索耗时 421ms→436ms、最大 1566ms→1624ms 为 JVM 抖动，非行为变化。
+- 用户验收：跑 `java -cp build/solvertest RngStreamCheck` 应显示「通过 8 项，失败 0」；跑 `powershell -File tools/rng-capture-validation/run-java-cpp-diff.ps1`，有 g++ 的环境应显示 `JavaCppMismatch=0`，无 g++ 应明确报 NOT executed。
+- 限制/下一步：本单元**未**接入 LiveCapture、**未**替换 `SimState.nextInt`、**未**改 `measureRobustness`；Java 路线所有输出继续标「近似」。W1 后续单元依次为：六流接入 LiveCapture、SimState 六流推进、重放分支改用真实 RNG 并如实改名、真机 L4 重放验收。
+
 ## 2026-11-06：W0 求解质量基准（Oracle 题库 12 → 42 题，基线冻结）
 
 - 现象/目标：任务书 W0 要求固定评测集并冻结，作为此后一切搜索/评估/RNG/药水改动的度量尺。原题库仅 12 题，缺耗时指标，全量报告单进程超时。

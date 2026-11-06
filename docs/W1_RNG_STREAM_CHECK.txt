@@ -1,0 +1,29 @@
+[PASS] murmurHash3(1) 与 C++ 常量一致  b456bcfc34c2cb2c
+[PASS] 从种子初始化双状态非零  seed0=9ca066f1a4ab2eea
+[PASS] 同状态两次 trace 逐位一致  18 行
+[PASS] copy() 状态隔离  orig=0123456789abcdeffedcba9876543210:7
+[PASS] nextLong 不增加 counter  counter=7
+[PASS] random* 每次 +1 counter  counter=10
+[PASS] 六流独立推进  6 流
+[PASS] setCounter 推进到目标  counter=12
+=== TRACE (与 cpp_rng_trace.cpp 逐行比对) ===
+nextLong	4b182deded661907	fedcba9876543210	4c3b73557711e6f7	7
+nextInt-rejection-bound-1073741825	222656177	4c3b73557711e6f7	fedcbab4cfd9be90	7
+nextFloat-bits	3db9c768	fedcbab4cfd9be90	185c326d09b5f31c	7
+nextDouble-bits	3feaa86d19478161	185c326d09b5f31c	bce7365d32551522	7
+random-int-inclusive-0	0	bce7365d32551522	923fc98af86732a8	8
+random-int-inclusive-1	1	923fc98af86732a8	00419c46daab949e	9
+random-int-inclusive-2	1	00419c46daab949e	57024df49ba261b3	10
+random-int-inclusive-10	0	57024df49ba261b3	742e95fbaa5cc2de	11
+random-int-inclusive-large	283866299	742e95fbaa5cc2de	d9615f852db9fc96	12
+random-int-inclusive-max-safe	2006506874	d9615f852db9fc96	509aa0d46d7fbdad	13
+random-int-signed-range	-99	509aa0d46d7fbdad	4b6d2e40ecd3c77c	14
+random-float-bits	3f3d2e5a	4b6d2e40ecd3c77c	71c12c0e83e2b715	15
+random-float-scaled-bits	411797b1	71c12c0e83e2b715	1ada5e3c02abdaa0	16
+random-float-range-bits	401c9ce6	1ada5e3c02abdaa0	6c5ab82fd3f46604	17
+random-long	d4dc69b7e60d8409	6c5ab82fd3f46604	6881b18812191e05	18
+random-long-scaled	000000007bb47fdf	6881b18812191e05	1332ce57428f72ff	19
+random-boolean	1	1332ce57428f72ff	bfba2510c0267166	20
+random-boolean-half	1	bfba2510c0267166	8729b098d757592e	21
+自检汇总：通过 8 项，失败 0 项
+L 等级：L2 离线（Java 侧确定性/语义自检）；C++ 侧对照需 g++，本环境未执行
